@@ -92,7 +92,7 @@ if (flag('help')) {
   --inflight=6             so viele KI-Anfragen gleichzeitig (Rennen)
   --wave-ms=25000          alle X ms werden weitere Modelle nachgelegt
   --min-steps=6            Mindestzahl Schritte je Rezept (Standard 6)
-  --max-rejects=3          ab so vielen schlechten Rezepten wird ein Modell übersprungen
+  --max-rejects=8          ab so vielen schlechten Rezepten wird ein Modell zurückgestellt
   --allow-tiny             auch die Mini-Modelle (lfm-2.5-2.6b, nano-omni) benutzen
   --max-tokens=16384       maximale Antwortlänge je KI-Anfrage (Reasoning-Modelle brauchen viel)
   --timeout-ms=240000      Timeout je KI-Anfrage
@@ -523,8 +523,12 @@ async function askModel(messages, temperature, validate) {
   const maxInflight = Math.max(1, num('inflight', 6));
   const topUpMs = Math.max(3000, num('wave-ms', 25000));
   const timeoutMs = num('timeout-ms', 240000);
-  const maxRejects = num('max-rejects', 3);
-  const models = candidateModels().filter((m) => !disabledModels.has(m) && (modelQuality.get(m)?.rejects || 0) < maxRejects);
+  const maxRejects = num('max-rejects', 8);
+  const allModels = candidateModels();
+  const freshModels = allModels.filter((m) => (modelQuality.get(m)?.rejects || 0) < maxRejects);
+  // Wenn die "guten" Modelle alle auffällig waren, nehmen wir trotzdem alle —
+  // lieber ein schwaches Rezept als ein übersprungenes Land.
+  const models = freshModels.length ? freshModels : allModels;
   if (!models.length) throw new Error('keine Modelle mehr verfügbar');
   const errors = [];
   const controllers = new Set();
@@ -895,7 +899,7 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
   /* Phase 2 — Rezepte schreiben (in Blöcken, Fehlversuche werden wiederholt) */
   let queue = [...wanted];
   let round = 0;
-  while (queue.length && round < 4) {
+  while (queue.length && round < 12) {
     round++;
     const retry = [];
     // mehrere Blöcke GLEICHZEITIG (jeder Block rennt intern über mehrere Modelle)
@@ -1163,42 +1167,52 @@ async function main() {
   let totalNoImage = 0;
   const summary = [];
 
-  for (const country of todo) {
-    const t0 = Date.now();
-    const already = dbCounts.get(country.name) || 0;
-    const need = Math.max(0, perCountry - already);
-    if (!need) {
-      log(`${country.name}: schon ${already} Rezepte — übersprungen`);
-      continue;
+  // Mehrere Durchgänge: übersprungene Länder (alle Modelle im Limit) kommen später nochmal dran.
+  let pending = [...todo];
+  for (let pass = 1; pass <= 3 && pending.length; pass++) {
+    if (pass > 1) {
+      log(`Runde ${pass}: ${pending.length} Länder nochmal (Namen: ${pending.slice(0, 6).map((c) => c.name).join(', ')}${pending.length > 6 ? ' …' : ''})`);
+      await sleep(num('retry-pause', 90000));
     }
-    log(`── ${country.name} ─────────────────────────────`);
-    log(`   vorhanden: ${already}, fehlend: ${need}`);
-    writeStatus({
-      running: true,
-      country: country.name,
-      need,
-      written: 0,
-      namesDone: 0,
-      namesTotal: need,
-      countryStartedAt: new Date().toISOString(),
-    });
-    const { rows, rejected } = await buildForCountry(country.name, need, state, existingIds, []);
-    if (!rows.length) {
-      log(`${country.name}: nichts erzeugt, überspringe`, 'warn');
-      continue;
+    const deferred = [];
+    for (const country of pending) {
+      const t0 = Date.now();
+      const already = dbCounts.get(country.name) || 0;
+      const need = Math.max(0, perCountry - already);
+      if (!need) continue;
+      log(`── ${country.name} ─────────────────────────────`);
+      log(`   vorhanden: ${already}, fehlend: ${need}`);
+      writeStatus({
+        running: true,
+        country: country.name,
+        need,
+        written: 0,
+        namesDone: 0,
+        namesTotal: need,
+        countryStartedAt: new Date().toISOString(),
+      });
+      const { rows, rejected } = await buildForCountry(country.name, need, state, existingIds, []);
+      if (!rows.length) {
+        log(`${country.name}: nichts erzeugt (Modelle im Limit) — kommt in die nächste Runde`, 'warn');
+        deferred.push(country);
+        continue;
+      }
+      const without = flag('no-images') ? 0 : await attachImages(rows, country.name, state);
+      if (flag('no-images')) rows.forEach((r) => (r.image_url = null));
+      const written = await pushRows(rows, country.name);
+      totalNew += written;
+      totalNoImage += without;
+      dbCounts.set(country.name, already + written);
+      state.done[country.name] = { count: written, withoutImage: without, at: new Date().toISOString() };
+      saveState(state);
+      writeStatus({ country: null, lastDone: { country: country.name, count: written, at: new Date().toISOString() } });
+      const secs = Math.round((Date.now() - t0) / 1000);
+      summary.push({ country: country.name, written, without, rejected: rejected.length, secs });
+      log(`${country.name}: ${written} hochgeladen, ${without} ohne Bild, ${rejected.length} verworfen (${secs}s)`);
     }
-    const without = flag('no-images') ? 0 : await attachImages(rows, country.name, state);
-    if (flag('no-images')) rows.forEach((r) => (r.image_url = null));
-    const written = await pushRows(rows, country.name);
-    totalNew += written;
-    totalNoImage += without;
-    state.done[country.name] = { count: written, withoutImage: without, at: new Date().toISOString() };
-    saveState(state);
-    writeStatus({ country: null, lastDone: { country: country.name, count: written, at: new Date().toISOString() } });
-    const secs = Math.round((Date.now() - t0) / 1000);
-    summary.push({ country: country.name, written, without, rejected: rejected.length, secs });
-    log(`${country.name}: ${written} hochgeladen, ${without} ohne Bild, ${rejected.length} verworfen (${secs}s)`);
+    pending = deferred;
   }
+  if (pending.length) log(`Nicht geschafft (Modelle im Limit): ${pending.map((c) => c.name).join(', ')} — später erneut starten`, 'warn');
 
   console.log('\n══════ Zusammenfassung ══════');
   console.log('Land'.padEnd(24) + 'neu'.padStart(5) + 'o. Bild'.padStart(9) + 'verw.'.padStart(7) + 'Sek.'.padStart(7));
