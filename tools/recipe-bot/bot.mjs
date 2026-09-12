@@ -82,6 +82,7 @@ if (flag('help')) {
   console.log(`Spoonful Recipe-Bot
 
   --verify                 nur DB-Report (kein Erzeugen)
+  --progress               Fortschritts-Übersicht (mit --watch live aktualisieren)
   --check-keys             alle OpenRouter-Keys prüfen (gültig? Guthaben?)
   --countries=A,B          nur diese Länder (englische Namen, Komma-getrennt)
   --per-country=100        Rezepte je Land (Standard 100)
@@ -98,6 +99,8 @@ if (flag('help')) {
   --max-countries=3        nur die nächsten N offenen Länder
   --dry-run                erzeugen + prüfen, aber nichts hochladen (out/*.json)
   --no-images              keine Bildsuche (image_url = null)
+  --reasoning=off|on       Reasoning der Modelle (Standard off = viel schneller)
+  --blocks=3               wie viele Rezept-Blöcke gleichzeitig laufen
   --overwrite              Land auch füllen, wenn es schon Rezepte hat
   --quiet                  weniger Konsolen-Ausgabe
 `);
@@ -111,7 +114,33 @@ const LOG_FILE = path.join(LOG_DIR, `bot-${new Date().toISOString().slice(0, 10)
 function log(msg, level = 'info') {
   const line = `[${new Date().toISOString().slice(11, 19)}] ${level.toUpperCase().padEnd(5)} ${msg}`;
   fs.appendFileSync(LOG_FILE, line + '\n');
-  if (!QUIET || level !== 'info') console.log(line);
+  if (level === 'debug') return; // Detail-Kram nur ins Logfile
+  if (QUIET && level === 'info') return;
+  console.log(line);
+}
+/** Kompakte Fortschritts-Datei für `--progress` (und zum Anschauen im Editor). */
+function writeStatus(patch) {
+  const file = path.join(HERE, 'status.json');
+  let current = {};
+  try {
+    if (fs.existsSync(file)) current = JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch {
+    /* egal */
+  }
+  const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
+  try {
+    fs.writeFileSync(file, JSON.stringify(next, null, 2));
+  } catch {
+    /* egal */
+  }
+  return next;
+}
+function readStatus() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(HERE, 'status.json'), 'utf8'));
+  } catch {
+    return {};
+  }
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const chunk = (arr, size) => {
@@ -401,6 +430,10 @@ function jsonFrom(text) {
   throw new Error('kein JSON gefunden');
 }
 
+/** Reasoning standardmäßig AUS: die Denkphase der Gratis-Modelle frisst sonst
+ *  das Token-Budget und die Antworten werden abgeschnitten. --reasoning=on schaltet sie an. */
+const REASONING_OFF = String(opt('reasoning', 'off')).toLowerCase() !== 'on';
+
 /**
  * Eine einzelne Anfrage: ein Modell auf einem Key.
  * Bei 429 geht nur dieses Modell-Key-Paar in den Cooldown.
@@ -408,9 +441,8 @@ function jsonFrom(text) {
 async function callOnce(model, keyIndex, messages, temperature, controller) {
   const st = pairStateOf(model, keyIndex);
   const tag = `${model} [K${keyIndex + 1}]`;
-  let res;
-  try {
-    res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+  const send = (withReasoning) =>
+    fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -420,8 +452,20 @@ async function callOnce(model, keyIndex, messages, temperature, controller) {
       },
       signal: controller.signal,
       // bewusst KEIN response_format: viele Gratis-Modelle unterstützen es nicht
-      body: JSON.stringify({ model, temperature, max_tokens: num('max-tokens', 16384), messages }),
+      body: JSON.stringify({
+        model,
+        temperature,
+        max_tokens: num('max-tokens', 16384),
+        ...(withReasoning && REASONING_OFF ? { reasoning: { enabled: false } } : {}),
+        messages,
+      }),
     });
+
+  let res;
+  try {
+    res = await send(true);
+    // Modell kennt den reasoning-Parameter nicht → einmal ohne versuchen
+    if (res.status === 400 && REASONING_OFF) res = await send(false);
   } catch (e) {
     // Abbruch, weil ein anderes Modell gewonnen hat oder das Rennen vorbei ist
     // → zählt nicht als Fehler für dieses Modell
@@ -522,7 +566,7 @@ async function askModel(messages, temperature, validate) {
         } catch {
           const why = r.finish === 'length' ? 'abgeschnitten' : 'kein JSON';
           errors.push(`${r.model}: ${why}`);
-          log(`  ✗ ${r.model.split('/').pop()}: ${why}`, 'warn');
+          log(`  ✗ ${r.model.split('/').pop()}: ${why}`, 'debug');
         }
         if (json && (!validate || validate(json))) {
           win({ json, model: r.model, keyIndex: r.keyIndex, truncated: r.finish === 'length' });
@@ -530,11 +574,11 @@ async function askModel(messages, temperature, validate) {
         }
         if (json) {
           errors.push(`${r.model}: falsches Format`);
-          log(`  ✗ ${r.model.split('/').pop()}: falsches Format`, 'warn');
+          log(`  ✗ ${r.model.split('/').pop()}: falsches Format`, 'debug');
         }
       } else if (!r.silent && r.reason) {
         errors.push(r.reason);
-        log(`  ✗ ${r.reason}`, 'warn');
+        log(`  ✗ ${r.reason}`, 'debug');
       }
       fail();
     };
@@ -552,7 +596,7 @@ async function askModel(messages, temperature, validate) {
         controllers.add(controller);
         inflight++;
         pending++;
-        if (!QUIET) log(`  → ${model.split(':')[0].split('/').pop()} [K${keyIndex + 1}]`);
+        if (!QUIET) log(`  → ${model.split(':')[0].split('/').pop()} [K${keyIndex + 1}]`, 'debug');
         callOnce(model, keyIndex, messages, temperature, controller)
           .then((r) => {
             clearTimeout(timer2);
@@ -842,7 +886,8 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
       wanted.push(n);
       if (wanted.length >= perCountry) break;
     }
-    log(`  ${countryName}: ${wanted.length}/${perCountry} Gerichte gesammelt (${usedModel})`);
+    if (wanted.length >= perCountry) log(`  ${countryName}: ${wanted.length}/${perCountry} Gerichte gesammelt`);
+    writeStatus({ country: countryName, namesDone: wanted.length, namesTotal: perCountry });
     await sleep(200);
   }
   if (!wanted.length) return { rows, rejected };
@@ -853,7 +898,8 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
   while (queue.length && round < 4) {
     round++;
     const retry = [];
-    for (const part of chunk(queue, batchSize)) {
+    // mehrere Blöcke GLEICHZEITIG (jeder Block rennt intern über mehrere Modelle)
+    await pool(chunk(queue, batchSize), Math.max(1, num('blocks', 3)), async (part) => {
       let list = [];
       let usedModel = '';
       try {
@@ -865,9 +911,8 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
           batchOverride = Math.max(3, batchSizeNow() - 1);
           log(`  ${countryName}: Antwort abgeschnitten → Blockgröße jetzt ${batchOverride}`, 'warn');
         }
-        log(`  ${countryName}: ${e.message}`, 'warn');
         retry.push(...part);
-        continue;
+        return;
       }
       const asked = new Map(part.map((n) => [slugify(n.name), n]));
       for (const r of list) {
@@ -895,9 +940,9 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
       // Zwischenstand sichern: ein Absturz oder Standby verliert so kein ganzes Land
       fs.mkdirSync(OUT_DIR, { recursive: true });
       fs.writeFileSync(path.join(OUT_DIR, `${slugify(countryName)}.partial.json`), JSON.stringify(rows, null, 2));
-      const quality = rejected.length ? ` — Bewertung: ${[...modelQuality.entries()].map(([m, q]) => `${m.split('/').pop()}:${q.rejects}`).join(', ')}` : '';
-      log(`  ${countryName}: ${rows.length}/${perCountry} Rezepte geschrieben${rejected.length ? `, ${rejected.length} verworfen` : ''} (${usedModel})${quality}`);
-    }
+      writeStatus({ country: countryName, written: rows.length });
+      log(`  ${countryName}: ${rows.length}/${perCountry} Rezepte${rejected.length ? ` (${rejected.length} verworfen)` : ''}`);
+    });
     queue = retry.slice(0, 20);
   }
   return { rows, rejected };
@@ -961,7 +1006,7 @@ function printCountryReport(countries, dbCounts, perCountry) {
   }
   console.log(`\nFertig (>= ${perCountry}): ${done.length} Länder`);
   console.log(done.map((c) => `  ${c.name} (${c.n})`).join('\n') || '  —');
-  console.log(`\nOffen: ${open.length} Länder  →  ${open.map((c) => c.name).join(', ') || '—'}`);
+  console.log(`\nOffen: ${open.length} Länder`);
   const missing = [...dbCounts.keys()].filter((name) => !countries.some((c) => c.name === name));
   if (missing.length) console.log(`\nIn der DB, aber nicht in countries.ts: ${missing.join(', ')}`);
   console.log('');
@@ -1001,8 +1046,79 @@ async function checkKeys() {
   console.log(`\n  ${valid}/${KEYS.length} Keys gültig, davon ${paid} mit Guthaben (höheres Gratis-Limit).\n`);
 }
 
+/* ── Fortschritt (--progress) ────────────────────────────────────────────── */
+async function showProgress() {
+  const perCountry = num('per-country', 100);
+  const countries = readCountries();
+  const db = await fetchDbCounts();
+  const total = [...db.values()].reduce((a, b) => a + b, 0);
+  const done = countries.filter((c) => (db.get(c.name) || 0) >= perCountry);
+  const partial = countries.filter((c) => {
+    const n = db.get(c.name) || 0;
+    return n > 0 && n < perCountry;
+  });
+  const open = countries.filter((c) => (db.get(c.name) || 0) === 0);
+  const st = readStatus();
+  const rule = '─'.repeat(60);
+  const hhmm = (iso) => (iso ? new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '–');
+  const ago = (iso) => {
+    if (!iso) return '–';
+    const s = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (!Number.isFinite(s)) return '–';
+    return s < 90 ? `${Math.round(s)} s` : `${Math.round(s / 60)} min`;
+  };
+
+  console.log(`\n  Spoonful Rezept-Bot — Fortschritt`);
+  console.log(`  ${rule}`);
+  console.log(`  In der Datenbank:    ${total} Rezepte`);
+  console.log(`  Fertige Länder:      ${done.length} von ${countries.length}   (Ziel: ${perCountry} je Land)`);
+  console.log(`  Angefangen:          ${partial.length ? partial.map((c) => `${c.name} (${db.get(c.name)})`).join(', ') : '–'}`);
+  console.log(`  Noch offen:          ${open.length} Länder`);
+  console.log(`  ${rule}`);
+  if (st.country) {
+    const written = st.written || 0;
+    const need = st.need || perCountry;
+    const started = st.countryStartedAt ? new Date(st.countryStartedAt).getTime() : 0;
+    const mins = started ? Math.max(0.3, (Date.now() - started) / 60000) : 0;
+    const rate = mins && written ? written / mins : 0;
+    const rest = rate > 0 ? Math.round((need - written) / rate) : 0;
+    console.log(`  Aktuell:             ${st.country}`);
+    console.log(`                       Gerichte ${st.namesDone ?? '?'}/${st.namesTotal ?? need}  ·  Rezepte ${written}/${need}`);
+    if (rate > 0) console.log(`                       ${rate.toFixed(1)} Rezepte/Min ab Start${rest > 0 ? `  ·  noch ca. ${rest >= 60 ? Math.round(rest / 60) + ' h' : rest + ' min'}` : ''}`);
+    console.log(`                       seit ${hhmm(st.countryStartedAt)}  ·  letzte Meldung vor ${ago(st.updatedAt)}`);
+  } else {
+    console.log(`  Aktuell:             ${st.running === false ? 'gestoppt' : 'kein Lauf aktiv'}`);
+  }
+  if (st.lastDone) console.log(`  Zuletzt fertig:      ${st.lastDone.country} mit ${st.lastDone.count} Rezepten (${hhmm(st.lastDone.at)})`);
+  const noImg = (st.noImage || []).length;
+  if (noImg) console.log(`  Ohne Bild:           ${noImg} Rezepte (siehe state.json → noImage)`);
+  console.log(`  ${rule}`);
+  if (done.length) console.log('  Fertig: ' + done.map((c) => c.name).join(', ') + '\n');
+  console.log(flag('watch') ? '  (aktualisiert alle 10 s — Strg+C beendet nur diese Anzeige)\n' : '');
+}
+
+async function progressLoop() {
+  if (!flag('watch')) {
+    await showProgress();
+    return;
+  }
+  for (;;) {
+    process.stdout.write('\u001Bc');
+    await showProgress();
+    await sleep(num('refresh', 10000));
+  }
+}
+
 /* ── Hauptlauf ───────────────────────────────────────────────────────────── */
 async function main() {
+  if (flag('progress')) {
+    await progressLoop();
+    return;
+  }
+  if (flag('check-keys')) {
+    await checkKeys();
+    return;
+  }
   if (!CFG.serviceKey) {
     console.error('Fehlt: SUPABASE_SERVICE_ROLE_KEY — lege tools/recipe-bot/.env an (siehe .env.example).');
     process.exit(1);
@@ -1016,11 +1132,8 @@ async function main() {
   const existingIds = new Set(await fetchExistingIds());
   const dbCounts = await fetchDbCounts();
   log(`DB: ${existingIds.size} Rezepte in ${dbCounts.size} Küchen`);
+  writeStatus({ running: true, startedAt: new Date().toISOString(), perCountry });
 
-  if (flag('check-keys')) {
-    await checkKeys();
-    return;
-  }
   if (flag('verify')) {
     printCountryReport(countries, dbCounts, perCountry);
     return;
@@ -1060,6 +1173,15 @@ async function main() {
     }
     log(`── ${country.name} ─────────────────────────────`);
     log(`   vorhanden: ${already}, fehlend: ${need}`);
+    writeStatus({
+      running: true,
+      country: country.name,
+      need,
+      written: 0,
+      namesDone: 0,
+      namesTotal: need,
+      countryStartedAt: new Date().toISOString(),
+    });
     const { rows, rejected } = await buildForCountry(country.name, need, state, existingIds, []);
     if (!rows.length) {
       log(`${country.name}: nichts erzeugt, überspringe`, 'warn');
@@ -1072,6 +1194,7 @@ async function main() {
     totalNoImage += without;
     state.done[country.name] = { count: written, withoutImage: without, at: new Date().toISOString() };
     saveState(state);
+    writeStatus({ country: null, lastDone: { country: country.name, count: written, at: new Date().toISOString() } });
     const secs = Math.round((Date.now() - t0) / 1000);
     summary.push({ country: country.name, written, without, rejected: rejected.length, secs });
     log(`${country.name}: ${written} hochgeladen, ${without} ohne Bild, ${rejected.length} verworfen (${secs}s)`);
@@ -1083,11 +1206,13 @@ async function main() {
     console.log(s.country.padEnd(24) + String(s.written).padStart(5) + String(s.without).padStart(9) + String(s.rejected).padStart(7) + String(s.secs).padStart(7));
   }
   console.log(`\nGesamt neu: ${totalNew} Rezepte, davon ${totalNoImage} ohne Bild.`);
+  writeStatus({ running: false, country: null, finishedAt: new Date().toISOString(), plannedCountries: [] });
   console.log(`Dauer: ${Math.round((Date.now() - started) / 1000)}s. Log: ${path.relative(ROOT, LOG_FILE)}`);
   console.log('Rezepte ohne Bild stehen in state.json unter "noImage"; mit --countries=… --overwrite erneut laufen lassen.\n');
 }
 
 process.on('SIGINT', () => {
+  writeStatus({ running: false, country: null, stoppedAt: new Date().toISOString() });
   console.log('\nAbgebrochen — Fortschritt steht in state.json, einfach neu starten.');
   process.exit(130);
 });

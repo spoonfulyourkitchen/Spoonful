@@ -128,15 +128,46 @@ schnellste, sondern das brauchbarste Modell.
 
 ## 5) Über Nacht laufen lassen
 
-Der Bot darf beliebig lange laufen — er speichert nach **jedem 10er-Block**
-einen Zwischenstand (`out\<land>.partial.json`) und nach jedem Land in
-`state.json`. Ein Absturz oder Standby kostet also höchstens ein paar Minuten,
-nie ein ganzes Land.
+Der Bot darf beliebig lange laufen — er speichert nach **jedem Block**
+einen Zwischenstand (`out\<land>.partial.json`), laufend `status.json` und nach
+jedem Land `state.json`. Ein Absturz oder Standby kostet also höchstens ein paar
+Minuten, nie ein ganzes Land.
+
+**Die Konsole zeigt nur noch den Fortschritt:**
+
+```
+[22:25:17] Australia: 30/100 Rezepte (6 verworfen)
+[22:25:59] Australia: 54/100 Rezepte (10 verworfen)
+```
+
+Alle Details (Modell, Key, 429, Abschneiden …) stehen nur noch im Logfile
+`logs\bot-<Datum>.log`.
+
+**Fortschritts-Übersicht (eigenes Fenster, stört den Lauf nicht):**
+
+```powershell
+node bot.mjs --progress --watch
+```
+
+```
+  Spoonful Rezept-Bot — Fortschritt
+  ────────────────────────────────────────────────────────────
+  In der Datenbank:    1660 Rezepte
+  Fertige Länder:      13 von 128   (Ziel: 100 je Land)
+  Noch offen:          115 Länder
+  ────────────────────────────────────────────────────────────
+  Aktuell:             Austria
+                       Gerichte 100/100  ·  Rezepte 37/100
+                       28.2 Rezepte/Min ab Start  ·  noch ca. 2 min
+                       seit 22:31  ·  letzte Meldung vor 2 s
+  ────────────────────────────────────────────────────────────
+  Fertig: Afghanistan, Australia, …
+```
 
 * **Starten mit Logdatei (empfohlen für lange Läufe):**
 
   ```powershell
-  .\run.bat                      # Standard: --max-countries=10, Log in logs\run-<Datum>.log
+  .\run.bat                      # Standardwerte: --inflight=12 --batch=4 --blocks=3 …
   .\run.bat --countries=Italy    # eigene Argumente werden durchgereicht
   ```
 
@@ -145,16 +176,8 @@ nie ein ganzes Land.
   das System muss aber weiterlaufen. WLAN an lassen.
 * **Fenster nicht schließen**, wenn du den Bot direkt mit `node bot.mjs` gestartet
   hast — das beendet ihn.
-* **Fortschritt ansehen (jederzeit, ohne den Bot zu stören):**
-
-  ```powershell
-  node bot.mjs --verify                                   # DB-Stand je Land
-  Get-Content (\"logs\\bot-\" + (Get-Date -Format 'yyyy-MM-dd') + \".log\") -Tail 30 -Wait   # live mitlesen
-  ```
-
-* Läuft ein Land schief (alle Modelle im Limit), meldet der Bot
-  „kein Modell hat geantwortet“ und macht mit dem nächsten Land weiter — das
-  offene Land später einfach erneut aufrufen.
+* Läuft ein Land schief (alle Modelle im Limit), meldet der Bot das und macht mit
+  dem nächsten Land weiter — das offene Land später einfach erneut aufrufen.
 
 ## 6) Dauer & Kosten
 
