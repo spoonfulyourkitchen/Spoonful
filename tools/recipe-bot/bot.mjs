@@ -97,6 +97,8 @@ if (flag('help')) {
   --wave-ms=25000          alle X ms werden weitere Modelle nachgelegt
   --min-steps=6            Mindestzahl Schritte je Rezept (Standard 6)
   --max-rejects=8          ab so vielen schlechten Rezepten wird ein Modell zurückgestellt
+  --paid-model=<id>        Notfall-Modell mit Guthaben (z. B. openai/gpt-4o-mini), nur wenn gratis nichts geht
+  --quota-rounds=2         wie oft auf freies Gratis-Kontingent gewartet wird (dann Guthaben-Modell)
   --allow-tiny             auch die Mini-Modelle (lfm-2.5-2.6b, nano-omni) benutzen
   --max-tokens=16384       maximale Antwortlänge je KI-Anfrage (Reasoning-Modelle brauchen viel)
   --timeout-ms=240000      Timeout je KI-Anfrage
@@ -528,7 +530,25 @@ async function callOnce(model, keyIndex, messages, temperature, controller) {
  * `--wave-ms` wird nachgelegt. So gibt es keine Wartezeit mehr — auch nicht auf
  * langsame Modelle.
  */
-async function askModel(messages, temperature, validate) {
+/** Bezahltes Notfall-Modell (nur wenn die Gratis-Modelle im Limit sind). */
+const PAID_MODEL = String(opt('paid-model', process.env.OPENROUTER_PAID_MODEL || '')).trim();
+
+/** Kleinste Restzeit, bis irgendein Modell-Key-Paar wieder frei ist (0 = sofort frei). */
+function minCooldownMs() {
+  let min = Infinity;
+  for (const model of candidateModels()) {
+    for (let i = 0; i < KEYS.length; i++) {
+      const until = pairState.get(`${model}|${i}`)?.until || 0;
+      const rest = until - Date.now();
+      if (rest <= 0) return 0;
+      if (rest < min) min = rest;
+    }
+  }
+  return Number.isFinite(min) ? min : 0;
+}
+
+/** Ein Durchlauf über die Modellliste (das eigentliche Rennen). */
+async function askModelOnce(messages, temperature, validate) {
   const maxInflight = Math.max(1, num('inflight', 12));
   const topUpMs = Math.max(3000, num('wave-ms', 8000));
   const timeoutMs = num('timeout-ms', 240000);
@@ -632,6 +652,46 @@ async function askModel(messages, temperature, validate) {
     const timer = setInterval(pump, topUpMs);
     pump();
   });
+}
+
+/**
+ * Rennen mit Geduld: sind alle Gratis-Modelle im Limit, wird gewartet (das Kontingent
+ * ist pro Konto, nicht pro Key). Erst wenn das mehrfach nicht hilft, kommt das
+ * bezahlte Notfall-Modell (OPENROUTER_PAID_MODEL / --paid-model).
+ */
+async function askModel(messages, temperature, validate) {
+  const rounds = Math.max(1, num('quota-rounds', 2));
+  let lastError = null;
+  for (let round = 1; round <= rounds; round++) {
+    try {
+      return await askModelOnce(messages, temperature, validate);
+    } catch (e) {
+      lastError = e;
+      const wait = minCooldownMs();
+      // Wenn ein Paar frei ist, aber trotzdem nichts Brauchbares kam, hilft Warten nicht
+      if (!wait) break;
+      const sleepMs = Math.min(wait + 1500, num('quota-wait-max', 45000));
+      log(`  Gratis-Kontingent erschöpft — warte ${Math.round(sleepMs / 1000)} s (${round}/${rounds})`, 'info');
+      await sleep(sleepMs);
+    }
+  }
+  if (PAID_MODEL) {
+    log(`  Fallback auf bezahltes Modell: ${PAID_MODEL}`, 'warn');
+    for (let i = 0; i < KEYS.length; i++) {
+      const controller = new AbortController();
+      const r = await callOnce(PAID_MODEL, i, messages, temperature, controller);
+      if (r.ok) {
+        try {
+          const json = jsonFrom(r.text);
+          if (!validate || validate(json)) return { json, model: PAID_MODEL, keyIndex: i, truncated: r.finish === 'length' };
+        } catch {
+          /* unlesbar → nächster Key */
+        }
+      }
+      if (r.reason) log(`  ${r.reason}`, 'debug');
+    }
+  }
+  throw lastError || new Error('kein Modell verfügbar');
 }
 
 
@@ -878,7 +938,11 @@ function problemsOf(r) {
     const bad = r.ingredients.filter((i) => typeof i !== 'string' || i.trim().length < 3);
     if (bad.length) p.push('ingredients Strings');
     // höchstens eine Zutat ohne Menge ("salt to taste")
-    const withoutAmount = r.ingredients.filter((i) => typeof i === 'string' && !/\d|½|¼|¾/.test(i));
+    // Gewürze/Zubehör zählen dabei nicht als vollwertige Zutat
+    const SEASONING = /\b(salt|pepper|water|to taste|garnish|optional|as needed|seasoning|for serving|for frying)\b/i;
+    const withoutAmount = r.ingredients.filter(
+      (i) => typeof i === 'string' && !/\d|½|¼|¾/.test(i) && !SEASONING.test(i),
+    );
     if (withoutAmount.length > 1) p.push('ingredients ohne Menge');
   }
   if (Array.isArray(r.steps)) {
@@ -971,7 +1035,7 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
   let nameRounds = 0;
   while (wanted.length < perCountry && nameRounds < 8) {
     nameRounds++;
-    const need = Math.min(25, perCountry - wanted.length);
+    const need = Math.min(50, perCountry - wanted.length);
     const avoid = [...titles, ...wanted.map((w) => w.name)];
     let names = [];
     let usedModel = '';
@@ -1026,6 +1090,7 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
         if (!asked.has(slug)) {
           rejected.push({ title, problems: ['Titel gehört nicht zur vorgegebenen Liste'] });
           noteRejects(usedModel);
+          log(`  verworfen: "${title}" (${slug}) — Titel passt nicht zur Namensliste`, 'debug');
           continue;
         }
         if (accepted.has(title.toLowerCase())) {
@@ -1045,6 +1110,7 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
         if (problems.length) {
           rejected.push({ title, problems });
           noteRejects(usedModel);
+          log(`  verworfen: "${title}" — ${problems.join(', ')}`, 'debug');
           retry.push(asked.get(slug));
           continue;
         }
