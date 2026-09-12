@@ -75,13 +75,17 @@ const num = (name, fallback) => {
 /** Rezept-Blockgröße: sinkt automatisch, wenn Antworten abgeschnitten werden. */
 let batchOverride = 0;
 function batchSizeNow() {
-  return batchOverride || num('batch', 6);
+  return batchOverride || num('batch', 4);
 }
 
 if (flag('help')) {
   console.log(`Spoonful Recipe-Bot
 
   --verify                 nur DB-Report (kein Erzeugen)
+  --audit                  Nachkontrolle: fehlende/doppelte Bilder, Feldprobleme (+CSV/JSON)
+  --fix-images             fehlende Bilder über Commons nachtragen (mit --audit)
+  --check-images           auch alle vorhandenen Bild-URLs prüfen (langsam)
+  --country=X              nur ein Land (mit --audit)
   --progress               Fortschritts-Übersicht (mit --watch live aktualisieren)
   --check-keys             alle OpenRouter-Keys prüfen (gültig? Guthaben?)
   --countries=A,B          nur diese Länder (englische Namen, Komma-getrennt)
@@ -99,6 +103,7 @@ if (flag('help')) {
   --max-countries=3        nur die nächsten N offenen Länder
   --dry-run                erzeugen + prüfen, aber nichts hochladen (out/*.json)
   --no-images              keine Bildsuche (image_url = null)
+  --no-audit               Auto-Nachkontrolle im Lauf abschalten
   --reasoning=off|on       Reasoning der Modelle (Standard off = viel schneller)
   --blocks=3               wie viele Rezept-Blöcke gleichzeitig laufen
   --overwrite              Land auch füllen, wenn es schon Rezepte hat
@@ -300,6 +305,10 @@ You list dishes that are TRULY typical for one country: dishes whose origin and 
 tradition are that country. Never list dishes that belong to another country and never invent
 fusion food. Use the names as they appear on English Wikipedia (local name, transliterated
 if needed).
+
+Prefer WELL-KNOWN dishes that are documented and photographed (Wikipedia articles, Wikimedia
+Commons photos). Avoid very obscure regional specialties that nobody can look up, and never list
+the same dish twice with a different spelling or a suffix like "with custard" or "style".
 
 Return ONLY JSON:
 {"dishes":[{"name":"<dish name>","slug":"<kebab-case>","meal_type":"<${MEAL_TYPES.join('|')}>"}]}
@@ -520,8 +529,8 @@ async function callOnce(model, keyIndex, messages, temperature, controller) {
  * langsame Modelle.
  */
 async function askModel(messages, temperature, validate) {
-  const maxInflight = Math.max(1, num('inflight', 6));
-  const topUpMs = Math.max(3000, num('wave-ms', 25000));
+  const maxInflight = Math.max(1, num('inflight', 12));
+  const topUpMs = Math.max(3000, num('wave-ms', 8000));
   const timeoutMs = num('timeout-ms', 240000);
   const maxRejects = num('max-rejects', 8);
   const allModels = candidateModels();
@@ -674,6 +683,8 @@ Return exactly ${names.length} entries in the JSON object described in the syste
 /* ── Bilder: Wikimedia Commons (wie im Bestand) ──────────────────────────── */
 const COMMONS_UA = 'SpoonfulRecipeBot/2.1.4 (https://github.com/spoonfulyourkitchen/Spoonful)';
 const usedImages = new Set();
+/** Zählt Bilder, die nicht gerichtsspezifisch sind (Land/Küche als Ersatz). */
+let placeholderCount = 0;
 
 async function commonsSearch(query) {
   const url = new URL('https://commons.wikimedia.org/w/api.php');
@@ -723,9 +734,37 @@ function wordsOf(text) {
     .filter((w) => w.length > 2 && !stopWords.has(w));
 }
 
+/** Bild über die Wikipedia-Artikelsuche (Fallback, wenn Commons nichts hat). */
+async function wikipediaImage(dish, lang) {
+  const url = new URL(`https://${lang}.wikipedia.org/w/api.php`);
+  const params = {
+    action: 'query',
+    format: 'json',
+    generator: 'search',
+    gsrsearch: dish,
+    gsrlimit: '3',
+    prop: 'pageimages',
+    piprop: 'thumbnail|original',
+    pithumbsize: '1280',
+    origin: '*',
+  };
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  const res = await fetch(url, { headers: { 'User-Agent': COMMONS_UA } }).catch(() => null);
+  if (!res || !res.ok) return [];
+  const data = await res.json().catch(() => null);
+  const pages = Object.values(data?.query?.pages ?? {});
+  const out = [];
+  for (const p of pages) {
+    const link = p?.thumbnail?.source || p?.original?.source;
+    if (link) out.push({ title: String(p.title || ''), url: String(link).replace(/^http:/, 'https:').split('?')[0] });
+  }
+  return out;
+}
+
 /**
  * Sucht ein echtes Bild zum Gericht; nimmt bevorzugt Treffer, deren Dateiname
  * die wichtigsten Wörter des Gerichts enthält. Doppelte Bilder werden vermieden.
+ * Fallback: Artikelbild der Wikipedia (englisch, dann deutsch).
  */
 async function findImage(dish, country) {
   const dishWords = wordsOf(dish);
@@ -750,9 +789,58 @@ async function findImage(dish, country) {
     if (usedImages.has(c.url)) continue;
     if (c.hits === 0 && dishWords.length > 1) continue; // nur thematisch passende Bilder
     if (await imageIsReachable(c.url)) {
-      usedImages.add(c.url);
+      const clean = String(c.url).split('?')[0];
+      usedImages.add(clean);
       // Commons hängt eigene utm-Parameter an → durch unseren Standard-Anhang ersetzen
-      return String(c.url).split('?')[0] + IMAGE_UTM;
+      return clean + IMAGE_UTM;
+    }
+  }
+
+  // Fallback Stufe 2: bestes Wikipedia-Suchergebnis, auch wenn der Titel nicht passt
+  for (const lang of ['en', 'de']) {
+    const found = await wikipediaImage(dish, lang).catch(() => []);
+    for (const c of found) {
+      if (usedImages.has(c.url)) continue;
+      if (await imageIsReachable(c.url)) {
+        usedImages.add(c.url);
+        placeholderCount++;
+        return c.url + IMAGE_UTM;
+      }
+    }
+    await sleep(120);
+  }
+
+  // Fallback Stufe 3: Bild des Küchen-/Länderartikels (z. B. „Austrian cuisine")
+  if (country) {
+    for (const query of [`${country} cuisine`, country]) {
+      for (const lang of ['en', 'de']) {
+        const found = await wikipediaImage(query, lang).catch(() => []);
+        for (const c of found) {
+          if (usedImages.has(c.url)) continue;
+          if (await imageIsReachable(c.url)) {
+            usedImages.add(c.url);
+            placeholderCount++;
+            log(`  Ersatzbild (${query}) für: ${dish}`, 'debug');
+            return c.url + IMAGE_UTM;
+          }
+        }
+      }
+    }
+  }
+
+  // Fallback Stufe 4: Küchenfotos des Landes über Commons (möglichst verschiedene)
+  if (country) {
+    for (const query of [`${country} cuisine`, `${country} food`, `${country} dish`]) {
+      for (const c of await commonsSearch(query)) {
+        const clean = String(c.url).split('?')[0];
+        if (usedImages.has(clean)) continue;
+        if (await imageIsReachable(clean)) {
+          usedImages.add(clean);
+          placeholderCount++;
+          log(`  Ersatzbild (Commons: ${query}) für: ${dish}`, 'debug');
+          return clean + IMAGE_UTM;
+        }
+      }
     }
   }
   return null;
@@ -820,6 +908,14 @@ const slugify = (text) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 48);
 
+/** Titel ohne Füllwörter — für die Dubletten-Erkennung ("Bint al-Sittah custard"). */
+const FILLER = new Set(['with', 'and', 'style', 'custard', 'sauce', 'classic', 'traditional', 'homemade', 'fresh', 'version', 'the', 'a', 'an', 'of', 'in', 'on', 'mit', 'und']);
+function titleKey(text) {
+  return wordsOf(text)
+    .filter((w) => !FILLER.has(w))
+    .join(' ');
+}
+
 function toRow(r, country, suffix) {
   const num = (v, max) => Math.max(0, Math.min(max, Math.round(Number(v) || 0)));
   const slug = slugify(r.slug || r.title);
@@ -864,6 +960,10 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
     knownTitles = (existing || []).map((r) => String(r.title || ''));
   }
   const titles = new Set(knownTitles.map((t) => String(t).toLowerCase()));
+  /** Titel, die schon als Rezept existieren (DB + bereits gebaute) — nur dagegen prüfen. */
+  const accepted = new Set(titles);
+  /** Normalisierte Titel (ohne Füllwörter) gegen Fast-Dubletten. */
+  const acceptedKeys = new Set([...titles].map(titleKey));
   const batchSize = batchSizeNow();
 
   /* Phase 1 — Gerichtsnamen sammeln (authentisch für dieses Land) */
@@ -899,7 +999,7 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
   /* Phase 2 — Rezepte schreiben (in Blöcken, Fehlversuche werden wiederholt) */
   let queue = [...wanted];
   let round = 0;
-  while (queue.length && round < 12) {
+  while (queue.length && round < 20) {
     round++;
     const retry = [];
     // mehrere Blöcke GLEICHZEITIG (jeder Block rennt intern über mehrere Modelle)
@@ -928,6 +1028,19 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
           noteRejects(usedModel);
           continue;
         }
+        if (accepted.has(title.toLowerCase())) {
+          rejected.push({ title, problems: ['Titel schon vorhanden'] });
+          noteRejects(usedModel);
+          retry.push(asked.get(slug));
+          continue;
+        }
+        const key = titleKey(title);
+        if (acceptedKeys.has(key)) {
+          rejected.push({ title, problems: ['ähnlicher Titel schon vorhanden'] });
+          noteRejects(usedModel);
+          retry.push(asked.get(slug));
+          continue;
+        }
         const problems = problemsOf(r);
         if (problems.length) {
           rejected.push({ title, problems });
@@ -937,6 +1050,8 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
         }
         const { id, suffix } = nextId(slug, state, existingIds);
         rows.push({ ...toRow(r, countryName, suffix), id });
+        accepted.add(title.toLowerCase());
+        acceptedKeys.add(key);
         asked.delete(slug);
       }
       retry.push(...asked.values());
@@ -1113,8 +1228,273 @@ async function progressLoop() {
   }
 }
 
+/* ── Hilfsfunktionen für die Nachkontrolle ───────────────────────────────── */
+const RECIPE_COLS =
+  'id,title,cuisine,image_url,description,ingredients,steps,prep_time,cook_time,difficulty,meal_type,calories,protein,carbs,fat,dietary_restrictions';
+
+/** Rezepte laden (optional nur für bestimmte Länder). */
+async function loadRecipes(names = []) {
+  const filter = names.length ? `&cuisine=in.(${names.map((n) => `"${n.replace(/"/g, '')}"`).join(',')})` : '';
+  const out = [];
+  for (let offset = 0; ; offset += 1000) {
+    const part = await rest(`recipes?select=${RECIPE_COLS}${filter}&order=id.asc&limit=1000&offset=${offset}`);
+    if (!part || !part.length) break;
+    out.push(...part);
+    if (part.length < 1000) break;
+  }
+  return out;
+}
+
+/** Sucht für alle Rezepte ohne Bild ein Commons-Bild und trägt es nach. */
+async function fixMissingImages(rows) {
+  let fixed = 0;
+  let failed = 0;
+  const placeholdersBefore = placeholderCount;
+  await pool(rows, 4, async (r) => {
+    const url = await findImage(String(r.title || ''), String(r.cuisine || '')).catch(() => null);
+    if (!url) {
+      failed++;
+      log(`  kein Bild gefunden: ${r.title} (${r.id})`, 'warn');
+      return;
+    }
+    try {
+      await rest(`recipes?id=eq.${encodeURIComponent(r.id)}`, { method: 'PATCH', body: { image_url: url }, prefer: 'return=minimal' });
+      fixed++;
+      log(`  + Bild ergänzt: ${r.title} (${r.id})`, 'debug');
+    } catch (e) {
+      failed++;
+      log(`  ! Bild ${r.id}: ${e.message}`, 'warn');
+    }
+  });
+  return { fixed, failed, placeholders: placeholderCount - placeholdersBefore };
+}
+
+/** Kompakter Report über eine Rezeptmenge. */
+async function auditRows(rows, { fixImages = false, label = '', files = false } = {}) {
+  const problems = new Map();
+  const titles = new Map();
+  const images = new Map();
+  const urlGroups = new Map();
+  const keySeen = new Map();
+  for (const r of rows) {
+    const list = problemsOf({ ...r, slug: r.id });
+    if (!r.image_url) list.push('ohne Bild');
+    const t = String(r.title || '').trim().toLowerCase();
+    if (titles.has(t)) list.push('doppelter Titel');
+    else titles.set(t, r.id);
+    const k = titleKey(String(r.title || ''));
+    if (keySeen.has(k)) list.push('ähnlicher Titel');
+    else keySeen.set(k, r.id);
+    if (r.image_url) {
+      const clean = String(r.image_url).split('?')[0];
+      if (images.has(clean)) list.push('doppelte Bild-URL');
+      else images.set(clean, r.id);
+      const group = urlGroups.get(clean) || [];
+      group.push(r.id);
+      urlGroups.set(clean, group);
+    }
+    if (list.length) problems.set(r.id, { row: r, list });
+  }
+  const dupeGroups = [...urlGroups.entries()].filter(([, ids]) => ids.length > 1);
+  const dupeRecipes = dupeGroups.reduce((n, [, ids]) => n + ids.length, 0);
+  const withoutImage = rows.filter((r) => !r.image_url);
+  const reasons = new Map();
+  for (const { list } of problems.values()) for (const why of list) reasons.set(why, (reasons.get(why) || 0) + 1);
+
+  let fix = { fixed: 0, failed: 0 };
+  if (fixImages && withoutImage.length) fix = await fixMissingImages(withoutImage);
+
+  if (files) {
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+    fs.mkdirSync(OUT_DIR, { recursive: true });
+    const jsonFile = path.join(OUT_DIR, `audit-${stamp}.json`);
+    fs.writeFileSync(
+      jsonFile,
+      JSON.stringify(
+        {
+          generatedAt: new Date().toISOString(),
+          checked: rows.length,
+          withoutImage: withoutImage.map((r) => ({ id: r.id, cuisine: r.cuisine, title: r.title })),
+          duplicateImageUrls: dupeGroups.map(([url, ids]) => ({ url, count: ids.length, ids })),
+          problems: [...problems.entries()].map(([id, v]) => ({ id, cuisine: v.row.cuisine, title: v.row.title, problems: v.list })),
+        },
+        null,
+        2,
+      ),
+    );
+    fs.writeFileSync(
+      path.join(OUT_DIR, `audit-${stamp}.csv`),
+      'id,cuisine,title,probleme\n' +
+        [...problems.entries()]
+          .map(([id, v]) => `${id},"${v.row.cuisine}","${String(v.row.title).replace(/"/g, '""')}","${v.list.join('; ')}"`)
+          .join('\n'),
+    );
+    log(`  Nachkontrolle-Datei: ${path.relative(ROOT, jsonFile)}`);
+  }
+  const tag = label ? `${label}: ` : '';
+  log(
+    `  ${tag}Nachkontrolle: ${rows.length} Rezepte · ${withoutImage.length} ohne Bild${fixImages ? ` (${fix.fixed} ergänzt, ${fix.failed} offen)` : ''} · ${problems.size} auffällig${
+      reasons.size ? ` — ${[...reasons.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([w, n]) => `${n}× ${w}`).join(', ')}` : ''
+    }`,
+  );
+  if (dupeGroups.length) {
+    for (const [url, ids] of dupeGroups.sort((a, b) => b[1].length - a[1].length).slice(0, 5)) {
+      log(`    ${ids.length}× ${url.split('/').pop()} → ${ids.slice(0, 4).join(', ')}${ids.length > 4 ? ' …' : ''}`, 'debug');
+    }
+  }
+
+  return { total: rows.length, noImg: withoutImage.length, bad: problems.size, ...fix };
+}
+
+/* ── Nachkontrolle (--audit) ─────────────────────────────────────────────── */
+async function auditMode() {
+  const perCountry = num('per-country', 100);
+  const only = String(opt('country', '') || opt('countries', ''))
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  console.log('\n  Nachkontrolle: lade alle Rezepte …');
+  const all = [];
+  for (let offset = 0; ; offset += 1000) {
+    const part = await rest(
+      `recipes?select=id,title,cuisine,image_url,description,ingredients,steps,prep_time,cook_time,difficulty,meal_type,calories,protein,carbs,fat,dietary_restrictions&order=id.asc&limit=1000&offset=${offset}`,
+    );
+    if (!part || !part.length) break;
+    all.push(...part);
+    if (part.length < 1000) break;
+  }
+  const scope = only.length ? all.filter((r) => only.some((c) => c.toLowerCase() === String(r.cuisine || '').toLowerCase())) : all;
+  console.log(`  Geprüft: ${scope.length} Rezepte${only.length ? ` (nur ${only.join(', ')})` : ''}\n`);
+
+  const problems = new Map();
+  const titles = new Map();
+  const images = new Map();
+  const urlGroups = new Map();
+  for (const r of scope) {
+    const list = problemsOf({ ...r, slug: r.id });
+    if (!r.image_url) list.push('ohne Bild');
+    const t = String(r.title || '').trim().toLowerCase();
+    if (titles.has(t)) list.push('doppelter Titel');
+    else titles.set(t, r.id);
+    if (r.image_url) {
+      const clean = String(r.image_url).split('?')[0];
+      if (images.has(clean)) list.push('doppelte Bild-URL');
+      else images.set(clean, r.id);
+      const group = urlGroups.get(clean) || [];
+      group.push(r.id);
+      urlGroups.set(clean, group);
+    }
+    if (list.length) problems.set(r.id, { row: r, list });
+  }
+
+  if (flag('check-images')) {
+    const withImage = scope.filter((r) => r.image_url);
+    console.log(`  Prüfe ${withImage.length} Bild-URLs (kann dauern) …`);
+    await pool(withImage, 8, async (r) => {
+      const ok = await imageIsReachable(String(r.image_url).split('?')[0]);
+      if (!ok) {
+        const entry = problems.get(r.id) || { row: r, list: [] };
+        entry.list.push('Bild nicht erreichbar');
+        problems.set(r.id, entry);
+      }
+    });
+    console.log('  Bild-Check fertig.\n');
+  }
+
+  const byCountry = new Map();
+  for (const r of scope) {
+    const key = String(r.cuisine || '?');
+    const e = byCountry.get(key) || { total: 0, noImg: 0, bad: 0 };
+    e.total++;
+    if (!r.image_url) e.noImg++;
+    if (problems.has(r.id)) e.bad++;
+    byCountry.set(key, e);
+  }
+  const rowsSorted = [...byCountry.entries()].sort((a, b) => b[1].noImg - a[1].noImg || a[0].localeCompare(b[0]));
+  console.log('  ' + 'Land'.padEnd(26) + 'gesamt'.padStart(8) + 'ohne Bild'.padStart(11) + 'auffällig'.padStart(11));
+  console.log('  ' + '─'.repeat(56));
+  for (const [name, e] of rowsSorted) {
+    console.log('  ' + name.padEnd(26) + String(e.total).padStart(8) + String(e.noImg).padStart(11) + String(e.bad).padStart(11));
+  }
+
+  const reasons = new Map();
+  for (const { list } of problems.values()) for (const why of list) reasons.set(why, (reasons.get(why) || 0) + 1);
+  const withoutImage = scope.filter((r) => !r.image_url);
+  console.log('  ' + '─'.repeat(56));
+  console.log(`  GESAMT: ${scope.length} Rezepte · ${withoutImage.length} ohne Bild · ${problems.size} auffällig`);
+  for (const [why, n] of [...reasons.entries()].sort((a, b) => b[1] - a[1])) console.log(`    ${String(n).padStart(5)}× ${why}`);
+  const thin = [...byCountry.entries()].filter(([, e]) => e.total < perCountry);
+  if (thin.length) console.log(`  Länder unter ${perCountry}: ${thin.map(([n, e]) => `${n} (${e.total})`).join(', ')}`);
+  const dupeGroups = [...urlGroups.entries()].filter(([, ids]) => ids.length > 1);
+  if (dupeGroups.length) {
+    console.log(`  Doppelte Bild-URLs: ${dupeGroups.length} Gruppen (${dupeGroups.reduce((n, [, ids]) => n + ids.length, 0)} Rezepte)`);
+    for (const [url, ids] of dupeGroups.sort((a, b) => b[1].length - a[1].length).slice(0, 10)) {
+      console.log(`    ${String(ids.length).padStart(3)}× ${url.split('/').pop()}  →  ${ids.slice(0, 5).join(', ')}${ids.length > 5 ? ' …' : ''}`);
+    }
+  }
+
+
+  const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+  fs.mkdirSync(OUT_DIR, { recursive: true });
+  const jsonFile = path.join(OUT_DIR, `audit-${stamp}.json`);
+  const csvFile = path.join(OUT_DIR, `audit-${stamp}.csv`);
+  const report = {
+    generatedAt: new Date().toISOString(),
+    checked: scope.length,
+    withoutImage: withoutImage.map((r) => ({ id: r.id, cuisine: r.cuisine, title: r.title })),
+    countries: [...byCountry.entries()].map(([name, e]) => ({ country: name, ...e })),
+    problems: [...problems.entries()].map(([id, v]) => ({ id, cuisine: v.row.cuisine, title: v.row.title, problems: v.list })),
+  };
+  fs.writeFileSync(jsonFile, JSON.stringify(report, null, 2));
+  fs.writeFileSync(
+    csvFile,
+    'id,cuisine,title,probleme\n' +
+      report.problems
+        .map((p) => `${p.id},"${p.cuisine}","${String(p.title).replace(/"/g, '""')}","${p.problems.join('; ')}"`)
+        .join('\n'),
+  );
+  console.log(`\n  Dateien: ${path.relative(ROOT, jsonFile)}\n           ${path.relative(ROOT, csvFile)}`);
+
+  if (flag('fix-images')) {
+    if (!withoutImage.length) {
+      console.log('\n  Keine fehlenden Bilder — nichts zu tun.\n');
+      return;
+    }
+    console.log(`\n  Trage Bilder nach für ${withoutImage.length} Rezepte …\n`);
+    let fixed = 0;
+    let failed = 0;
+    await pool(withoutImage, 4, async (r) => {
+      const url = await findImage(String(r.title || ''), String(r.cuisine || '')).catch(() => null);
+      if (!url) {
+        failed++;
+        log(`  kein Bild gefunden: ${r.title} (${r.id})`, 'warn');
+        return;
+      }
+      try {
+        await rest(`recipes?id=eq.${encodeURIComponent(r.id)}`, { method: 'PATCH', body: { image_url: url }, prefer: 'return=minimal' });
+        fixed++;
+        log(`  + Bild ergänzt: ${r.title} (${r.id})`, 'info');
+      } catch (e) {
+        failed++;
+        log(`  ! ${r.id}: ${e.message}`, 'warn');
+      }
+    });
+    console.log(`\n  Bilder ergänzt: ${fixed} · weiterhin ohne Bild: ${failed}`);
+    console.log(`  (Dateien von VOR der Reparatur: ${path.relative(ROOT, jsonFile)})\n`);
+  } else if (withoutImage.length) {
+    console.log(`  Tipp: fehlende Bilder nachtragen mit  node bot.mjs --audit --fix-images\n`);
+  } else {
+    console.log('');
+  }
+}
+
 /* ── Hauptlauf ───────────────────────────────────────────────────────────── */
 async function main() {
+  if (flag('audit')) {
+    await auditMode();
+    return;
+  }
   if (flag('progress')) {
     await progressLoop();
     return;
@@ -1166,6 +1546,7 @@ async function main() {
   let totalNew = 0;
   let totalNoImage = 0;
   const summary = [];
+  let auditCounter = 0;
 
   // Mehrere Durchgänge: übersprungene Länder (alle Modelle im Limit) kommen später nochmal dran.
   let pending = [...todo];
@@ -1209,6 +1590,23 @@ async function main() {
       const secs = Math.round((Date.now() - t0) / 1000);
       summary.push({ country: country.name, written, without, rejected: rejected.length, secs });
       log(`${country.name}: ${written} hochgeladen, ${without} ohne Bild, ${rejected.length} verworfen (${secs}s)`);
+      // Länder unter 100 werden in der nächsten Runde aufgefüllt
+      if ((dbCounts.get(country.name) || 0) < perCountry) deferred.push(country);
+
+      /* Auto-Nachkontrolle: nach jedem Land die Bilder, nach je 2 Ländern ein Report. */
+      if (!flag('no-audit')) {
+        const countryRows = await loadRecipes([country.name]);
+        await auditRows(countryRows, { fixImages: true, label: country.name });
+        auditCounter++;
+        if (auditCounter % 2 === 0) {
+          const allRows = await loadRecipes();
+          await auditRows(allRows, { files: true, fixImages: false });
+          if (!flag('no-images')) {
+            const missing = allRows.filter((r) => !r.image_url);
+            if (missing.length) await fixMissingImages(missing);
+          }
+        }
+      }
     }
     pending = deferred;
   }
