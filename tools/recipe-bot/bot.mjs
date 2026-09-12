@@ -681,6 +681,9 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
       }
       retry.push(...asked.values());
       saveState(state);
+      // Zwischenstand sichern: ein Absturz oder Standby verliert so kein ganzes Land
+      fs.mkdirSync(OUT_DIR, { recursive: true });
+      fs.writeFileSync(path.join(OUT_DIR, `${slugify(countryName)}.partial.json`), JSON.stringify(rows, null, 2));
       log(`  ${countryName}: ${rows.length}/${perCountry} Rezepte geschrieben${rejected.length ? `, ${rejected.length} verworfen` : ''} (${usedModel})`);
     }
     queue = retry.slice(0, 20);
@@ -709,6 +712,8 @@ async function pushRows(rows, country) {
   fs.mkdirSync(OUT_DIR, { recursive: true });
   const outFile = path.join(OUT_DIR, `${slugify(country)}.json`);
   fs.writeFileSync(outFile, JSON.stringify(rows, null, 2));
+  const partial = path.join(OUT_DIR, `${slugify(country)}.partial.json`);
+  if (fs.existsSync(partial)) fs.unlinkSync(partial);
   if (flag('dry-run')) {
     log(`  dry-run: ${rows.length} Rezepte in ${path.relative(ROOT, outFile)} geschrieben (nicht hochgeladen)`);
     return rows.length;

@@ -102,7 +102,37 @@ liquid/lfm-2.5-2.6b:free                         (65K)
 * Tempo: `--pause-ms=1200` (Standard) zwischen zwei Anfragen, `--batch=10`
   Rezepte pro Anfrage.
 
-## 5) Dauer & Kosten
+## 5) Über Nacht laufen lassen
+
+Der Bot darf beliebig lange laufen — er speichert nach **jedem 10er-Block**
+einen Zwischenstand (`out\<land>.partial.json`) und nach jedem Land in
+`state.json`. Ein Absturz oder Standby kostet also höchstens ein paar Minuten,
+nie ein ganzes Land.
+
+* **Starten mit Logdatei (empfohlen für lange Läufe):**
+
+  ```powershell
+  .\run.bat                      # Standard: --max-countries=10, Log in logs\run-<Datum>.log
+  .\run.bat --countries=Italy    # eigene Argumente werden durchgereicht
+  ```
+
+* **Laptop-Einstellungen:** Netzteil angesteckt lassen; Standby im Netzbetrieb
+  aus (`powercfg /change standby-timeout-ac 0`). Der Bildschirm darf ausgehen,
+  das System muss aber weiterlaufen. WLAN an lassen.
+* **Fenster nicht schließen**, wenn du den Bot direkt mit `node bot.mjs` gestartet
+  hast — das beendet ihn.
+* **Fortschritt ansehen (jederzeit, ohne den Bot zu stören):**
+
+  ```powershell
+  node bot.mjs --verify                                   # DB-Stand je Land
+  Get-Content (\"logs\\bot-\" + (Get-Date -Format 'yyyy-MM-dd') + \".log\") -Tail 30 -Wait   # live mitlesen
+  ```
+
+* Läuft ein Land schief (alle Modelle im Limit), meldet der Bot
+  „kein Modell hat geantwortet“ und macht mit dem nächsten Land weiter — das
+  offene Land später einfach erneut aufrufen.
+
+## 6) Dauer & Kosten
 
 * **0 $** — alle Standard-Modelle sind gratis.
 * Dafür langsamer: ca. 2–6 Minuten pro Land (1–2 Anfragen für die Namen,
