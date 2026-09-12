@@ -1,4 +1,4 @@
-
+ ""
 ## Short description (Play Store, 80 characters)
 
 Cook, track and shop in one calm app: recipes, nutrition, barcode scan, planner.
