@@ -85,10 +85,20 @@ K4 ✓  ling-3.0-flash-vl  (Key 4 hatte noch Kontingent, Key 1 war im Limit)
 Ein **429** legt nur das Paar *Modell + Key* 10–30 Min auf Eis — alle anderen
 Kombinationen laufen weiter.
 
-**Rennen (`--parallel=3`):** pro Anfrage starten 3 Modelle auf 3 verschiedenen
-Keys gleichzeitig. Der **erste brauchbare** JSON-Antwort gewinnt, die anderen
-werden abgebrochen. Nützt kein Modell etwas, kommt nach `--wave-ms` (Standard
-90 s im Starter) die nächste Welle mit den nächsten Modellen.
+**Rennen (`--inflight=6`):** es sind **immer bis zu 6 Anfragen gleichzeitig**
+unterwegs — verschiedene Modelle auf verschiedenen Keys. Der **erste brauchbare**
+JSON-Antwort gewinnt, alles andere wird sofort abgebrochen; alle `--wave-ms`
+(Standard 25 s) werden weitere Modelle nachgelegt. Dadurch gibt es **keine
+Wartezeit** auf langsame Modelle mehr, und ein 403/429/Abschneiden kostet nur
+eine Anfrage statt einer ganzen Welle.
+
+**Automatische Bremse bei Abschneiden:** wird eine Antwort zu lang
+(`finish_reason: length`), verkleinert der Bot die Blockgröße selbst
+(`--batch`, Standard 8, minimal 3) — so passen Reasoning + Rezepte immer ins
+Token-Budget (`--max-tokens`, Standard 16384).
+
+**Nicht nutzbare Modelle fliegen raus:** HTTP 403 („only available on …“) oder
+drei durchgefallene Rezepte (`--max-rejects`) und das Modell wird übersprungen.
 
 **Modell-Reihenfolge** (nach Messungen aus der Praxis):
 

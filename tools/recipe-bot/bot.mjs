@@ -72,19 +72,26 @@ const num = (name, fallback) => {
   return Number.isFinite(v) ? v : fallback;
 };
 
+/** Rezept-Blockgröße: sinkt automatisch, wenn Antworten abgeschnitten werden. */
+let batchOverride = 0;
+function batchSizeNow() {
+  return batchOverride || num('batch', 8);
+}
+
 if (flag('help')) {
   console.log(`Spoonful Recipe-Bot
 
   --verify                 nur DB-Report (kein Erzeugen)
   --countries=A,B          nur diese Länder (englische Namen, Komma-getrennt)
   --per-country=100        Rezepte je Land (Standard 100)
-  --batch=10               Rezepte pro KI-Anfrage (Standard 10)
+  --batch=8                Rezepte pro KI-Anfrage (sinkt automatisch bei Abschneiden)
   --model=<id>             nur ein Modell (Standard: die Gratis-Kette)
   --models=a,b,c           Modell-Kette selbst festlegen
-  --parallel=3             so viele Modelle gleichzeitig testen (Rennen)
-  --wave-ms=150000         nach dieser Zeit kommen die nächsten Modelle dran
+  --inflight=6             so viele KI-Anfragen gleichzeitig (Rennen)
+  --wave-ms=25000          alle X ms werden weitere Modelle nachgelegt
   --min-steps=6            Mindestzahl Schritte je Rezept (Standard 6)
-  --pause-ms=600           Pause zwischen zwei KI-Anfragen
+  --max-rejects=3          ab so vielen schlechten Rezepten wird ein Modell übersprungen
+  --allow-tiny             auch die Mini-Modelle (lfm-2.5-2.6b, nano-omni) benutzen
   --max-tokens=16384       maximale Antwortlänge je KI-Anfrage (Reasoning-Modelle brauchen viel)
   --timeout-ms=240000      Timeout je KI-Anfrage
   --max-countries=3        nur die nächsten N offenen Länder
@@ -280,7 +287,6 @@ const FREE_MODELS = [
   'nex-agi/nex-n2.5-pro:free',
   'nvidia/nemotron-3-super-120b-a12b:free',
   'nvidia/nemotron-3-ultra-550b-a55b:free',
-  'thinkingmachines/inkling:free',
   'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
   'liquid/lfm-2.5-2.6b:free',
 ];
@@ -308,6 +314,8 @@ const pairState = new Map();
 const keyCursor = { i: 0 };
 /** Qualitäts-Malus: Modelle, deren Rezepte die Prüfung nicht bestehen. */
 const modelQuality = new Map();
+/** Modelle, die grundsätzlich nicht dürfen (403 „only available …“). */
+const disabledModels = new Set();
 function noteRejects(model, count = 1) {
   if (!model) return;
   const q = modelQuality.get(model) || { rejects: 0 };
@@ -337,8 +345,13 @@ function pickKey(model) {
   return -1;
 }
 
+/** Zu kleine Modelle: schnell, aber sie liefern zu kurze Schritte bzw. schwache
+ *  Gerichtslisten. Standardmäßig übersprungen; mit --allow-tiny wieder dabei. */
+const TINY_MODELS = new Set(['liquid/lfm-2.5-2.6b:free', 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free']);
+
 /** Modelle sortieren: ohne Fehler zuerst, kaputte nach hinten, blockierte zuletzt. */
 function candidateModels() {
+  const allowTiny = flag('allow-tiny');
   const score = (model) => {
     let fails = 0;
     let blocked = 0;
@@ -352,6 +365,7 @@ function candidateModels() {
     return { weight, blocked, rank: KEYS.length - blocked === 0 ? 2 : weight > 0 ? 1 : 0 };
   };
   return modelList()
+    .filter((m) => !disabledModels.has(m) && (allowTiny || !TINY_MODELS.has(m)))
     .map((m, i) => ({ m, i, s: score(m) }))
     .sort((a, b) => a.s.rank - b.s.rank || a.s.weight - b.s.weight || a.i - b.i)
     .map((x) => x.m);
@@ -408,13 +422,13 @@ async function callOnce(model, keyIndex, messages, temperature, controller) {
       body: JSON.stringify({ model, temperature, max_tokens: num('max-tokens', 16384), messages }),
     });
   } catch (e) {
-    // Abbruch, weil ein anderes Modell gewonnen hat oder die Welle abgelaufen ist
+    // Abbruch, weil ein anderes Modell gewonnen hat oder das Rennen vorbei ist
     // → zählt nicht als Fehler für dieses Modell
-    if (controller.signal.aborted && e?.name === 'AbortError' && (controller.signal.reason === 'won' || controller.signal.reason === 'wave-timeout')) {
+    if (controller.signal.aborted && e?.name === 'AbortError' && controller.signal.reason !== 'timeout') {
       return { ok: false, silent: true, reason: '' };
     }
     st.fails++;
-    return { ok: false, reason: `${tag}: ${e?.name === 'TimeoutError' ? 'Timeout' : e?.message || 'Netzwerkfehler'}` };
+    return { ok: false, reason: `${tag}: ${e?.name === 'TimeoutError' || controller.signal.reason === 'timeout' ? 'Timeout' : e?.message || 'Netzwerkfehler'}` };
   }
   if (res.status === 429) {
     const retryAfter = Number(res.headers.get('retry-after') || 0);
@@ -423,6 +437,12 @@ async function callOnce(model, keyIndex, messages, temperature, controller) {
     st.until = Date.now() + wait;
     return { ok: false, reason: `${tag}: 429 — Pause ${Math.round(wait / 60_000)} min` };
   }
+  if (res.status === 403) {
+    const text = await res.text().catch(() => '');
+    st.fails++;
+    if (/only available|not available|requires/i.test(text)) disabledModels.add(model);
+    return { ok: false, reason: `${tag}: HTTP 403 ${text.slice(0, 70)}` };
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     st.fails++;
@@ -430,11 +450,12 @@ async function callOnce(model, keyIndex, messages, temperature, controller) {
   }
   const data = await res.json().catch(() => null);
   const choice = data?.choices?.[0] ?? {};
+  const apiError = data?.error?.message;
   const text = String(choice?.message?.content || choice?.message?.reasoning || '');
   st.calls++;
   if (!text.trim()) {
     st.fails++;
-    return { ok: false, reason: `${tag}: leere Antwort (finish=${choice?.finish_reason || '?'})` };
+    return { ok: false, reason: `${tag}: ${apiError ? String(apiError).slice(0, 80) : `leere Antwort (finish=${choice?.finish_reason || '?'})`}` };
   }
   return { ok: true, text, model, keyIndex, finish: choice?.finish_reason };
 }
@@ -444,83 +465,109 @@ async function callOnce(model, keyIndex, messages, temperature, controller) {
  * gleichzeitig, der erste brauchbare JSON-Antwort gewinnt, der Rest wird
  * abgebrochen. Nächste Welle = nächste Modelle.
  */
+/**
+ * Kontinuierliches Rennen: es sind immer bis zu `--inflight` Anfragen
+ * gleichzeitig unterwegs (verschiedene Modelle, verschiedene Keys). Der erste
+ * brauchbare JSON-Antwort gewinnt, alles andere wird sofort abgebrochen; alle
+ * `--wave-ms` wird nachgelegt. So gibt es keine Wartezeit mehr — auch nicht auf
+ * langsame Modelle.
+ */
 async function askModel(messages, temperature, validate) {
-  const models = candidateModels();
-  const width = Math.max(1, Math.min(num('parallel', 3), Math.max(1, models.length)));
+  const maxInflight = Math.max(1, num('inflight', 6));
+  const topUpMs = Math.max(3000, num('wave-ms', 25000));
+  const timeoutMs = num('timeout-ms', 240000);
+  const maxRejects = num('max-rejects', 3);
+  const models = candidateModels().filter((m) => !disabledModels.has(m) && (modelQuality.get(m)?.rejects || 0) < maxRejects);
+  if (!models.length) throw new Error('keine Modelle mehr verfügbar');
   const errors = [];
+  const controllers = new Set();
+  let next = 0;
+  let inflight = 0;
+  let done = false;
+  let pending = 0;
 
-  for (let start = 0; start < models.length; start += width) {
-    const wave = [];
-    for (const model of models.slice(start, start + width)) {
-      // Modelle, die dauerhaft schlechte Rezepte liefern, werden übersprungen
-      if ((modelQuality.get(model)?.rejects || 0) >= num('max-rejects', 3)) continue;
-      const keyIndex = pickKey(model);
-      if (keyIndex < 0) {
-        const blockedFor = KEYS.length;
-        if (blockedFor > 0) errors.push(`${model}: alle Keys im Limit`);
-        continue;
-      }
-      const controller = new AbortController();
-      controller.signal.addEventListener('abort', () => {}, { once: true });
-      const timeout = setTimeout(() => controller.abort(), num('timeout-ms', 240000));
-      wave.push({ model, controller, timeout, promise: callOnce(model, keyIndex, messages, temperature, controller) });
-    }
-    if (!wave.length) continue;
-    if (!QUIET) log(`  Rennen: ${wave.map((w) => w.model.split(':')[0].split('/').pop()).join(' vs ')}`, 'info');
-
-    let winner = null;
-    // Wellen-Timeout: wenn keiner rechtzeitig brauchbar antwortet, kommen die
-    // nächsten Modelle dran — so blockiert ein langsames Modell den Lauf nicht.
-    const waveTimeout = setTimeout(() => {
-      for (const w of wave) {
-        if (w.controller.signal.aborted) continue;
-        w.controller.abort('wave-timeout');
-      }
-    }, num('wave-ms', 150000));
-
-    try {
-      winner = await new Promise((resolve, reject) => {
-        let pending = wave.length;
-        for (const w of wave) {
-          w.promise.then((r) => {
-            if (r.ok) {
-              let json = null;
-              try {
-                json = jsonFrom(r.text);
-              } catch {
-                errors.push(`${r.model}: ${r.finish === 'length' ? 'Antwort abgeschnitten' : 'kein JSON'}`);
-              }
-              if (json && (!validate || validate(json))) {
-                for (const other of wave) {
-                  if (other === w) continue;
-                  other.controller.abort('won');
-                  clearTimeout(other.timeout);
-                }
-                resolve({ json, model: r.model, keyIndex: r.keyIndex });
-                return;
-              }
-              if (json) errors.push(`${r.model}: falsches Format`);
-            } else if (!r.silent && r.reason) {
-              errors.push(r.reason);
-            }
-            pending--;
-            if (pending === 0) reject(new Error(errors.slice(-3).join(' | ')));
-          });
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      clearInterval(timer);
+      for (const c of controllers) {
+        try {
+          c.abort('done');
+        } catch {
+          /* schon beendet */
         }
-      });
-    } catch (e) {
-      if (!QUIET) log(`  ${e.message}`, 'warn');
-    }
-    clearTimeout(waveTimeout);
-    for (const w of wave) clearTimeout(w.timeout);
-    if (winner) {
-      if (!QUIET) log(`  ✓ ${winner.model} [K${winner.keyIndex + 1}]`, 'info');
-      await sleep(num('pause-ms', 600));
-      return winner;
-    }
-  }
-  throw new Error(`kein Modell hat verwertbar geantwortet (${errors.slice(-3).join(' | ')})`);
+      }
+      controllers.clear();
+    };
+    const win = (result) => {
+      if (done) return;
+      done = true;
+      cleanup();
+      resolve(result);
+    };
+    const fail = () => {
+      if (done || inflight > 0 || next < models.length) return;
+      done = true;
+      cleanup();
+      reject(new Error(errors.slice(-3).join(' | ')));
+    };
+    const handle = (r) => {
+      if (done) return;
+      if (r.ok) {
+        let json = null;
+        try {
+          json = jsonFrom(r.text);
+        } catch {
+          errors.push(`${r.model}: ${r.finish === 'length' ? 'abgeschnitten' : 'kein JSON'}`);
+        }
+        if (json && (!validate || validate(json))) {
+          win({ json, model: r.model, keyIndex: r.keyIndex, truncated: r.finish === 'length' });
+          return;
+        }
+        if (json) errors.push(`${r.model}: falsches Format`);
+      } else if (!r.silent && r.reason) {
+        errors.push(r.reason);
+      }
+      fail();
+    };
+    const pump = () => {
+      if (done) return;
+      while (inflight < maxInflight && next < models.length) {
+        const model = models[next++];
+        const keyIndex = pickKey(model);
+        if (keyIndex < 0) {
+          errors.push(`${model}: alle Keys im Limit`);
+          continue;
+        }
+        const controller = new AbortController();
+        const timer2 = setTimeout(() => controller.abort('timeout'), timeoutMs);
+        controllers.add(controller);
+        inflight++;
+        pending++;
+        if (!QUIET) log(`  → ${model.split(':')[0].split('/').pop()} [K${keyIndex + 1}]`);
+        callOnce(model, keyIndex, messages, temperature, controller)
+          .then((r) => {
+            clearTimeout(timer2);
+            controllers.delete(controller);
+            inflight--;
+            pending--;
+            handle(r);
+          })
+          .catch((e) => {
+            clearTimeout(timer2);
+            controllers.delete(controller);
+            inflight--;
+            pending--;
+            errors.push(`${model}: ${e?.message || 'Fehler'}`);
+            handle({ ok: false, silent: true, reason: '' });
+          });
+      }
+      fail();
+    };
+    const timer = setInterval(pump, topUpMs);
+    pump();
+  });
 }
+
 
 /** Phase 1: authentische Gerichtsnamen für ein Land. */
 async function askDishNames(country, count, avoid) {
@@ -760,7 +807,7 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
     knownTitles = (existing || []).map((r) => String(r.title || ''));
   }
   const titles = new Set(knownTitles.map((t) => String(t).toLowerCase()));
-  const batchSize = num('batch', 10);
+  const batchSize = batchSizeNow();
 
   /* Phase 1 — Gerichtsnamen sammeln (authentisch für dieses Land) */
   const wanted = [];
@@ -805,6 +852,10 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
         list = res.list;
         usedModel = res.model;
       } catch (e) {
+        if (/abgeschnitten/.test(e.message)) {
+          batchOverride = Math.max(3, batchSizeNow() - 1);
+          log(`  ${countryName}: Antwort abgeschnitten → Blockgröße jetzt ${batchOverride}`, 'warn');
+        }
         log(`  ${countryName}: ${e.message}`, 'warn');
         retry.push(...part);
         continue;
@@ -954,8 +1005,15 @@ async function main() {
 
   for (const country of todo) {
     const t0 = Date.now();
+    const already = dbCounts.get(country.name) || 0;
+    const need = Math.max(0, perCountry - already);
+    if (!need) {
+      log(`${country.name}: schon ${already} Rezepte — übersprungen`);
+      continue;
+    }
     log(`── ${country.name} ─────────────────────────────`);
-    const { rows, rejected } = await buildForCountry(country.name, perCountry, state, existingIds, []);
+    log(`   vorhanden: ${already}, fehlend: ${need}`);
+    const { rows, rejected } = await buildForCountry(country.name, need, state, existingIds, []);
     if (!rows.length) {
       log(`${country.name}: nichts erzeugt, überspringe`, 'warn');
       continue;
