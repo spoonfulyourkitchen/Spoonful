@@ -1,0 +1,13 @@
+<svg width="500" height="500" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="200" fill="#f7f5f0"/>
+
+  <!-- Outer Globe / Outer Container Boundary -->
+  <path d="M 100 25 A 75 75 0 0 1 175 100" stroke="#d35427" stroke-width="15" stroke-linecap="round" fill="none" />
+  <path d="M 175 100 A 75 75 0 0 1 25 100" stroke="#d35427" stroke-width="15" stroke-linecap="round" fill="none" />
+
+  <!-- Central 'S' Flow & Spoon Bowl Geometry -->
+  <path d="M 120 58 C 80 45 62 76 90 96 C 118 116 135 148 80 142" stroke="#d35427" stroke-width="15" stroke-linecap="round" fill="none" />
+
+  <!-- Right Bridge / Horizon Accent Line -->
+  <line x1="130" y1="100" x2="160" y2="100" stroke="#d35427" stroke-width="15" stroke-linecap="round" />
+</svg>

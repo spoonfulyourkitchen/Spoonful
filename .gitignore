@@ -1,0 +1,50 @@
+# ─── Spoonful repository ignore list ───────────────────────────────────────────
+# Nothing secret may ever be committed. See APP_DESCRIPTION.md / README.md.
+
+# Secrets & credentials
+.env
+.env.*
+!.env.example
+convex-keys.txt
+*.keystore
+*.jks
+*.p12
+*.pem
+*.key
+*.pw
+keytool.*
+**/google-services.json
+**/local.properties
+**/keystore.properties
+# Capacitor / old Android wrapper: upload keystore + its passwords
+android/key.properties
+android/keystore/
+# built web bundle of the old Capacitor wrapper
+android/app/src/main/assets/public/
+mobile/src/config-secrets.ts
+
+# Dependencies
+node_modules/
+
+# Android / Gradle build output
+build/
+.gradle/
+.cxx/
+.kotlin/
+*.iml
+.idea/
+local.properties
+
+# Build artifacts (ship the APK through GitHub Releases, not through git)
+*.apk
+*.aab
+*.jsbundle
+*.hprof
+
+# Logs & scratch
+*.log
+metro.config.js.bak
+test.ts
+
+# Internal notes that describe the backend setup in detail
+Recipe-AI-Prompt.md
