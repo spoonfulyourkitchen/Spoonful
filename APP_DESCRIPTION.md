@@ -48,7 +48,7 @@ Lists you already opened stay readable offline, and anything you add while offli
 No advertising, no tracking profiles. The app does not request access to your photo library: photos are chosen through the system picker, which needs no permission at all. Camera access is used only when you take a picture of a dish or a barcode. You can export all of your data as a file at any time, and delete your account completely whenever you want.
 
 ### At a glance
-- More than 1,100 recipes with photos and nutrition
+- More than 1,300 recipes with photos and nutrition, curated for 12 countries
 - AI-generated recipes, improvements and ingredient substitutes
 - Calorie, macro, water and weight tracking with weekly reports
 - Barcode scanning from a photo with portion sizes
@@ -110,7 +110,7 @@ Bereits geöffnete Listen bleiben offline lesbar, und alles, was du offline eint
 Keine Werbung, keine Tracking-Profile. Die App fragt keine Berechtigung für deine Galerie ab: Fotos wählst du über den System-Picker, der ohne Berechtigung auskommt. Die Kamera wird nur genutzt, wenn du ein Gericht oder einen Barcode fotografierst. Du kannst alle deine Daten jederzeit als Datei exportieren und dein Konto vollständig löschen.
 
 **Auf einen Blick**
-- Mehr als 1.100 Rezepte mit Fotos und Nährwerten
+- Mehr als 1.300 Rezepte mit Fotos und Nährwerten, kuratiert für 12 Länder
 - KI-Rezepte, Verbesserungen und Zutaten-Ersatz
 - Kalorien-, Makro-, Wasser- und Gewichts-Tracking mit Wochenbericht
 - Barcode-Scan aus dem Foto mit Portionswahl
