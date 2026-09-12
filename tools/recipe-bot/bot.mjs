@@ -81,9 +81,12 @@ if (flag('help')) {
   --batch=10               Rezepte pro KI-Anfrage (Standard 10)
   --model=<id>             nur ein Modell (Standard: die Gratis-Kette)
   --models=a,b,c           Modell-Kette selbst festlegen
+  --parallel=3             so viele Modelle gleichzeitig testen (Rennen)
+  --wave-ms=150000         nach dieser Zeit kommen die nächsten Modelle dran
   --min-steps=6            Mindestzahl Schritte je Rezept (Standard 6)
-  --pause-ms=1200          Pause zwischen zwei KI-Anfragen
+  --pause-ms=600           Pause zwischen zwei KI-Anfragen
   --max-tokens=8192        maximale Antwortlänge je KI-Anfrage
+  --timeout-ms=240000      Timeout je KI-Anfrage
   --max-countries=3        nur die nächsten N offenen Länder
   --dry-run                erzeugen + prüfen, aber nichts hochladen (out/*.json)
   --no-images              keine Bildsuche (image_url = null)
@@ -266,20 +269,93 @@ Return ONLY JSON:
 No prose, no markdown, no duplicate names, none of the names I ask you to avoid.`;
 
 /* ── Modell-Rotation: Gratis-Modelle mit automatischem Wechsel ───────────── */
-/** Alle gratis auf OpenRouter (Stand 12.09.2026) — stark zuerst. */
+/** Alle gratis auf OpenRouter (Stand 12.09.2026).
+ *  Reihenfolge nach Erfahrung: schnell + brauchbar zuerst, Mini-Modelle zuletzt
+ *  (sie liefern zu kurze Schritte und fallen ohnehin durch die Prüfung). */
 const FREE_MODELS = [
-  'google/gemma-4-31b-it:free',
-  'nvidia/nemotron-3-ultra-550b-a55b:free',
-  'nex-agi/nex-n2.5-pro:free',
   'inclusionai/ling-3.0-flash-vl:free',
-  'nvidia/nemotron-3-super-120b-a12b:free',
-  'google/gemma-4-26b-a4b-it:free',
-  'thinkingmachines/inkling:free',
+  'google/gemma-4-31b-it:free',
   'nex-agi/nex-n2.5-mini:free',
+  'google/gemma-4-26b-a4b-it:free',
+  'nex-agi/nex-n2.5-pro:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
+  'thinkingmachines/inkling:free',
   'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
   'liquid/lfm-2.5-2.6b:free',
 ];
 const modelState = new Map(); // model -> { until, fails, calls }
+
+/* ── OpenRouter-Keys: jeder Key hat sein eigenes Gratis-Kontingent ───────── */
+function readKeys() {
+  const keys = [];
+  const add = (v) =>
+    String(v || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 20)
+      .forEach((k) => {
+        if (!keys.includes(k)) keys.push(k);
+      });
+  add(process.env.OPENROUTER_API_KEYS);
+  add(process.env.OPENROUTER_API_KEY);
+  for (let i = 2; i <= 12; i++) add(process.env[`OPENROUTER_API_KEY_${i}`]);
+  return keys;
+}
+const KEYS = readKeys();
+/** Cooldown pro Modell UND Key — ein 429 trifft nur dieses Paar. */
+const pairState = new Map();
+const keyCursor = { i: 0 };
+/** Qualitäts-Malus: Modelle, deren Rezepte die Prüfung nicht bestehen. */
+const modelQuality = new Map();
+function noteRejects(model, count = 1) {
+  if (!model) return;
+  const q = modelQuality.get(model) || { rejects: 0 };
+  q.rejects += count;
+  modelQuality.set(model, q);
+}
+
+function pairStateOf(model, keyIndex) {
+  const id = `${model}|${keyIndex}`;
+  let st = pairState.get(id);
+  if (!st) {
+    st = { until: 0, fails: 0, calls: 0 };
+    pairState.set(id, st);
+  }
+  return st;
+}
+
+/** Nächster Key, der für dieses Modell nicht im Cooldown ist (-1 = alle im Limit). */
+function pickKey(model) {
+  for (let n = 0; n < KEYS.length; n++) {
+    const idx = (keyCursor.i + n) % KEYS.length;
+    if (Date.now() >= pairStateOf(model, idx).until) {
+      keyCursor.i = (idx + 1) % KEYS.length;
+      return idx;
+    }
+  }
+  return -1;
+}
+
+/** Modelle sortieren: ohne Fehler zuerst, kaputte nach hinten, blockierte zuletzt. */
+function candidateModels() {
+  const score = (model) => {
+    let fails = 0;
+    let blocked = 0;
+    for (let i = 0; i < KEYS.length; i++) {
+      const st = pairStateOf(model, i);
+      fails += st.fails;
+      if (Date.now() < st.until) blocked++;
+    }
+    const rejects = modelQuality.get(model)?.rejects || 0;
+    const weight = fails + rejects * 2; // schlechte Rezepte zählen doppelt
+    return { weight, blocked, rank: KEYS.length - blocked === 0 ? 2 : weight > 0 ? 1 : 0 };
+  };
+  return modelList()
+    .map((m, i) => ({ m, i, s: score(m) }))
+    .sort((a, b) => a.s.rank - b.s.rank || a.s.weight - b.s.weight || a.i - b.i)
+    .map((x) => x.m);
+}
 
 /** Reihenfolge der Modelle: --models=… > --model=… > OPENROUTER_MODEL > FREE_MODELS */
 function modelList() {
@@ -291,75 +367,159 @@ function modelList() {
   return fromEnv ? [fromEnv, ...FREE_MODELS.filter((m) => m !== fromEnv)] : FREE_MODELS;
 }
 
+/** JSON aus einer KI-Antwort holen — auch aus Code-Fences, Text oder Arrays. */
 function jsonFrom(text) {
-  const cleaned = String(text).replace(/```json|```/g, '').trim();
-  const start = cleaned.indexOf('{');
-  const end = cleaned.lastIndexOf('}');
-  if (start === -1 || end <= start) throw new Error('kein JSON gefunden');
-  return JSON.parse(cleaned.slice(start, end + 1));
+  const cleaned = String(text)
+    .replace(/```json/gi, '```')
+    .replace(/```/g, '')
+    .trim();
+  for (const [open, close] of [['{', '}'], ['[', ']']]) {
+    const start = cleaned.indexOf(open);
+    const end = cleaned.lastIndexOf(close);
+    if (start === -1 || end <= start) continue;
+    try {
+      return JSON.parse(cleaned.slice(start, end + 1));
+    } catch {
+      /* weiter mit der nächsten Klammerart */
+    }
+  }
+  throw new Error('kein JSON gefunden');
 }
 
 /**
- * Fragt die Modelle der Reihe nach. Bei Rate-Limit (429) wandert das Modell in
- * den Cooldown und das nächste übernimmt — so laufen die Gratis-Kontingente
- * mehrerer Modelle parallel.
+ * Eine einzelne Anfrage: ein Modell auf einem Key.
+ * Bei 429 geht nur dieses Modell-Key-Paar in den Cooldown.
  */
-async function askModel(messages, temperature) {
-  const errors = [];
-  const pauseMs = num('pause-ms', 1200);
-  for (const model of modelList()) {
-    const st = modelState.get(model) || { until: 0, fails: 0, calls: 0 };
-    modelState.set(model, st);
-    if (Date.now() < st.until) continue;
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${CFG.openRouterKey}`,
-          'HTTP-Referer': 'https://spoonful.app',
-          'X-Title': 'Spoonful Recipe Bot',
-        },
-        // Timeout, damit ein hängendes Gratis-Modell den Nachtlauf nicht blockiert
-        signal: AbortSignal.timeout(num('timeout-ms', 240000)),
-        // bewusst KEIN response_format: viele Gratis-Modelle unterstützen es nicht
-        body: JSON.stringify({ model, temperature, max_tokens: num('max-tokens', 8192), messages }),
-      }).catch(() => null);
+async function callOnce(model, keyIndex, messages, temperature, controller) {
+  const st = pairStateOf(model, keyIndex);
+  const tag = `${model} [K${keyIndex + 1}]`;
+  let res;
+  try {
+    res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${KEYS[keyIndex]}`,
+        'HTTP-Referer': 'https://spoonful.app',
+        'X-Title': 'Spoonful Recipe Bot',
+      },
+      signal: controller.signal,
+      // bewusst KEIN response_format: viele Gratis-Modelle unterstützen es nicht
+      body: JSON.stringify({ model, temperature, max_tokens: num('max-tokens', 8192), messages }),
+    });
+  } catch (e) {
+    // Abbruch, weil ein anderes Modell gewonnen hat oder die Welle abgelaufen ist
+    // → zählt nicht als Fehler für dieses Modell
+    if (controller.signal.aborted && e?.name === 'AbortError' && (controller.signal.reason === 'won' || controller.signal.reason === 'wave-timeout')) {
+      return { ok: false, silent: true, reason: '' };
+    }
+    st.fails++;
+    return { ok: false, reason: `${tag}: ${e?.name === 'TimeoutError' ? 'Timeout' : e?.message || 'Netzwerkfehler'}` };
+  }
+  if (res.status === 429) {
+    const retryAfter = Number(res.headers.get('retry-after') || 0);
+    const wait = retryAfter > 0 ? retryAfter * 1000 : Math.min(30 * 60_000, 10 * 60_000 * (st.fails + 1));
+    st.fails++;
+    st.until = Date.now() + wait;
+    return { ok: false, reason: `${tag}: 429 — Pause ${Math.round(wait / 60_000)} min` };
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    st.fails++;
+    return { ok: false, reason: `${tag}: HTTP ${res.status} ${text.slice(0, 80)}` };
+  }
+  const data = await res.json().catch(() => null);
+  const choice = data?.choices?.[0] ?? {};
+  const text = String(choice?.message?.content || choice?.message?.reasoning || '');
+  st.calls++;
+  if (!text.trim()) {
+    st.fails++;
+    return { ok: false, reason: `${tag}: leere Antwort (finish=${choice?.finish_reason || '?'})` };
+  }
+  return { ok: true, text, model, keyIndex, finish: choice?.finish_reason };
+}
 
-      if (!res) {
-        errors.push(`${model}: Netzwerkfehler/Timeout`);
-        await sleep(1500);
+/**
+ * Paralleles Rennen: `--parallel` Modelle (auf verschiedenen Keys) starten
+ * gleichzeitig, der erste brauchbare JSON-Antwort gewinnt, der Rest wird
+ * abgebrochen. Nächste Welle = nächste Modelle.
+ */
+async function askModel(messages, temperature, validate) {
+  const models = candidateModels();
+  const width = Math.max(1, Math.min(num('parallel', 3), Math.max(1, models.length)));
+  const errors = [];
+
+  for (let start = 0; start < models.length; start += width) {
+    const wave = [];
+    for (const model of models.slice(start, start + width)) {
+      // Modelle, die dauerhaft schlechte Rezepte liefern, werden übersprungen
+      if ((modelQuality.get(model)?.rejects || 0) >= num('max-rejects', 3)) continue;
+      const keyIndex = pickKey(model);
+      if (keyIndex < 0) {
+        const blockedFor = KEYS.length;
+        if (blockedFor > 0) errors.push(`${model}: alle Keys im Limit`);
         continue;
       }
-      if (res.status === 429) {
-        st.fails++;
-        const retryAfter = Number(res.headers.get('retry-after') || 0);
-        // Gratis-Kontingente sind meist Tageslimits → lange Pause statt ständigem Neuversuch
-        const wait = retryAfter > 0 ? retryAfter * 1000 : Math.min(30 * 60_000, 10 * 60_000 * st.fails);
-        st.until = Date.now() + wait;
-        log(`  ${model}: Rate-Limit — Pause ${Math.round(wait / 60_000)} min, nächstes Modell`, 'warn');
-        errors.push(`${model}: 429`);
-        break;
+      const controller = new AbortController();
+      controller.signal.addEventListener('abort', () => {}, { once: true });
+      const timeout = setTimeout(() => controller.abort(), num('timeout-ms', 240000));
+      wave.push({ model, controller, timeout, promise: callOnce(model, keyIndex, messages, temperature, controller) });
+    }
+    if (!wave.length) continue;
+    if (!QUIET) log(`  Rennen: ${wave.map((w) => w.model.split(':')[0].split('/').pop()).join(' vs ')}`, 'info');
+
+    let winner = null;
+    // Wellen-Timeout: wenn keiner rechtzeitig brauchbar antwortet, kommen die
+    // nächsten Modelle dran — so blockiert ein langsames Modell den Lauf nicht.
+    const waveTimeout = setTimeout(() => {
+      for (const w of wave) {
+        if (w.controller.signal.aborted) continue;
+        w.controller.abort('wave-timeout');
       }
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        errors.push(`${model}: HTTP ${res.status} ${text.slice(0, 90)}`);
-        log(`  ${model}: HTTP ${res.status} — nächstes Modell (${text.slice(0, 90)})`, 'warn');
-        break;
-      }
-      const data = await res.json().catch(() => null);
-      const message = data?.choices?.[0]?.message ?? {};
-      const text = String(message.content || message.reasoning || '');
-      if (!text.trim()) {
-        errors.push(`${model}: leere Antwort`);
-        break;
-      }
-      st.calls++;
-      await sleep(pauseMs);
-      return { text, model };
+    }, num('wave-ms', 150000));
+
+    try {
+      winner = await new Promise((resolve, reject) => {
+        let pending = wave.length;
+        for (const w of wave) {
+          w.promise.then((r) => {
+            if (r.ok) {
+              let json = null;
+              try {
+                json = jsonFrom(r.text);
+              } catch {
+                errors.push(`${r.model}: ${r.finish === 'length' ? 'Antwort abgeschnitten' : 'kein JSON'}`);
+              }
+              if (json && (!validate || validate(json))) {
+                for (const other of wave) {
+                  if (other === w) continue;
+                  other.controller.abort('won');
+                  clearTimeout(other.timeout);
+                }
+                resolve({ json, model: r.model, keyIndex: r.keyIndex });
+                return;
+              }
+              if (json) errors.push(`${r.model}: falsches Format`);
+            } else if (!r.silent && r.reason) {
+              errors.push(r.reason);
+            }
+            pending--;
+            if (pending === 0) reject(new Error(errors.slice(-3).join(' | ')));
+          });
+        }
+      });
+    } catch (e) {
+      if (!QUIET) log(`  ${e.message}`, 'warn');
+    }
+    clearTimeout(waveTimeout);
+    for (const w of wave) clearTimeout(w.timeout);
+    if (winner) {
+      if (!QUIET) log(`  ✓ ${winner.model} [K${winner.keyIndex + 1}]`, 'info');
+      await sleep(num('pause-ms', 600));
+      return winner;
     }
   }
-  throw new Error(`kein Modell hat geantwortet (${errors.slice(0, 3).join(' | ')})`);
+  throw new Error(`kein Modell hat verwertbar geantwortet (${errors.slice(-3).join(' | ')})`);
 }
 
 /** Phase 1: authentische Gerichtsnamen für ein Land. */
@@ -375,19 +535,14 @@ Return exactly ${count} entries in the JSON object described in the system promp
     { role: 'user', content: user },
   ];
 
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    const { text, model } = await askModel(messages, 0.6);
-    try {
-      const parsed = jsonFrom(text);
-      const list = Array.isArray(parsed) ? parsed : parsed?.dishes;
-      const names = (list || [])
-        .map((d) => ({ name: String(d?.name ?? '').trim(), slug: String(d?.slug ?? '').trim(), meal_type: String(d?.meal_type ?? '').trim() }))
-        .filter((d) => d.name.length > 2);
-      if (names.length) return { names: names.slice(0, count), model };
-      throw new Error('kein dishes-Array');
-    } catch (e) {
-      log(`  ${model}: Namen unlesbar (${e.message}) — neuer Versuch`, 'warn');
-    }
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const { json, model } = await askModel(messages, 0.6, (j) => Array.isArray(j?.dishes) && j.dishes.length > 0);
+    const list = Array.isArray(json) ? json : json?.dishes;
+    const names = (list || [])
+      .map((d) => ({ name: String(d?.name ?? '').trim(), slug: String(d?.slug ?? '').trim(), meal_type: String(d?.meal_type ?? '').trim() }))
+      .filter((d) => d.name.length > 2);
+    if (names.length) return { names: names.slice(0, count), model };
+    log(`  ${model}: keine brauchbaren Gerichtsnamen — neuer Versuch`, 'warn');
   }
   throw new Error(`kein Modell lieferte für ${country} Gerichtsnamen`);
 }
@@ -406,17 +561,9 @@ Return exactly ${names.length} entries in the JSON object described in the syste
     { role: 'user', content: user },
   ];
 
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    const { text, model } = await askModel(messages, 0.8);
-    try {
-      const parsed = jsonFrom(text);
-      const list = Array.isArray(parsed) ? parsed : parsed?.recipes;
-      if (Array.isArray(list) && list.length) return { list, model };
-      throw new Error('kein recipes-Array');
-    } catch (e) {
-      log(`  ${model}: Antwort unlesbar (${e.message}) — neuer Versuch`, 'warn');
-    }
-  }
+    const { json, model } = await askModel(messages, 0.8, (j) => Array.isArray(j?.recipes) && j.recipes.length > 0);
+    const list = Array.isArray(json) ? json : json?.recipes;
+    if (Array.isArray(list) && list.length) return { list, model };
   throw new Error(`kein Modell lieferte für ${country} Rezepte`);
 }
 
@@ -668,12 +815,14 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
         const slug = slugify(r.slug || r.title);
         const title = String(r.title || '').trim();
         if (!asked.has(slug)) {
-          rejected.push({ title, problems: ['Titel gehoert nicht zur vorgegebenen Liste'] });
+          rejected.push({ title, problems: ['Titel gehört nicht zur vorgegebenen Liste'] });
+          noteRejects(usedModel);
           continue;
         }
         const problems = problemsOf(r);
         if (problems.length) {
           rejected.push({ title, problems });
+          noteRejects(usedModel);
           retry.push(asked.get(slug));
           continue;
         }
@@ -686,7 +835,8 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
       // Zwischenstand sichern: ein Absturz oder Standby verliert so kein ganzes Land
       fs.mkdirSync(OUT_DIR, { recursive: true });
       fs.writeFileSync(path.join(OUT_DIR, `${slugify(countryName)}.partial.json`), JSON.stringify(rows, null, 2));
-      log(`  ${countryName}: ${rows.length}/${perCountry} Rezepte geschrieben${rejected.length ? `, ${rejected.length} verworfen` : ''} (${usedModel})`);
+      const quality = rejected.length ? ` — Bewertung: ${[...modelQuality.entries()].map(([m, q]) => `${m.split('/').pop()}:${q.rejects}`).join(', ')}` : '';
+      log(`  ${countryName}: ${rows.length}/${perCountry} Rezepte geschrieben${rejected.length ? `, ${rejected.length} verworfen` : ''} (${usedModel})${quality}`);
     }
     queue = retry.slice(0, 20);
   }
@@ -767,6 +917,7 @@ async function main() {
   const perCountry = num('per-country', 100);
   log(`Bot gestartet — ${countries.length} Länder in der Liste, ${perCountry} Rezepte je Land`);
   log(`Modelle: ${modelList().join(' → ')}`);
+  log(`OpenRouter-Keys: ${KEYS.length}${KEYS.length > 1 ? ' (Rotation aktiv)' : ''}`);
 
   const existingIds = new Set(await fetchExistingIds());
   const dbCounts = await fetchDbCounts();

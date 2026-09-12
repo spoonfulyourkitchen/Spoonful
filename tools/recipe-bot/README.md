@@ -72,35 +72,43 @@ Nützliche Schalter: `--per-country=100`, `--batch=10` (Rezepte pro KI-Anfrage),
 Bei Abbruch (Strg+C, Netzfehler) steht der Fortschritt in `state.json` —
 einfach neu starten, er macht beim nächsten offenen Land weiter.
 
-## 4) Modelle: Gratis-Kette mit automatischem Wechsel
+## 4) Modelle & Keys: paralleles Rennen mit Rotation
 
-Standardmäßig läuft der Bot über die **kostenlosen Modelle** von OpenRouter, der
-Reihe nach (Stand 12.09.2026):
+**Keys:** mehrere OpenRouter-Keys = mehrere Kontingente. Der Bot liest
+`OPENROUTER_API_KEY`, `OPENROUTER_API_KEY_2 … _12` und `OPENROUTER_API_KEYS`
+(Komma-Liste) aus der `.env` und rotiert sie automatisch:
 
 ```
-google/gemma-4-31b-it:free                       (262K Kontext)
-nvidia/nemotron-3-ultra-550b-a55b:free           (1M)
-nex-agi/nex-n2.5-pro:free                        (262K)
-inclusionai/ling-3.0-flash-vl:free               (262K)
-nvidia/nemotron-3-super-120b-a12b:free           (262K)
-google/gemma-4-26b-a4b-it:free                   (262K)
-thinkingmachines/inkling:free                    (1M)
-nex-agi/nex-n2.5-mini:free                       (262K)
-nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free (256K)
-liquid/lfm-2.5-2.6b:free                         (65K)
+K4 ✓  ling-3.0-flash-vl  (Key 4 hatte noch Kontingent, Key 1 war im Limit)
 ```
 
-* Antwortet ein Modell mit **429 (Rate-Limit)**, wandert es für 30–900 s in den
-  Cooldown und das **nächste Modell übernimmt** — so teilen sich die
-  Gratis-Kontingente mehrerer Modelle.
-* Es wird bewusst **kein** `response_format: json_object` benutzt: viele
-  Gratis-Modelle unterstützen es nicht. Der Bot liest das JSON selbst aus der
-  Antwort (auch aus `reasoning`, falls `content` leer ist).
-* Eigene Kette: `--models=google/gemma-4-31b-it:free,nvidia/nemotron-3-ultra-550b-a55b:free`
-  oder nur eines: `--model=…`. Der Bot protokolliert je Land, welches Modell
-  geliefert hat.
-* Tempo: `--pause-ms=1200` (Standard) zwischen zwei Anfragen, `--batch=10`
-  Rezepte pro Anfrage.
+Ein **429** legt nur das Paar *Modell + Key* 10–30 Min auf Eis — alle anderen
+Kombinationen laufen weiter.
+
+**Rennen (`--parallel=3`):** pro Anfrage starten 3 Modelle auf 3 verschiedenen
+Keys gleichzeitig. Der **erste brauchbare** JSON-Antwort gewinnt, die anderen
+werden abgebrochen. Nützt kein Modell etwas, kommt nach `--wave-ms` (Standard
+90 s im Starter) die nächste Welle mit den nächsten Modellen.
+
+**Modell-Reihenfolge** (nach Messungen aus der Praxis):
+
+```
+inclusionai/ling-3.0-flash-vl:free      schnell, gute Rezepte
+google/gemma-4-31b-it:free              stark
+nex-agi/nex-n2.5-mini:free
+google/gemma-4-26b-a4b-it:free
+nex-agi/nex-n2.5-pro:free
+nvidia/nemotron-3-super-120b-a12b:free
+nvidia/nemotron-3-ultra-550b-a55b:free  stark, aber langsam
+thinkingmachines/inkling:free
+nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+liquid/lfm-2.5-2.6b:free                zu klein → fällt durch die Prüfung
+```
+
+Der Bot **lernt während des Laufs**: Modelle, deren Rezepte die Qualitätsprüfung
+nicht bestehen, sammeln einen Malus und rutschen nach hinten; ab
+`--max-rejects=3` werden sie ganz übersprungen. So gewinnt nicht dauerhaft das
+schnellste, sondern das brauchbarste Modell.
 
 ## 5) Über Nacht laufen lassen
 
