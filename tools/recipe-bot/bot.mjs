@@ -517,15 +517,21 @@ async function askModel(messages, temperature, validate) {
         try {
           json = jsonFrom(r.text);
         } catch {
-          errors.push(`${r.model}: ${r.finish === 'length' ? 'abgeschnitten' : 'kein JSON'}`);
+          const why = r.finish === 'length' ? 'abgeschnitten' : 'kein JSON';
+          errors.push(`${r.model}: ${why}`);
+          log(`  ✗ ${r.model.split('/').pop()}: ${why}`, 'warn');
         }
         if (json && (!validate || validate(json))) {
           win({ json, model: r.model, keyIndex: r.keyIndex, truncated: r.finish === 'length' });
           return;
         }
-        if (json) errors.push(`${r.model}: falsches Format`);
+        if (json) {
+          errors.push(`${r.model}: falsches Format`);
+          log(`  ✗ ${r.model.split('/').pop()}: falsches Format`, 'warn');
+        }
       } else if (!r.silent && r.reason) {
         errors.push(r.reason);
+        log(`  ✗ ${r.reason}`, 'warn');
       }
       fail();
     };
