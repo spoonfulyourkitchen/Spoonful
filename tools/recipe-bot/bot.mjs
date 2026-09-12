@@ -320,12 +320,14 @@ async function askModel(messages, temperature) {
           'HTTP-Referer': 'https://spoonful.app',
           'X-Title': 'Spoonful Recipe Bot',
         },
+        // Timeout, damit ein hängendes Gratis-Modell den Nachtlauf nicht blockiert
+        signal: AbortSignal.timeout(num('timeout-ms', 240000)),
         // bewusst KEIN response_format: viele Gratis-Modelle unterstützen es nicht
         body: JSON.stringify({ model, temperature, max_tokens: num('max-tokens', 8192), messages }),
       }).catch(() => null);
 
       if (!res) {
-        errors.push(`${model}: Netzwerkfehler`);
+        errors.push(`${model}: Netzwerkfehler/Timeout`);
         await sleep(1500);
         continue;
       }
