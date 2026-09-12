@@ -1,14 +1,12 @@
 /**
- * Direct OpenRouter calls for the AI Chef and the nutrition estimator.
+ * AI calls for the AI Chef and the nutrition estimator.
  *
- * Security note: this keeps the API key inside the app bundle. For a public
- * release, replace these two functions with calls to a Supabase Edge Function
- * (supabase/functions/ai) and remove the key from the client.
+ * Security: the OpenRouter key is NOT part of the app any more. Every request
+ * goes through the Supabase Edge Function `ai` (see supabase/functions/ai),
+ * which holds the key as a server secret and only answers signed-in users.
+ * Deploying that function once is enough — no app update needed afterwards.
  */
-import { OPENROUTER_API_KEY } from '../config';
-
-const MODEL = 'openai/gpt-4o-mini';
-const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+import { supabase } from './supabase';
 
 function jsonFromText(text: string): any {
   const cleaned = text
@@ -20,34 +18,36 @@ function jsonFromText(text: string): any {
   return JSON.parse(cleaned.slice(start, end + 1));
 }
 
+/** Turns an edge-function failure into a message a human can act on. */
+async function functionError(error: any): Promise<string> {
+  const status = Number(error?.context?.status ?? error?.status ?? 0);
+  if (status === 404) {
+    return 'AI is not available yet: deploy the Supabase function "ai" (supabase/functions/ai) and set OPENROUTER_API_KEY as its secret.';
+  }
+  if (status === 401 || status === 403) return 'AI access was denied. Please sign in again.';
+  if (status === 429) return 'The AI is busy right now. Please try again in a moment.';
+  let detail = '';
+  try {
+    const body = await error?.context?.text?.();
+    if (body) detail = String(body).slice(0, 200);
+  } catch {
+    /* body already consumed */
+  }
+  return `AI request failed${status ? ` (${status})` : ''}${detail ? `: ${detail}` : ''}`;
+}
+
 async function chatJSON(system: string, user: string, temperature = 0.7): Promise<any> {
-  if (!OPENROUTER_API_KEY) {
-    throw new Error('AI is not configured. Add OPENROUTER_API_KEY in src/config.ts.');
-  }
-  const res = await fetch(ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: MODEL,
+  const { data, error } = await supabase.functions.invoke('ai', {
+    body: {
+      system,
+      user,
       temperature: Math.max(0, Math.min(1.2, Number(temperature) || 0.7)),
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-    }),
+    },
   });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`AI request failed (${res.status})${body ? `: ${body.slice(0, 200)}` : ''}`);
-  }
-  const json = await res.json();
-  const content = json?.choices?.[0]?.message?.content;
+  if (error) throw new Error(await functionError(error));
+  const content = (data as any)?.content;
   if (!content) throw new Error('AI returned no content.');
-  return jsonFromText(content);
+  return jsonFromText(String(content));
 }
 
 const numberOr = (v: any, d?: number) => (typeof v === 'number' && Number.isFinite(v) ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : d);

@@ -516,6 +516,7 @@ function MacroChip({ label, value, color, bg }: { label: string; value: string; 
 }
 
 function MacroEnergyCard({ kcal, p, c, f, tp, tc, tf }: { kcal: number; p: number; c: number; f: number; tp: number; tc: number; tf: number }) {
+  const { t } = useTranslation();
   const kcalSafe = kcal > 0 ? kcal : 1;
   const pct = (g: number) => Math.max(0, Math.min(100, Math.round(((g * 4) / kcalSafe) * 100)));
   const rows = [

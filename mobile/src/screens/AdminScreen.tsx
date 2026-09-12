@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { CheckCircle2, ChevronDown, ChevronUp, Flag, ListChecks, LogIn, MessageSquare, Rocket, Shield, Star, Trash2, UsersRound, XCircle } from 'lucide-react-native';
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Flag, ListChecks, LogIn, MessageSquare, Rocket, Shield, Star, Trash2, UsersRound, XCircle } from 'lucide-react-native';
 import { useMutation, useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';
 import { colors, readableText } from '../theme';
@@ -51,10 +51,11 @@ export function AdminScreen() {
 
   /* 2.1.4: "new update" notice - only users on an OLDER version see it. */
   const updateNotices = useQuery(api.updates.list) as any[] | undefined;
+  const updatesStatus = useQuery(api.updates.status) as any;
   const postUpdate = useMutation(api.updates.post);
   const deactivateUpdate = useMutation(api.updates.deactivate);
   const [uVersion, setUVersion] = useState(APP_VERSION);
-  const [uUrl, setUUrl] = useState('');
+  const [uUrl, setUUrl] = useState(`https://github.com/spoonfulyourkitchen/Spoonful/releases/tag/v${APP_VERSION}`);
   const [uTitle, setUTitle] = useState('');
   const [uBody, setUBody] = useState('');
   const [uBusy, setUBusy] = useState(false);
@@ -75,7 +76,7 @@ export function AdminScreen() {
         title: uTitle.trim() || t('s.upBox'),
         body: uBody.trim(),
       });
-      setUUrl('');
+      setUUrl(`https://github.com/spoonfulyourkitchen/Spoonful/releases/tag/v${uVersion.trim()}`);
       setUBody('');
       setUNote(t('s.upPublished'));
     } catch (e) {
@@ -518,6 +519,13 @@ export function AdminScreen() {
                 </View>
               </View>
               <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 4 }}>{t('s.upHint')}</Text>
+
+              {updatesStatus && updatesStatus.ready === false ? (
+                <View style={{ marginTop: 10, borderRadius: 12, backgroundColor: colors.surfaceMuted, padding: 12, flexDirection: 'row', gap: 8 }}>
+                  <AlertTriangle size={15} color={colors.amber} />
+                  <Text style={{ flex: 1, fontSize: 12.5, lineHeight: 18, color: colors.textPrimary }}>{t('s.upNeedsSql')}</Text>
+                </View>
+              ) : null}
 
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
                 <View style={{ flex: 1 }}>

@@ -13,19 +13,16 @@
 import {
   SUPABASE_URL as SECRET_SUPABASE_URL,
   SUPABASE_ANON_KEY as SECRET_SUPABASE_ANON_KEY,
-  OPENROUTER_API_KEY as SECRET_OPENROUTER_API_KEY,
 } from './config-secrets';
 
 export const SUPABASE_URL = SECRET_SUPABASE_URL;
 export const SUPABASE_ANON_KEY = SECRET_SUPABASE_ANON_KEY;
 
 /**
- * Optional OpenRouter key for the built-in AI chef + nutrition estimator.
- * NOTE: putting a server key inside a shipped app exposes it. For production,
- * move the AI calls into a Supabase Edge Function and remove this constant.
- * Leave empty ('') to disable the AI features.
+ * The OpenRouter key is NOT part of the app. All AI calls go through the
+ * Supabase Edge Function `ai` (supabase/functions/ai), which keeps the key as a
+ * server secret — so nobody can extract it from the APK.
  */
-export const OPENROUTER_API_KEY = SECRET_OPENROUTER_API_KEY;
 
 /** Supabase Storage bucket used for user recipe photos. */
 export const SUPABASE_STORAGE_BUCKET = 'recipe-images';

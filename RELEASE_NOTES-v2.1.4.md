@@ -13,6 +13,7 @@ When a new version is published, the app now tells you. Everyone on an older ver
 **Also in this release**
 - Smaller fixes in the tracker, shopping list and community screens.
 - Improved loading states and empty states across the app.
+- The AI Chef now runs through our own server, so no keys are stored inside the app.
 
 **Requirements:** Android 7.0 or newer, about 74 MB.
 
@@ -31,5 +32,6 @@ Wenn eine neue Version erscheint, sagt dir die App das jetzt. Alle mit einer äl
 **Außerdem in diesem Release**
 - Kleinere Korrekturen im Tracker, in der Einkaufsliste und in der Community.
 - Verbesserte Lade- und Leerzustände in der ganzen App.
+- Der KI-Koch läuft jetzt über unseren eigenen Server, es liegen keine Schlüssel mehr in der App.
 
 **Voraussetzungen:** Android 7.0 oder neuer, ca. 74 MB.

@@ -191,7 +191,7 @@ export function CommunityScreen() {
                 <View style={{ flex: 1, padding: 20 }}>
                   <Text style={{ fontSize: 24, fontWeight: '800', color: colors.textPrimary, fontFamily: 'serif' }}>{item.title}</Text>
                   <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: 6 }} numberOfLines={3}>
-                    {item.description || 'A recipe shared by the Spoonful community.'}
+                    {item.description || t('s.commFallbackDesc')}
                   </Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 14 }}>
                     <Pressable
@@ -342,6 +342,7 @@ function CommunityCard({ item, saved, liked, likesCount, commentCount, likeBusyI
   onOpen: () => void;
   onComments: () => void;
 }) {
+  const { t } = useTranslation();
   const rating = item.ratingCount ? Number(item.ratingAverage ?? 0).toFixed(1) : null;
   const diff = item.difficulty || 'medium';
   const dc = difficultyColor(diff);
@@ -354,7 +355,7 @@ function CommunityCard({ item, saved, liked, likesCount, commentCount, likeBusyI
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 17, fontWeight: '700', color: colors.textPrimary }}>{item.title}</Text>
               <Text numberOfLines={2} style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>
-                {item.description || 'A recipe shared by the Spoonful community.'}
+                {item.description || t('s.commFallbackDesc')}
               </Text>
             </View>
           </View>
@@ -399,7 +400,7 @@ function CommunityCard({ item, saved, liked, likesCount, commentCount, likeBusyI
           </View>
           {item.authorName ? (
             <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 8 }}>
-              Shared by {item.authorName}
+              {t('s.commSharedBy', { name: item.authorName })}
             </Text>
           ) : null}
         </View>
@@ -411,7 +412,7 @@ function CommunityCard({ item, saved, liked, likesCount, commentCount, likeBusyI
         </Pressable>
         <Pressable onPress={onSave} style={({ pressed }) => [{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 11, paddingVertical: 9, backgroundColor: saved ? colors.successBg : colors.surfaceMuted, opacity: pressed ? 0.8 : 1 }]}>
           {saved ? <BookmarkCheck size={15} color={colors.success} /> : <Bookmark size={15} color={colors.textSecondary} />}
-          <Text style={{ color: saved ? colors.success : colors.textSecondary, fontWeight: '700', fontSize: 13 }}>{saved ? 'Saved' : 'Save'}</Text>
+          <Text style={{ color: saved ? colors.success : colors.textSecondary, fontWeight: '700', fontSize: 13 }}>{saved ? t('s.commSavedShort') : t('s.commSave')}</Text>
         </Pressable>
         <Pressable onPress={onOpen} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 11, paddingVertical: 9, paddingHorizontal: 14, borderWidth: 1, borderColor: colors.cardBorder, opacity: pressed ? 0.7 : 1 }]}>
           <Play size={14} color={colors.textPrimary} />

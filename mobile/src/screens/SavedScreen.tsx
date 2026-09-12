@@ -90,6 +90,7 @@ export function SavedScreen() {
 }
 
 function SavedRow({ item, openRecipe, toggleFavorite, onRemove }: { item: any; openRecipe: (i: any) => void; toggleFavorite: (d: any) => void; onRemove: (d: any) => void }) {
+  const { t } = useTranslation();
   return (
     <GlassCard variant="solid" pad={0} radius={20}>
       <View style={{ padding: 16 }}>
@@ -97,7 +98,7 @@ function SavedRow({ item, openRecipe, toggleFavorite, onRemove }: { item: any; o
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 17, fontWeight: '700', color: colors.textPrimary }}>{item.title}</Text>
             <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 3, textTransform: 'capitalize' }}>
-              {item.cuisine || 'Everyday'} · {(item.prepTime ?? 0) + (item.cookTime ?? 0)} min
+              {item.cuisine || t('s.mineEveryday')} · {(item.prepTime ?? 0) + (item.cookTime ?? 0)} min
             </Text>
           </View>
           <Pressable

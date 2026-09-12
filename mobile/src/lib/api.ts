@@ -146,6 +146,7 @@ export const api = {
   /** 2.1.4: version-gated "new update" notices (only older versions see them). */
   updates: {
     latest: R('updates.latest', 'query'),
+    status: R('updates.status', 'query'),
     list: R('updates.list', 'query'),
     post: R('updates.post', 'mutation'),
     deactivate: R('updates.deactivate', 'mutation'),
@@ -1505,11 +1506,32 @@ ops['announcement.deactivate'] = {
 };
 
 /* ---------- 2.1.4: update notices (only users on an older version see them) ---------- */
+
+/**
+ * True when the database function (or its table) is not there yet — e.g. when
+ * `db/2.1.4-update-notices.sql` has not been run in the Supabase project.
+ * PostgREST answers with PGRST202 and "…in the schema cache".
+ */
+function isMissingRpc(error: any): boolean {
+  const code = String((error as any)?.code ?? '');
+  const text = `${(error as any)?.message ?? ''} ${(error as any)?.details ?? ''} ${(error as any)?.hint ?? ''}`;
+  return (
+    code === 'PGRST202' ||
+    code === '42P01' ||
+    code === '42883' ||
+    /could not find the function|schema cache|does not exist/i.test(text)
+  );
+}
+
 ops['updates.latest'] = {
   async query(_ctx, args: any) {
     const clientVersion = String(args?.version ?? '0');
     const { data, error } = await supabase.rpc('latest_update_notice', { p_client_version: clientVersion });
-    if (error) throw rowError(error);
+    // not deployed yet → simply no notice, never an error for the user
+    if (error) {
+      if (isMissingRpc(error)) return null;
+      throw rowError(error);
+    }
     const rows = Array.isArray(data) ? data : data ? [data] : [];
     const row: any = rows[0];
     if (!row) return null;
@@ -1523,10 +1545,27 @@ ops['updates.latest'] = {
     };
   },
 };
+
+/** Is the update-notice feature installed in the database? */
+ops['updates.status'] = {
+  async query() {
+    const { error } = await supabase.rpc('list_update_notices');
+    if (error) {
+      if (isMissingRpc(error)) return { ready: false, reason: String((error as any)?.message ?? '') };
+      return { ready: true, reason: '' };
+    }
+    return { ready: true, reason: '' };
+  },
+};
+
 ops['updates.list'] = {
   async query() {
     const { data, error } = await supabase.rpc('list_update_notices');
-    if (error) throw rowError(error);
+    // keep the admin panel usable while the SQL is still missing
+    if (error) {
+      if (isMissingRpc(error)) return [];
+      throw rowError(error);
+    }
     return (Array.isArray(data) ? data : []).map((r: any) => ({
       _id: r.id,
       version: r.version,
@@ -1538,6 +1577,7 @@ ops['updates.list'] = {
     }));
   },
 };
+
 ops['updates.post'] = {
   async mutation(_ctx, args: any) {
     const { data, error } = await supabase.rpc('post_update_notice', {
@@ -1546,14 +1586,25 @@ ops['updates.post'] = {
       p_title: String(args?.title ?? '').trim() || 'New update',
       p_body: String(args?.body ?? '').trim(),
     });
-    if (error) throw rowError(error);
+    if (error) {
+      if (isMissingRpc(error)) {
+        throw new Error(
+          'The update functions are not installed yet. Run db/2.1.4-update-notices.sql in the Supabase SQL editor, then reload the schema cache (Project Settings → API).',
+        );
+      }
+      throw rowError(error);
+    }
     return data;
   },
 };
+
 ops['updates.deactivate'] = {
   async mutation(_ctx, args: any) {
     const { error } = await supabase.rpc('deactivate_update_notice', { p_id: Number(args?.id) });
-    if (error) throw rowError(error);
+    if (error) {
+      if (isMissingRpc(error)) return null;
+      throw rowError(error);
+    }
     return null;
   },
 };
