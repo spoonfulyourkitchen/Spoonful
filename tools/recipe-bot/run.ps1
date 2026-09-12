@@ -9,7 +9,7 @@ $stamp = Get-Date -Format 'yyyy-MM-dd_HHmm'
 $out = "logs\run-$stamp.log"
 $err = "logs\run-$stamp.err"
 
-if (-not $BotArgs -or $BotArgs.Count -eq 0) { $BotArgs = @('--max-countries=10', '--inflight=6', '--wave-ms=25000', '--max-tokens=16384') }
+if (-not $BotArgs -or $BotArgs.Count -eq 0) { $BotArgs = @('--inflight=12', '--wave-ms=10000', '--batch=6', '--max-tokens=16384') }
 
 Start-Process -FilePath 'node' -ArgumentList (@('bot.mjs') + $BotArgs) `
   -WorkingDirectory $PSScriptRoot -RedirectStandardOutput $out -RedirectStandardError $err -NoNewWindow

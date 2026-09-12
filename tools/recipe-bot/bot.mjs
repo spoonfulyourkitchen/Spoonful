@@ -82,6 +82,7 @@ if (flag('help')) {
   console.log(`Spoonful Recipe-Bot
 
   --verify                 nur DB-Report (kein Erzeugen)
+  --check-keys             alle OpenRouter-Keys prüfen (gültig? Guthaben?)
   --countries=A,B          nur diese Länder (englische Namen, Komma-getrennt)
   --per-country=100        Rezepte je Land (Standard 100)
   --batch=8                Rezepte pro KI-Anfrage (sinkt automatisch bei Abschneiden)
@@ -305,7 +306,7 @@ function readKeys() {
       });
   add(process.env.OPENROUTER_API_KEYS);
   add(process.env.OPENROUTER_API_KEY);
-  for (let i = 2; i <= 12; i++) add(process.env[`OPENROUTER_API_KEY_${i}`]);
+  for (let i = 2; i <= 24; i++) add(process.env[`OPENROUTER_API_KEY_${i}`]);
   return keys;
 }
 const KEYS = readKeys();
@@ -432,10 +433,12 @@ async function callOnce(model, keyIndex, messages, temperature, controller) {
   }
   if (res.status === 429) {
     const retryAfter = Number(res.headers.get('retry-after') || 0);
-    const wait = retryAfter > 0 ? retryAfter * 1000 : Math.min(30 * 60_000, 10 * 60_000 * (st.fails + 1));
     st.fails++;
+    // Gratis-Modelle haben vor allem ein Limit PRO MINUTE → klein anfangen und
+    // bei Wiederholung wachsen (45 s, 90 s, 3 min, 6 min, 12 min, max 15 min).
+    const wait = retryAfter > 0 ? retryAfter * 1000 : Math.min(15 * 60_000, Math.round(45_000 * Math.pow(2, Math.min(5, st.fails - 1))));
     st.until = Date.now() + wait;
-    return { ok: false, reason: `${tag}: 429 — Pause ${Math.round(wait / 60_000)} min` };
+    return { ok: false, reason: `${tag}: 429 — Pause ${wait >= 60_000 ? Math.round(wait / 60_000) + ' min' : Math.round(wait / 1000) + ' s'}` };
   }
   if (res.status === 403) {
     const text = await res.text().catch(() => '');
@@ -964,6 +967,40 @@ function printCountryReport(countries, dbCounts, perCountry) {
   console.log('');
 }
 
+/* ── Key-Check (--check-keys) ────────────────────────────────────────────── */
+async function checkKeys() {
+  if (!KEYS.length) {
+    console.log('Keine OpenRouter-Keys gefunden (tools/recipe-bot/.env).');
+    return;
+  }
+  console.log(`\nPrüfe ${KEYS.length} OpenRouter-Keys …\n`);
+  console.log('   #  Key      Status   Guthaben/Limit');
+  let valid = 0;
+  let paid = 0;
+  for (let i = 0; i < KEYS.length; i++) {
+    const short = `…${KEYS[i].slice(-4)}`;
+    try {
+      const res = await fetch('https://openrouter.ai/api/v1/key', { headers: { Authorization: `Bearer ${KEYS[i]}` } });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        console.log(`  ${String(i + 1).padStart(2)}  ${short}  FEHLER ${res.status} ${String(body?.error?.message ?? '').slice(0, 60)}`);
+        continue;
+      }
+      const d = body?.data ?? {};
+      const freeTier = d.is_free_tier === true;
+      if (!freeTier) paid++;
+      valid++;
+      const limit = d.limit === null || d.limit === undefined ? 'unbegrenzt' : String(d.limit);
+      const usage = d.usage === null || d.usage === undefined ? '0' : String(Math.round(Number(d.usage)));
+      console.log(`  ${String(i + 1).padStart(2)}  ${short}  ok       Limit ${limit.padEnd(10)} benutzt ${usage.padEnd(9)} ${freeTier ? 'Free-Tier (50/Tag)' : 'mit Guthaben (1000/Tag)'}`);
+    } catch (e) {
+      console.log(`  ${String(i + 1).padStart(2)}  ${short}  Fehler: ${e?.message || 'unbekannt'}`);
+    }
+    await sleep(120);
+  }
+  console.log(`\n  ${valid}/${KEYS.length} Keys gültig, davon ${paid} mit Guthaben (höheres Gratis-Limit).\n`);
+}
+
 /* ── Hauptlauf ───────────────────────────────────────────────────────────── */
 async function main() {
   if (!CFG.serviceKey) {
@@ -980,6 +1017,10 @@ async function main() {
   const dbCounts = await fetchDbCounts();
   log(`DB: ${existingIds.size} Rezepte in ${dbCounts.size} Küchen`);
 
+  if (flag('check-keys')) {
+    await checkKeys();
+    return;
+  }
   if (flag('verify')) {
     printCountryReport(countries, dbCounts, perCountry);
     return;

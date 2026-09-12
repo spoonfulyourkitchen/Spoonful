@@ -75,15 +75,21 @@ einfach neu starten, er macht beim nächsten offenen Land weiter.
 ## 4) Modelle & Keys: paralleles Rennen mit Rotation
 
 **Keys:** mehrere OpenRouter-Keys = mehrere Kontingente. Der Bot liest
-`OPENROUTER_API_KEY`, `OPENROUTER_API_KEY_2 … _12` und `OPENROUTER_API_KEYS`
+`OPENROUTER_API_KEY`, `OPENROUTER_API_KEY_2 … _24` und `OPENROUTER_API_KEYS`
 (Komma-Liste) aus der `.env` und rotiert sie automatisch:
 
 ```
 K4 ✓  ling-3.0-flash-vl  (Key 4 hatte noch Kontingent, Key 1 war im Limit)
 ```
 
-Ein **429** legt nur das Paar *Modell + Key* 10–30 Min auf Eis — alle anderen
-Kombinationen laufen weiter.
+Mit `node bot.mjs --check-keys` prüfst du alle Keys auf einmal:
+gültig? Guthaben? Limit? — **Wichtig:** ein Key mit Guthaben hat bei Gratis-Modellen
+**1000 Anfragen/Tag**, ohne Guthaben nur ~50. (Ein kleiner Betrag auf einem Key
+hebt das Limit also deutlich.)
+
+Ein **429** (Gratis-Modelle haben vor allem ein Limit *pro Minute*) legt nur das
+Paar *Modell + Key* kurz auf Eis: 45 s, dann 90 s, 3 min, 6 min … bis max. 15 min.
+Ein `Retry-After` des Servers wird exakt beachtet.
 
 **Rennen (`--inflight=6`):** es sind **immer bis zu 6 Anfragen gleichzeitig**
 unterwegs — verschiedene Modelle auf verschiedenen Keys. Der **erste brauchbare**
