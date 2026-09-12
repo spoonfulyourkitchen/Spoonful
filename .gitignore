@@ -48,3 +48,9 @@ test.ts
 
 # Internal notes that describe the backend setup in detail
 Recipe-AI-Prompt.md
+
+# Recipe-Bot: Secrets, Fortschritt, Artefakte
+tools/recipe-bot/.env
+tools/recipe-bot/state.json
+tools/recipe-bot/out/
+tools/recipe-bot/logs/
