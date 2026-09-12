@@ -79,7 +79,11 @@ if (flag('help')) {
   --countries=A,B          nur diese Länder (englische Namen, Komma-getrennt)
   --per-country=100        Rezepte je Land (Standard 100)
   --batch=10               Rezepte pro KI-Anfrage (Standard 10)
-  --model=<id>             OpenRouter-Modell (Standard ${CFG.model})
+  --model=<id>             nur ein Modell (Standard: die Gratis-Kette)
+  --models=a,b,c           Modell-Kette selbst festlegen
+  --min-steps=6            Mindestzahl Schritte je Rezept (Standard 6)
+  --pause-ms=1200          Pause zwischen zwei KI-Anfragen
+  --max-tokens=8192        maximale Antwortlänge je KI-Anfrage
   --max-countries=3        nur die nächsten N offenen Länder
   --dry-run                erzeugen + prüfen, aber nichts hochladen (out/*.json)
   --no-images              keine Bildsuche (image_url = null)
@@ -226,17 +230,28 @@ You produce the public recipe catalogue: authentic, everyday dishes of a country
 Every recipe you return must satisfy ALL of these rules:
 - title: exactly the dish name you were given (English Wikipedia spelling)
 - slug: kebab-case ASCII, no numbers, e.g. "lemon-garlic-chicken"
-- description: English, 60-320 characters, 1-2 sentences about taste and effort
-- ingredients: array of 4-20 strings, each "amount unit item" (e.g. "200 g flour", "1 tsp salt", "2 cloves garlic")
-- steps: array of 3-12 English sentences, no numbering, no "Step 1:", no emojis, 20-350 characters each
+- description: English, 60-320 characters, 1-2 sentences: what the dish is, how it tastes, how much effort it needs
+- ingredients: array of 5-20 strings, each "amount unit item" with a metric unit
+  ("200 g flour", "2 tbsp olive oil", "3 cloves garlic", "1 can tomatoes"), never vague like "some salt"
+- steps: array of 6-14 strings. EVERY step is a complete instruction of 40-400 characters that a
+  beginner can follow without guessing. One clear action per step, in cooking order, and each step
+  names the amount of the ingredient, the pan or pot, the heat level, the time and how to see that
+  it is done. Example: "Fry 1 chopped onion in 2 tbsp olive oil over medium heat for 4 minutes until
+  it turns translucent and smells sweet, stirring every minute."
+  Start with the preparation (washing, peeling, chopping, preheating), then the cooking, then the
+  finishing (resting, seasoning, plating, serving). Split long actions into separate steps instead of
+  packing everything into one. No numbering, no "Step 1:", no emojis, no markdown.
 - prep_time: integer minutes 0-240
-- cook_time: integer minutes 0-600
-- difficulty: exactly one of ${DIFFICULTIES.join(' | ')}
+- cook_time: integer minutes 0-600 (realistic, not rounded off)
+- difficulty: exactly one of ${DIFFICULTIES.join(' | ')} and it must match the real work involved
 - meal_type: exactly one of ${MEAL_TYPES.join(' | ')}
 - calories, protein, carbs, fat: integers PER SERVING, calories 20-1200, macros plausible for the dish
 - dietary_restrictions: array, only from ${DIETS.join(', ')}; must match the content
   (vegetarian/vegan must not contain meat, poultry, fish or seafood)
   (halal only when the country's cuisine is Muslim-majority and the dish has no pork and no alcohol)
+
+Write in metric units (g, ml, °C), use plain English and vary your sentence openings. The reader
+must understand what is happening and why, so never skip a step or a timing detail.
 
 Return ONLY a JSON object of the shape {"recipes":[{...},{...}]} — no prose, no markdown.`;
 
@@ -250,59 +265,129 @@ Return ONLY JSON:
 {"dishes":[{"name":"<dish name>","slug":"<kebab-case>","meal_type":"<${MEAL_TYPES.join('|')}>"}]}
 No prose, no markdown, no duplicate names, none of the names I ask you to avoid.`;
 
+/* ── Modell-Rotation: Gratis-Modelle mit automatischem Wechsel ───────────── */
+/** Alle gratis auf OpenRouter (Stand 12.09.2026) — stark zuerst. */
+const FREE_MODELS = [
+  'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
+  'nex-agi/nex-n2.5-pro:free',
+  'inclusionai/ling-3.0-flash-vl:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'google/gemma-4-26b-a4b-it:free',
+  'thinkingmachines/inkling:free',
+  'nex-agi/nex-n2.5-mini:free',
+  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+  'liquid/lfm-2.5-2.6b:free',
+];
+const modelState = new Map(); // model -> { until, fails, calls }
+
+/** Reihenfolge der Modelle: --models=… > --model=… > OPENROUTER_MODEL > FREE_MODELS */
+function modelList() {
+  const explicit = String(opt('models', '')).split(',').map((s) => s.trim()).filter(Boolean);
+  if (explicit.length) return explicit;
+  const single = String(opt('model', '')).trim();
+  if (single) return [single];
+  const fromEnv = String(process.env.OPENROUTER_MODEL || '').trim();
+  return fromEnv ? [fromEnv, ...FREE_MODELS.filter((m) => m !== fromEnv)] : FREE_MODELS;
+}
+
+function jsonFrom(text) {
+  const cleaned = String(text).replace(/```json|```/g, '').trim();
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (start === -1 || end <= start) throw new Error('kein JSON gefunden');
+  return JSON.parse(cleaned.slice(start, end + 1));
+}
+
+/**
+ * Fragt die Modelle der Reihe nach. Bei Rate-Limit (429) wandert das Modell in
+ * den Cooldown und das nächste übernimmt — so laufen die Gratis-Kontingente
+ * mehrerer Modelle parallel.
+ */
+async function askModel(messages, temperature) {
+  const errors = [];
+  const pauseMs = num('pause-ms', 1200);
+  for (const model of modelList()) {
+    const st = modelState.get(model) || { until: 0, fails: 0, calls: 0 };
+    modelState.set(model, st);
+    if (Date.now() < st.until) continue;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${CFG.openRouterKey}`,
+          'HTTP-Referer': 'https://spoonful.app',
+          'X-Title': 'Spoonful Recipe Bot',
+        },
+        // bewusst KEIN response_format: viele Gratis-Modelle unterstützen es nicht
+        body: JSON.stringify({ model, temperature, max_tokens: num('max-tokens', 8192), messages }),
+      }).catch(() => null);
+
+      if (!res) {
+        errors.push(`${model}: Netzwerkfehler`);
+        await sleep(1500);
+        continue;
+      }
+      if (res.status === 429) {
+        st.fails++;
+        const retryAfter = Number(res.headers.get('retry-after') || 0);
+        // Gratis-Kontingente sind meist Tageslimits → lange Pause statt ständigem Neuversuch
+        const wait = retryAfter > 0 ? retryAfter * 1000 : Math.min(30 * 60_000, 10 * 60_000 * st.fails);
+        st.until = Date.now() + wait;
+        log(`  ${model}: Rate-Limit — Pause ${Math.round(wait / 60_000)} min, nächstes Modell`, 'warn');
+        errors.push(`${model}: 429`);
+        break;
+      }
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        errors.push(`${model}: HTTP ${res.status} ${text.slice(0, 90)}`);
+        log(`  ${model}: HTTP ${res.status} — nächstes Modell (${text.slice(0, 90)})`, 'warn');
+        break;
+      }
+      const data = await res.json().catch(() => null);
+      const message = data?.choices?.[0]?.message ?? {};
+      const text = String(message.content || message.reasoning || '');
+      if (!text.trim()) {
+        errors.push(`${model}: leere Antwort`);
+        break;
+      }
+      st.calls++;
+      await sleep(pauseMs);
+      return { text, model };
+    }
+  }
+  throw new Error(`kein Modell hat geantwortet (${errors.slice(0, 3).join(' | ')})`);
+}
+
 /** Phase 1: authentische Gerichtsnamen für ein Land. */
 async function askDishNames(country, count, avoid) {
   const user = `Country: ${country}
 List exactly ${count} dishes whose origin and tradition are ${country} (nothing from other countries).
-Spread the meal types: most main, plus side, breakfast, snack, dessert and drink.
+Prefer dishes that are really cooked at home. Spread the meal types: most main, plus side,
+breakfast, snack, dessert and drink.
 ${avoid.length ? `Never use any of these names: ${avoid.slice(0, 220).join('; ')}` : ''}
 Return exactly ${count} entries in the JSON object described in the system prompt.`;
+  const messages = [
+    { role: 'system', content: NAME_PROMPT },
+    { role: 'user', content: user },
+  ];
 
-  const body = {
-    model: CFG.model,
-    temperature: 0.6,
-    response_format: { type: 'json_object' },
-    messages: [
-      { role: 'system', content: NAME_PROMPT },
-      { role: 'user', content: user },
-    ],
-  };
-
-  for (let attempt = 1; attempt <= 4; attempt++) {
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${CFG.openRouterKey}`,
-        'HTTP-Referer': 'https://spoonful.app',
-        'X-Title': 'Spoonful Recipe Bot',
-      },
-      body: JSON.stringify(body),
-    }).catch((e) => ({ ok: false, status: 0, text: async () => String(e) }));
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      const wait = attempt * 2500;
-      log(`KI-Fehler ${res.status} (Namen für ${country}) — neuer Versuch in ${wait} ms ${text.slice(0, 100)}`, 'warn');
-      await sleep(wait);
-      continue;
-    }
-    const data = await res.json();
-    const content = data?.choices?.[0]?.message?.content ?? '';
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const { text, model } = await askModel(messages, 0.6);
     try {
-      const parsed = JSON.parse(content.replace(/```json|```/g, '').trim());
+      const parsed = jsonFrom(text);
       const list = Array.isArray(parsed) ? parsed : parsed?.dishes;
       const names = (list || [])
         .map((d) => ({ name: String(d?.name ?? '').trim(), slug: String(d?.slug ?? '').trim(), meal_type: String(d?.meal_type ?? '').trim() }))
         .filter((d) => d.name.length > 2);
-      if (names.length) return names.slice(0, count);
+      if (names.length) return { names: names.slice(0, count), model };
       throw new Error('kein dishes-Array');
     } catch (e) {
-      log(`KI-Namensantwort unlesbar (${country}): ${e.message}`, 'warn');
-      await sleep(1500);
+      log(`  ${model}: Namen unlesbar (${e.message}) — neuer Versuch`, 'warn');
     }
   }
-  throw new Error(`KI lieferte für ${country} keine Gerichtsnamen`);
+  throw new Error(`kein Modell lieferte für ${country} Gerichtsnamen`);
 }
 
 /** Phase 2: vollständige Rezepte für genau diese Gerichte. */
@@ -311,50 +396,26 @@ async function askLLM(country, names) {
 Write one complete recipe for each of these ${names.length} ${country} dishes:
 ${names.map((n, i) => `${i + 1}. ${n.name}${n.meal_type ? ` (meal_type: ${n.meal_type})` : ''}`).join('\n')}
 The title must be exactly the dish name above, one recipe per dish.
+Every recipe needs the full 6-14 steps described in the system prompt, each step with amount, heat
+level, time and the sign that it is done.
 Return exactly ${names.length} entries in the JSON object described in the system prompt.`;
+  const messages = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'user', content: user },
+  ];
 
-  const body = {
-    model: CFG.model,
-    temperature: 0.85,
-    response_format: { type: 'json_object' },
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: user },
-    ],
-  };
-
-  for (let attempt = 1; attempt <= 4; attempt++) {
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${CFG.openRouterKey}`,
-        'HTTP-Referer': 'https://spoonful.app',
-        'X-Title': 'Spoonful Recipe Bot',
-      },
-      body: JSON.stringify(body),
-    }).catch((e) => ({ ok: false, status: 0, text: async () => String(e) }));
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      const wait = attempt * 2500;
-      log(`KI-Fehler ${res.status} (${country}) — neuer Versuch in ${wait} ms ${text.slice(0, 120)}`, 'warn');
-      await sleep(wait);
-      continue;
-    }
-    const data = await res.json();
-    const content = data?.choices?.[0]?.message?.content ?? '';
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const { text, model } = await askModel(messages, 0.8);
     try {
-      const parsed = JSON.parse(content.replace(/```json|```/g, '').trim());
+      const parsed = jsonFrom(text);
       const list = Array.isArray(parsed) ? parsed : parsed?.recipes;
-      if (Array.isArray(list) && list.length) return list;
+      if (Array.isArray(list) && list.length) return { list, model };
       throw new Error('kein recipes-Array');
     } catch (e) {
-      log(`KI-Antwort unlesbar (${country}): ${e.message}`, 'warn');
-      await sleep(1500);
+      log(`  ${model}: Antwort unlesbar (${e.message}) — neuer Versuch`, 'warn');
     }
   }
-  throw new Error(`KI lieferte für ${country} keine verwertbare Antwort`);
+  throw new Error(`kein Modell lieferte für ${country} Rezepte`);
 }
 
 /* ── Bilder: Wikimedia Commons (wie im Bestand) ──────────────────────────── */
@@ -451,8 +512,9 @@ function problemsOf(r) {
   const p = [];
   const str = (v) => (typeof v === 'string' ? v.trim() : '');
   if (!str(r.slug) && !str(r.title)) p.push('slug/title fehlt');
-  if (!Array.isArray(r.ingredients) || r.ingredients.length < 4 || r.ingredients.length > 20) p.push('ingredients 4-20');
-  if (!Array.isArray(r.steps) || r.steps.length < 3 || r.steps.length > 12) p.push('steps 3-12');
+  if (!Array.isArray(r.ingredients) || r.ingredients.length < 5 || r.ingredients.length > 20) p.push('ingredients 5-20');
+  const minSteps = Math.max(3, num('min-steps', 6));
+  if (!Array.isArray(r.steps) || r.steps.length < minSteps || r.steps.length > 14) p.push(`steps ${minSteps}-14`);
   const title = str(r.title);
   if (title.length < 3 || title.length > 80) p.push('title Länge');
   const desc = str(r.description);
@@ -474,10 +536,14 @@ function problemsOf(r) {
   if (Array.isArray(r.ingredients)) {
     const bad = r.ingredients.filter((i) => typeof i !== 'string' || i.trim().length < 3);
     if (bad.length) p.push('ingredients Strings');
+    // höchstens eine Zutat ohne Menge ("salt to taste")
+    const withoutAmount = r.ingredients.filter((i) => typeof i === 'string' && !/\d|½|¼|¾/.test(i));
+    if (withoutAmount.length > 1) p.push('ingredients ohne Menge');
   }
   if (Array.isArray(r.steps)) {
-    const bad = r.steps.filter((s) => typeof s !== 'string' || s.trim().length < 15 || /^(step\s*\d|\d+[.)]\s)/i.test(s.trim()));
-    if (bad.length) p.push('steps Format');
+    // jeder Schritt muss eine echte Anleitung sein: 40-420 Zeichen, keine Nummerierung
+    const bad = r.steps.filter((s) => typeof s !== 'string' || s.trim().length < 40 || s.trim().length > 420 || /^(step\s*\d|\d+[.)]\s)/i.test(s.trim()));
+    if (bad.length) p.push('steps zu kurz/nummeriert');
   }
   const diets = Array.isArray(r.dietary_restrictions) ? r.dietary_restrictions.map(String) : [];
   if (diets.includes('vegan') || diets.includes('vegetarian')) {
@@ -555,8 +621,11 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
     const need = Math.min(50, perCountry - wanted.length);
     const avoid = [...titles, ...wanted.map((w) => w.name)];
     let names = [];
+    let usedModel = '';
     try {
-      names = await askDishNames(countryName, need, avoid);
+      const res = await askDishNames(countryName, need, avoid);
+      names = res.names;
+      usedModel = res.model;
     } catch (e) {
       log(`  ${countryName}: ${e.message}`, 'warn');
       break;
@@ -568,7 +637,7 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
       wanted.push(n);
       if (wanted.length >= perCountry) break;
     }
-    log(`  ${countryName}: ${wanted.length}/${perCountry} Gerichte gesammelt`);
+    log(`  ${countryName}: ${wanted.length}/${perCountry} Gerichte gesammelt (${usedModel})`);
     await sleep(200);
   }
   if (!wanted.length) return { rows, rejected };
@@ -581,8 +650,11 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
     const retry = [];
     for (const part of chunk(queue, batchSize)) {
       let list = [];
+      let usedModel = '';
       try {
-        list = await askLLM(countryName, part);
+        const res = await askLLM(countryName, part);
+        list = res.list;
+        usedModel = res.model;
       } catch (e) {
         log(`  ${countryName}: ${e.message}`, 'warn');
         retry.push(...part);
@@ -609,7 +681,7 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
       }
       retry.push(...asked.values());
       saveState(state);
-      log(`  ${countryName}: ${rows.length}/${perCountry} Rezepte geschrieben${rejected.length ? `, ${rejected.length} verworfen` : ''}`);
+      log(`  ${countryName}: ${rows.length}/${perCountry} Rezepte geschrieben${rejected.length ? `, ${rejected.length} verworfen` : ''} (${usedModel})`);
     }
     queue = retry.slice(0, 20);
   }
@@ -687,6 +759,7 @@ async function main() {
   const countries = readCountries();
   const perCountry = num('per-country', 100);
   log(`Bot gestartet — ${countries.length} Länder in der Liste, ${perCountry} Rezepte je Land`);
+  log(`Modelle: ${modelList().join(' → ')}`);
 
   const existingIds = new Set(await fetchExistingIds());
   const dbCounts = await fetchDbCounts();

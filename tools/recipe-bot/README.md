@@ -53,23 +53,64 @@ Nützliche Schalter: `--per-country=100`, `--batch=10` (Rezepte pro KI-Anfrage),
 ## 3) Was der Bot macht
 
 1. liest die Länderliste aus `mobile/src/lib/countries.ts`,
-2. fragt die KI (OpenRouter) pro Land in 10er-Blöcken nach authentischen Gerichten,
-3. **prüft jedes Rezept** (Zeichenlängen, Mengen+Einheiten, Nummerierung in
-   Schritten, Einheiten der Filterwerte, kcal/Makro-Plausibilität, kein Fleisch
-   bei vegetarisch …) — was nicht passt, wird verworfen und neu erzeugt,
-4. sucht zu jedem Titel ein Bild über die Wikimedia-Commons-API, prüft die URL
+2. **Phase 1 — Gerichtsnamen**: fragt die KI nach Gerichten, deren Herkunft
+   wirklich das Land ist (verhindert z. B. „Shepherd's Pie“ unter Italien),
+3. **Phase 2 — Rezepte**: schreibt pro Gericht ein vollständiges Rezept,
+4. **prüft jedes Rezept** (Qualitäts-Gate):
+   * Beschreibung 50–340 Zeichen, Titel passt zum vorgegebenen Gericht
+   * Zutaten 5–20, jede mit Menge (metrisch) — höchstens eine ohne Menge
+   * **Schritte 6–14, jeder 40–420 Zeichen**, ohne Nummerierung
+   * Filterwerte exakt (`difficulty`, `meal_type`, `dietary_restrictions`)
+   * kcal 20–1200 und Makros plausibel (±Verhältnis zu kcal)
+   * kein Fleisch/Fisch bei `vegetarian`/`vegan`, `halal` nur wenn passend
+   → Was nicht passt, wird verworfen und mit demselben Gericht neu erzeugt,
+5. sucht zu jedem Titel ein Bild über die Wikimedia-Commons-API, prüft die URL
    (HTTP 200 + `image/*`), nimmt nur thematisch passende und keine doppelten,
-5. hängt die URL mit demselben `utm_*`-Anhang an wie die bestehenden Rezepte,
-6. schreibt `out\<land>.json` und lädt in 50er-Batches hoch (Upsert auf `id`).
+6. hängt die URL mit demselben `utm_*`-Anhang an wie die bestehenden Rezepte,
+7. schreibt `out\<land>.json` und lädt in 50er-Batches hoch (Upsert auf `id`).
 
 Bei Abbruch (Strg+C, Netzfehler) steht der Fortschritt in `state.json` —
 einfach neu starten, er macht beim nächsten offenen Land weiter.
 
-## 4) Dauer & Kosten
+## 4) Modelle: Gratis-Kette mit automatischem Wechsel
 
-* ca. 1–3 Minuten pro Land (10 KI-Anfragen + 100 Bildprüfungen)
-* ~90 offene Länder → grob 2–3 Stunden und wenige Euro OpenRouter-Guthaben
-* Tipp: in Häppchen mit `--max-countries=5` arbeiten, `state.json` merkt sich alles
+Standardmäßig läuft der Bot über die **kostenlosen Modelle** von OpenRouter, der
+Reihe nach (Stand 12.09.2026):
+
+```
+google/gemma-4-31b-it:free                       (262K Kontext)
+nvidia/nemotron-3-ultra-550b-a55b:free           (1M)
+nex-agi/nex-n2.5-pro:free                        (262K)
+inclusionai/ling-3.0-flash-vl:free               (262K)
+nvidia/nemotron-3-super-120b-a12b:free           (262K)
+google/gemma-4-26b-a4b-it:free                   (262K)
+thinkingmachines/inkling:free                    (1M)
+nex-agi/nex-n2.5-mini:free                       (262K)
+nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free (256K)
+liquid/lfm-2.5-2.6b:free                         (65K)
+```
+
+* Antwortet ein Modell mit **429 (Rate-Limit)**, wandert es für 30–900 s in den
+  Cooldown und das **nächste Modell übernimmt** — so teilen sich die
+  Gratis-Kontingente mehrerer Modelle.
+* Es wird bewusst **kein** `response_format: json_object` benutzt: viele
+  Gratis-Modelle unterstützen es nicht. Der Bot liest das JSON selbst aus der
+  Antwort (auch aus `reasoning`, falls `content` leer ist).
+* Eigene Kette: `--models=google/gemma-4-31b-it:free,nvidia/nemotron-3-ultra-550b-a55b:free`
+  oder nur eines: `--model=…`. Der Bot protokolliert je Land, welches Modell
+  geliefert hat.
+* Tempo: `--pause-ms=1200` (Standard) zwischen zwei Anfragen, `--batch=10`
+  Rezepte pro Anfrage.
+
+## 5) Dauer & Kosten
+
+* **0 $** — alle Standard-Modelle sind gratis.
+* Dafür langsamer: ca. 2–6 Minuten pro Land (1–2 Anfragen für die Namen,
+  10 Anfragen für 100 Rezepte, 100 Bildprüfungen), plus Wartezeiten bei 429.
+* Die Gratis-Kontingente sind pro Tag begrenzt → in Häppchen arbeiten
+  (`--max-countries=5`); `state.json` merkt sich alles, einfach neu starten.
+* Tipp: `--batch=10` beibehalten; größere Blöcke liefern bei kleinen Modellen
+  schnell unvollständige Rezepte.
 
 ## 5) Kontrolle
 
