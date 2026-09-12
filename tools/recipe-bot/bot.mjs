@@ -85,7 +85,7 @@ if (flag('help')) {
   --wave-ms=150000         nach dieser Zeit kommen die nächsten Modelle dran
   --min-steps=6            Mindestzahl Schritte je Rezept (Standard 6)
   --pause-ms=600           Pause zwischen zwei KI-Anfragen
-  --max-tokens=8192        maximale Antwortlänge je KI-Anfrage
+  --max-tokens=16384       maximale Antwortlänge je KI-Anfrage (Reasoning-Modelle brauchen viel)
   --timeout-ms=240000      Timeout je KI-Anfrage
   --max-countries=3        nur die nächsten N offenen Länder
   --dry-run                erzeugen + prüfen, aber nichts hochladen (out/*.json)
@@ -405,7 +405,7 @@ async function callOnce(model, keyIndex, messages, temperature, controller) {
       },
       signal: controller.signal,
       // bewusst KEIN response_format: viele Gratis-Modelle unterstützen es nicht
-      body: JSON.stringify({ model, temperature, max_tokens: num('max-tokens', 8192), messages }),
+      body: JSON.stringify({ model, temperature, max_tokens: num('max-tokens', 16384), messages }),
     });
   } catch (e) {
     // Abbruch, weil ein anderes Modell gewonnen hat oder die Welle abgelaufen ist
