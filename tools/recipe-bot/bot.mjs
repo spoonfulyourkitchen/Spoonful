@@ -75,7 +75,7 @@ const num = (name, fallback) => {
 /** Rezept-Blockgröße: sinkt automatisch, wenn Antworten abgeschnitten werden. */
 let batchOverride = 0;
 function batchSizeNow() {
-  return batchOverride || num('batch', 8);
+  return batchOverride || num('batch', 6);
 }
 
 if (flag('help')) {
@@ -814,7 +814,7 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
   let nameRounds = 0;
   while (wanted.length < perCountry && nameRounds < 8) {
     nameRounds++;
-    const need = Math.min(50, perCountry - wanted.length);
+    const need = Math.min(25, perCountry - wanted.length);
     const avoid = [...titles, ...wanted.map((w) => w.name)];
     let names = [];
     let usedModel = '';
