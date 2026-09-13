@@ -97,7 +97,8 @@ if (flag('help')) {
   --wave-ms=25000          alle X ms werden weitere Modelle nachgelegt
   --min-steps=6            Mindestzahl Schritte je Rezept (Standard 6)
   --max-rejects=8          ab so vielen schlechten Rezepten wird ein Modell zurückgestellt
-  --paid-model=<id>        Notfall-Modell mit Guthaben (z. B. openai/gpt-4o-mini), nur wenn gratis nichts geht
+  --paid-model=<id>        Notfall-Modell mit Guthaben (nur mit --allow-paid!)
+  --allow-paid             erlaubt Guthaben-Ausgabe (Vorsicht: kostet Geld)
   --quota-rounds=2         wie oft auf freies Gratis-Kontingent gewartet wird (dann Guthaben-Modell)
   --allow-tiny             auch die Mini-Modelle (lfm-2.5-2.6b, nano-omni) benutzen
   --max-tokens=16384       maximale Antwortlänge je KI-Anfrage (Reasoning-Modelle brauchen viel)
@@ -530,8 +531,13 @@ async function callOnce(model, keyIndex, messages, temperature, controller) {
  * `--wave-ms` wird nachgelegt. So gibt es keine Wartezeit mehr — auch nicht auf
  * langsame Modelle.
  */
-/** Bezahltes Notfall-Modell (nur wenn die Gratis-Modelle im Limit sind). */
-const PAID_MODEL = String(opt('paid-model', process.env.OPENROUTER_PAID_MODEL || '')).trim();
+/**
+ * Bezahltes Notfall-Modell (nur wenn die Gratis-Modelle im Limit sind).
+ * SICHERHEIT: Wird nur benutzt, wenn zusätzlich --allow-paid gesetzt ist oder
+ * OPENROUTER_ALLOW_PAID=1 in der .env steht. Sonst wird nie Guthaben ausgegeben.
+ */
+const PAID_ALLOWED = flag('allow-paid') || ['1', 'true', 'yes'].includes(String(process.env.OPENROUTER_ALLOW_PAID || '').toLowerCase());
+const PAID_MODEL = PAID_ALLOWED ? String(opt('paid-model', process.env.OPENROUTER_PAID_MODEL || '')).trim() : '';
 
 /** Kleinste Restzeit, bis irgendein Modell-Key-Paar wieder frei ist (0 = sofort frei). */
 function minCooldownMs() {
