@@ -12,6 +12,7 @@ import { colors, difficultyColor, rgbaHelper, subscribeTheme } from '../theme';
 import { navigate, goBack } from '../navigation/rootRef';
 import { AppButton, GlassCard, InfoBox, SectionLabel } from '../components/ui';
 import { RecipeImage } from '../components/RecipeImage';
+import { StepPhotoSlideshow, StepPhotoStrip, useStepPhotos } from '../components/StepPhotoSlideshow';
 import { ReportPhotoButton } from '../components/ReportPhotoButton';
 import { useTranslation } from '../lib/i18n';
 import { LibraryRecipe, difficultyLabel, formatCuisine, recipeLines, totalMinutes } from '../lib/recipe';
@@ -47,6 +48,11 @@ export function RecipeDetailScreen({ route }: any) {
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [retryAt, setRetryAt] = useState<number | null>(null);
+  /* 3.1.0: Diashow der eigenen Schritt-Fotos (pro Konto) */
+  const myProfile = useQuery(api.users.currentUser) as any;
+  const { photos: stepPhotos } = useStepPhotos(recipeKey, myProfile?.id);
+  const [slideshowOpen, setSlideshowOpen] = useState(false);
+  const [slideshowStart, setSlideshowStart] = useState(0);
 
   const flash = (msg: string) => {
     setToast(msg);
@@ -373,6 +379,29 @@ export function RecipeDetailScreen({ route }: any) {
             </Pressable>
           </View>
         </View>
+
+        {/* 3.1.0: eigene Schritt-Fotos als Diashow (nur das eigene Konto) */}
+        {stepPhotos.length ? (
+          <View style={{ paddingHorizontal: 18 }}>
+            <StepPhotoStrip
+              photos={stepPhotos}
+              label={t('s.slideTitle')}
+              onOpen={(i) => {
+                setSlideshowStart(i);
+                setSlideshowOpen(true);
+              }}
+            />
+          </View>
+        ) : null}
+
+        <StepPhotoSlideshow
+          visible={slideshowOpen}
+          photos={stepPhotos}
+          steps={recipeLines(view.steps)}
+          title={recipe.title}
+          startIndex={slideshowStart}
+          onClose={() => setSlideshowOpen(false)}
+        />
 
         <View style={{ paddingHorizontal: 18, marginTop: 24 }}>
           <Text style={{ fontSize: 13, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: colors.accent }}>

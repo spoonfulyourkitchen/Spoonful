@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Image, StyleProp, View, ViewStyle } from 'react-native';
+import { StyleProp, View, ViewStyle } from 'react-native';
 import Svg, { Circle, Ellipse, G, Path } from 'react-native-svg';
 
 import { colors } from '../theme';
+import { CroppedImage } from './CroppedImage';
 
 /**
  * Recipe photo. When a real remote image exists and loads we show it;
@@ -60,12 +61,8 @@ export function RecipeImage({
           </G>
         </Svg>
       ) : (
-        <Image
-          source={source}
-          resizeMode="cover"
-          onError={() => setFailed(true)}
-          style={[{ width: '100%', height: '100%' }, imageStyle]}
-        />
+        /* 3.1.0: zeigt den vom Nutzer gewählten Bild-Ausschnitt (siehe PhotoCropModal) */
+        <CroppedImage uri={uri} source={source} style={{ width: '100%', height: '100%' }} imageStyle={imageStyle} onError={() => setFailed(true)} />
       )}
     </View>
   );

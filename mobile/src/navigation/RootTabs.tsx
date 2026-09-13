@@ -7,6 +7,7 @@ import {
   Bookmark,
   ChefHat,
   Flame,
+  Home,
   Library,
   MessageCircle,
   ShoppingCart,
@@ -23,13 +24,14 @@ import { SavedScreen } from '../screens/SavedScreen';
 import { TrackerScreen } from '../screens/TrackerScreen';
 import { CommunityScreen } from '../screens/CommunityScreen';
 import { ShoppingScreen } from '../screens/ShoppingScreen';
+import { HouseholdScreen } from '../screens/HouseholdScreen';
 
 const Tab = createBottomTabNavigator();
 
 export type RootTabScreenNames =
-  | 'Library' | 'MyRecipes' | 'Assistant' | 'Saved' | 'Tracker' | 'Community' | 'Shopping';
+  | 'Library' | 'MyRecipes' | 'Assistant' | 'Saved' | 'Tracker' | 'Community' | 'Shopping' | 'Household';
 
-const ORDER: RootTabScreenNames[] = ['Library', 'MyRecipes', 'Assistant', 'Saved', 'Tracker', 'Community', 'Shopping'];
+const ORDER: RootTabScreenNames[] = ['Library', 'MyRecipes', 'Assistant', 'Saved', 'Tracker', 'Community', 'Shopping', 'Household'];
 
 const ICONS: Record<RootTabScreenNames, React.ComponentType<any>> = {
   Library,
@@ -39,6 +41,7 @@ const ICONS: Record<RootTabScreenNames, React.ComponentType<any>> = {
   Tracker: Flame,
   Community: UsersRound,
   Shopping: ShoppingCart,
+  Household: Home,
 };
 
 const TAB_KEY: Record<RootTabScreenNames, string> = {
@@ -49,6 +52,7 @@ const TAB_KEY: Record<RootTabScreenNames, string> = {
   Tracker: 'nav.tracker',
   Community: 'nav.community',
   Shopping: 'nav.shopping',
+  Household: 's.hhTab',
 };
 
 const SCREENS: Record<RootTabScreenNames, React.ComponentType<any>> = {
@@ -59,6 +63,7 @@ const SCREENS: Record<RootTabScreenNames, React.ComponentType<any>> = {
   Tracker: TrackerScreen,
   Community: CommunityScreen,
   Shopping: ShoppingScreen,
+  Household: HouseholdScreen,
 };
 
 function TabIcon({ name, focused }: { name: RootTabScreenNames; focused: boolean }) {

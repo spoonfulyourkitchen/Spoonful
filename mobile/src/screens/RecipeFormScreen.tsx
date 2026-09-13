@@ -9,6 +9,7 @@ import { goBack } from '../navigation/rootRef';
 import { AppButton, GlassCard, PageHeader, TextField } from '../components/ui';
 import { notifyRecipeAdded } from '../lib/notifications';
 import { pickFromGallery, takePhoto, uploadPhotoToServer } from '../lib/photo';
+import { copyCrop, editPhotoCrop } from '../lib/photo-crop';
 import { useTranslation } from '../lib/i18n';
 
 type Difficulty = 'easy' | 'medium' | 'hard';
@@ -51,6 +52,8 @@ export function RecipeFormScreen({ route }: any) {
     try {
       const photo = source === 'camera' ? await takePhoto() : await pickFromGallery();
       if (!photo?.uri) return; // user cancelled or no permission
+      // 3.1.0: erst den Bild-Ausschnitt festlegen (Popup), dann übernehmen
+      await editPhotoCrop(photo.uri);
       setLocalPhoto(photo.uri);
       setImageUrl(photo.uri); // device-local fallback
       // When the backend upload function is available, use the public URL
@@ -58,7 +61,11 @@ export function RecipeFormScreen({ route }: any) {
       if (photo.base64) {
         try {
           const remote = await uploadPhotoToServer(photo.base64, photo.type ?? 'image/jpeg');
-          if (remote) setImageUrl(remote);
+          if (remote) {
+            setImageUrl(remote);
+            // Ausschnitt auch für die hochgeladene Version übernehmen
+            await copyCrop(photo.uri, remote);
+          }
         } catch {
           // keep the local file: saving the recipe must still work offline
         }

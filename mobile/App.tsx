@@ -16,6 +16,7 @@ import type { RootStackParamList } from './src/navigation/types';
 import { AppShellProvider } from './src/navigation/Shell';
 import { RootTabs } from './src/navigation/RootTabs';
 import { VerifyGate } from './src/components/VerifyGate';
+import { PhotoCropHost } from './src/components/PhotoCropModal';
 import { AnnouncementGate } from './src/components/AnnouncementGate';
 import { UpdateGate } from './src/components/UpdateGate';
 import { TutorialGate } from './src/components/TutorialGate';
@@ -108,6 +109,8 @@ function SignedInStack() {
         <Stack.Screen name="RecipeForm" component={RecipeFormScreen} options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="Cooking" component={CookingScreen} options={{ animation: 'fade' }} />
       </Stack.Navigator>
+      {/* 3.1.0: Popup für den Bild-Ausschnitt - überall verfügbar */}
+      <PhotoCropHost />
     </AppShellProvider>
   );
 }

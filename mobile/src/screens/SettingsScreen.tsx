@@ -13,6 +13,7 @@ import { Divider, GlassCard, PageHeader, SectionLabel } from '../components/ui';
 import { LanguagePicker } from '../components/LanguagePicker';
 import { Popup } from '../components/Popup';
 import { restartTutorial } from '../lib/tutorial';
+import { useCookingAdvanced } from '../lib/app-prefs';
 
 export function SettingsScreen() {
   const { signOut } = useAuthActions();
@@ -23,6 +24,8 @@ export function SettingsScreen() {
   /** 2.1.2: every confirmation is a popup now (reset, restart, device language). */
   const [popup, setPopup] = useState<{ title: string; body: string; restart?: boolean } | null>(null);
   const [prefs, setPrefs] = useState<NotifPrefs | null>(null);
+  /* 3.1.0: Kochmodus advanced / klassisch */
+  const [cookingAdvanced, setCookingAdvancedPref] = useCookingAdvanced();
 
   useEffect(() => {
     let alive = true;
@@ -177,6 +180,18 @@ export function SettingsScreen() {
           <PrefToggle title={t('ui.notifAi')} desc={t('ui.notifAiDesc')} value={prefs?.ai ?? true} onChange={() => togglePref('ai')} />
           <PrefToggle title={t('ui.notifAdded')} desc={t('ui.notifAddedDesc')} value={prefs?.added ?? true} onChange={() => togglePref('added')} />
         </GlassCard>
+
+        {/* 3.1.0: Cooking Mode Advanced (an = neuer Kochmodus, aus = klassisch) */}
+        <Text style={label}>{t('s.advSection')}</Text>
+        <GlassCard pad={4} radius={20}>
+          <PrefToggle
+            title={t('s.advTitle')}
+            desc={t('s.advDesc')}
+            value={cookingAdvanced}
+            onChange={() => setCookingAdvancedPref(!cookingAdvanced)}
+          />
+        </GlassCard>
+
 
         <Text style={label}>{t('ui.help')}</Text>
         <GlassCard pad={4} radius={20}>

@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
-  Image,
   Modal,
   PanResponder,
   Pressable,
@@ -78,6 +77,9 @@ import {
   type StepExtras,
 } from '../lib/cooking-extras';
 import { pickStepPhoto, takeStepPhoto } from '../lib/photo';
+import { editPhotoCrop } from '../lib/photo-crop';
+import { useCookingAdvanced } from '../lib/app-prefs';
+import { CroppedImage } from '../components/CroppedImage';
 
 const BASE_SERVINGS = 2;
 const PRESETS = [3, 5, 10, 15, 20, 30];
@@ -181,6 +183,8 @@ export function CookingScreen({ route }: any) {
   const myProfile = useQuery(api.users.currentUser) as any;
   /** true, sobald die Konto-ID bekannt ist (Notizen/Fotos sind pro Konto). */
   const profileReady = myProfile !== undefined;
+  /* 3.1.0: Kochmodus advanced (Einstellungen) — aus = klassischer Modus */
+  const [cookingAdvanced] = useCookingAdvanced();
   const totalTime: number = p.totalTime ?? 0;
   const nutrition = {
     calories: p.calories as number | undefined,
@@ -297,12 +301,12 @@ export function CookingScreen({ route }: any) {
 
   /* Fortschritt im Haushalt veröffentlichen (Nr. 26) */
   useEffect(() => {
-    if (phase === 'prep') return;
+    if (phase === 'prep' || !cookingAdvanced) return;
     const timer = setTimeout(() => {
       void publishCooking({ recipeKey, title, step: index, total, done: doneSteps.size }).catch(() => {});
     }, 700);
     return () => clearTimeout(timer);
-  }, [recipeKey, title, index, total, doneSteps, phase, publishCooking]);
+  }, [recipeKey, title, index, total, doneSteps, phase, publishCooking, cookingAdvanced]);
 
   /* beim Verlassen die Koch-Session zurückziehen */
   useEffect(() => () => { void stopCooking().catch(() => {}); }, [stopCooking]);
@@ -350,6 +354,8 @@ export function CookingScreen({ route }: any) {
       const mime = photo.type ?? 'image/jpeg';
       const uri = photo.base64 ? `data:${mime};base64,${photo.base64}` : photo.uri;
       if (!uri) return;
+      // 3.1.0: erst den Ausschnitt festlegen (Popup), dann speichern
+      await editPhotoCrop(uri);
       const next = { ...extras, photos: { ...extras.photos, [String(index)]: uri } };
       setExtras(next);
       void saveExtras(myProfile?.id, recipeKey, next);
@@ -493,6 +499,17 @@ export function CookingScreen({ route }: any) {
     setPhase('cook');
     const mins = extractMinutes(steps[0] ?? '');
     if (mins) setSuggested(mins);
+  };
+
+  /** 3.1.0: nochmal kochen (Knopf auf dem Endbildschirm). */
+  const restartCooking = () => {
+    setPhase('prep');
+    setIndex(0);
+    setDoneSteps(new Set());
+    setCheckedIng(new Set());
+    setShowSub(false);
+    setSuggested(null);
+    void clearTimers();
   };
 
   const goNext = () => {
@@ -689,10 +706,24 @@ export function CookingScreen({ route }: any) {
                 {scaledNutrition.fat !== null ? <NutChip label="fat" value={`${scaledNutrition.fat}g`} /> : null}
               </View>
             ) : null}
+
+            {/* 3.1.0: nochmal kochen direkt vom Endbildschirm aus */}
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 22, alignSelf: 'stretch' }}>
+              <AppButton
+                label={t('s.cookAgain')}
+                variant="dark"
+                icon={<RotateCcw size={17} color={colors.darkButtonText} />}
+                onPress={restartCooking}
+                style={{ flex: 1 }}
+              />
+              <AppButton label={t('s.cookFinishBtn')} variant="ghost" onPress={() => goBack()} style={{ flex: 1 }} />
+            </View>
           </View>
         ) : (
           <>
-            {/* Fortschritt: Rezept (groß) + aktueller Schritt (fein) — Nr. 2 */}
+            {/* Fortschritt: Rezept (groß) + aktueller Schritt (fein) — Nr. 2 (2/2 advanced) */}
+            {cookingAdvanced ? (
+              <>
             <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.surfaceMuted, overflow: 'hidden' }}>
               <View style={{ height: 6, width: `${progress}%`, borderRadius: 3, backgroundColor: colors.accent }} />
             </View>
@@ -762,6 +793,19 @@ export function CookingScreen({ route }: any) {
                 </View>
               </Pressable>
             ) : null}
+              </>
+            ) : (
+              /* klassischer Kochmodus: nur Fortschritt + Schritt-Zähler */
+              <>
+                <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.surfaceMuted, overflow: 'hidden' }}>
+                  <View style={{ height: 6, width: `${progress}%`, borderRadius: 3, backgroundColor: colors.accent }} />
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+                  <Text style={{ fontSize: 12, color: colors.textSecondary }}>{t('s.cookStepOf', { n: index + 1, total })} · {doneSteps.size}/{total}</Text>
+                  <Text style={{ fontSize: 12, color: colors.accent, fontWeight: '800' }}>{Math.round(progress)}%</Text>
+                </View>
+              </>
+            )}
 
             {/* step chips */}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
@@ -777,6 +821,7 @@ export function CookingScreen({ route }: any) {
               <View style={{ borderRadius: 22, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 20 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
                   <Text style={{ fontSize: 12, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', color: coach.color }}>{coach.phase}</Text>
+                  {cookingAdvanced ? (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                     {/* Gruppierung Vorbereitung / Kochen / Finish (Nr. 3) */}
                     <View style={{ borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: rgbaHelper(groupColor(currentMeta?.group ?? 'prep'), 0.16) }}>
@@ -792,11 +837,20 @@ export function CookingScreen({ route }: any) {
                       <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary }}>{`~${currentMeta?.minutes ?? 0} min`}</Text>
                     </View>
                   </View>
+                  ) : (
+                    /* klassisch: nur die Zeit-Schätzung des Schritts */
+                    <View style={{ borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: colors.surfaceMuted }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary }}>{stepMinutes ? `~${stepMinutes} min` : t('s.cookQuickStep')}</Text>
+                    </View>
+                  )}
                 </View>
                 <Text style={{ fontFamily: fonts.display, fontSize: 25, lineHeight: 34, color: colors.textPrimary, fontWeight: '700', marginTop: 14 }}>
                   {currentStep}
                 </Text>
 
+                {/* Abhängigkeiten + Teilschritte + Notiz/Foto/Skip (nur advanced) */}
+                {cookingAdvanced ? (
+                  <>
                 {/* Abhängigkeiten: "läuft parallel" / "warten bis gar" (Nr. 14) */}
                 {currentMeta?.dependency ? (
                   <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: colors.cyanBg }}>
@@ -889,7 +943,9 @@ export function CookingScreen({ route }: any) {
                   <Text style={{ marginTop: 8, fontSize: 12.5, color: colors.textSecondary, fontStyle: 'italic' }}>{extras.notes[String(index)]}</Text>
                 ) : null}
                 {extras.photos[String(index)] ? (
-                  <Image source={{ uri: extras.photos[String(index)] }} style={{ marginTop: 10, width: '100%', height: 150, borderRadius: 14 }} resizeMode="cover" />
+                  <CroppedImage uri={extras.photos[String(index)]} style={{ marginTop: 10, width: '100%', height: 150, borderRadius: 14 }} />
+                ) : null}
+                  </>
                 ) : null}
 
                 <View style={{ marginTop: 16, borderRadius: 14, backgroundColor: colors.dark ? rgbaHelper('#ffffff', 0.05) : rgbaHelper('#ffffff', 0.7), padding: 12 }}>
@@ -978,7 +1034,9 @@ export function CookingScreen({ route }: any) {
               </View>
             ) : null}
 
-            {/* Zweites Gericht parallel kochen (Nr. 12) */}
+            {/* Zweites Gericht parallel kochen (Nr. 12) — nur advanced */}
+            {cookingAdvanced ? (
+              <>
             {second ? (
               <View style={{ marginTop: 16, borderRadius: 18, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 14 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -1025,6 +1083,8 @@ export function CookingScreen({ route }: any) {
                 <Text style={{ fontSize: 13, fontWeight: '700', color: colors.accent }}>{t('s.cookSecondAdd')}</Text>
               </Pressable>
             )}
+              </>
+            ) : null}
 
             {/* bottom actions */}
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
