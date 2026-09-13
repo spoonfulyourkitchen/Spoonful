@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleCheck,
+  Languages,
   ListChecks,
   Minus,
   Pause,
@@ -42,6 +43,9 @@ import {
   useKitchenTimers,
 } from '../lib/kitchenTimers';
 import { recipeLines } from '../lib/recipe';
+import { coachText, detectPhase, type CoachPhase } from '../lib/coach-tips';
+import { isTranslatableLanguage } from '../lib/recipe-translate';
+import { useAction } from '../lib/convex-auth';
 
 const BASE_SERVINGS = 2;
 const PRESETS = [3, 5, 10, 15, 20, 30];
@@ -86,34 +90,49 @@ function cleanIngredientForShop(line: string): string {
 
 type PhaseInfo = { phase: string; color: string; tip: string; look: string };
 
-function coachFor(step: string, index: number, total: number, diff: number | null): PhaseInfo {
-  const text = step.toLowerCase();
-  const isLast = index === total - 1;
-  if (isLast || /(serve|plate|garnish|finish|top with|enjoy|rest before serving)/.test(text)) {
-    return { phase: 'Finish', color: colors.success, tip: 'Plating is the final step - a quick taste check helps before serving.', look: 'Looks as good as it smells? Time to serve.' };
-  }
-  if (/(bake|oven|roast|broil|boil|simmer|fry|saut|grill|heat|reduce|caramel|braise|stew)/.test(text)) {
-    return { phase: 'Cook', color: colors.accent, tip: `Let the heat do the work${diff ? ` and keep the ${diff}-minute timer handy` : ''} - peek only when needed.`, look: 'Check for the colour and texture described before moving on.' };
-  }
-  if (/(mix|stir|combine|whisk|fold|pour|add|season|marinate|toss|blend)/.test(text)) {
-    return { phase: 'Combine', color: colors.cyan, tip: 'Combine gently but thoroughly so every bite tastes the same.', look: 'Everything should look evenly distributed.' };
-  }
-  if (/(prep|wash|rinse|peel|chop|dice|slice|mince|grate|trim|cut|measure|soak|drain|gather|separate)/.test(text)) {
-    return { phase: 'Prep', color: colors.easy, tip: 'Take your time here - good prep makes the next steps easy.', look: 'All pieces ready to go.' };
-  }
-  if (index === 0) return { phase: 'Start', color: colors.cyan, tip: 'This is the first step of the recipe - read it once before you begin.', look: 'Ready when you are.' };
-  return { phase: 'Next', color: colors.cyan, tip: 'Follow this step carefully, then move on when it looks right.', look: 'Matches the description? Keep going.' };
-}
+/** Farben + Beschriftung je Coach-Phase (Texte kommen aus coach-tips.ts). */
+const PHASE_COLORS: Record<CoachPhase, string> = {
+  start: colors.cyan,
+  prep: colors.easy,
+  combine: colors.cyan,
+  cook: colors.accent,
+  finish: colors.success,
+  next: colors.cyan,
+};
 
 export function CookingScreen({ route }: any) {
   const insets = useSafeAreaInsets();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const p = route.params ?? {};
-  const title: string = p.title ?? 'Recipe';
+  const origTitle: string = p.title ?? 'Recipe';
   /* 2.0.0: recipes written by other tools may store steps/ingredients as
      objects - coerce everything to strings so scaling and timers cannot crash. */
-  const steps: string[] = recipeLines(p.steps).length ? recipeLines(p.steps) : ['Prepare your ingredients and enjoy.'];
-  const ingredients: string[] = recipeLines(p.ingredients);
+  const origSteps: string[] = recipeLines(p.steps).length ? recipeLines(p.steps) : ['Prepare your ingredients and enjoy.'];
+  const origIngredients: string[] = recipeLines(p.ingredients);
+  const recipeKey: string = String(p.recipeKey ?? origTitle);
+
+  /**
+   * Übersetzung (2.1.5): kommt der Kochmodus aus der Rezept-Detailseite, die
+   * gerade übersetzt angezeigt wird, wird die Übersetzung mitgegeben. Sonst
+   * kann man sie hier direkt einschalten - beim Umschalten bleibt alles erhalten
+   * (gleiche Schrittzahl, gleiche Portionen), damit Timer und Fortschritt passen.
+   */
+  const inlineTr = p.translatedSteps && recipeLines(p.translatedSteps).length
+    ? {
+        title: String(p.translatedTitle ?? origTitle),
+        steps: recipeLines(p.translatedSteps),
+        ingredients: p.translatedIngredients ? recipeLines(p.translatedIngredients) : [],
+      }
+    : null;
+  const [tr, setTr] = useState<typeof inlineTr>(inlineTr);
+  const [showTr, setShowTr] = useState(!!inlineTr);
+  const [busyTranslate, setBusyTranslate] = useState(false);
+  const translateRecipeAction = useAction(api.translate.translateRecipe);
+
+  const view = showTr && tr ? tr : null;
+  const title: string = view?.title || origTitle;
+  const steps: string[] = view?.steps?.length ? view.steps : origSteps;
+  const ingredients: string[] = view?.ingredients?.length ? view.ingredients : origIngredients;
   const totalTime: number = p.totalTime ?? 0;
   const nutrition = {
     calories: p.calories as number | undefined,
@@ -152,7 +171,48 @@ export function CookingScreen({ route }: any) {
 
   const currentStep = steps[index] ?? '';
   const stepMinutes = useMemo(() => (phase === 'cook' ? extractMinutes(currentStep) : null), [phase, currentStep]);
-  const coach = useMemo(() => coachFor(currentStep, index, total, stepMinutes), [currentStep, index, total, stepMinutes]);
+  /** Coach: Phase + Tipp, der sich nicht wiederholt (siehe lib/coach-tips.ts). */
+  const coach = useMemo(() => {
+    const ph = detectPhase(currentStep, index, total);
+    const txt = coachText(ph, lang, `${index}:${currentStep.slice(0, 48)}`);
+    return { phaseKey: ph, phase: t(`s.cookPhase_${ph}`), color: PHASE_COLORS[ph], tip: txt.tip, look: txt.look };
+  }, [currentStep, index, total, lang, t]);
+
+  /** Übersetzung ein-/ausschalten (Kochmodus in der App-Sprache). */
+  const toggleTranslation = async () => {
+    if (showTr) {
+      setShowTr(false);
+      return;
+    }
+    if (tr) {
+      setShowTr(true);
+      return;
+    }
+    if (!isTranslatableLanguage(lang) || busyTranslate) return;
+    setBusyTranslate(true);
+    try {
+      const res: any = await translateRecipeAction({
+        recipeKey,
+        title: origTitle,
+        description: '',
+        ingredients: origIngredients,
+        steps: origSteps,
+        targetLanguage: lang,
+      } as any);
+      const stepsNew = recipeLines(res?.steps);
+      if (stepsNew.length) {
+        setTr({ title: String(res?.title || origTitle), steps: stepsNew, ingredients: recipeLines(res?.ingredients) });
+        setShowTr(true);
+      } else {
+        Alert.alert(t('s.cookTranslateFail'));
+      }
+    } catch (e) {
+      Alert.alert(t('s.cookTranslateFail'), e instanceof Error ? e.message : undefined);
+    } finally {
+      setBusyTranslate(false);
+    }
+  };
+  const canTranslate = isTranslatableLanguage(lang);
 
   const stepIngredients = useMemo(() => {
     if (!currentStep) return [];
@@ -167,7 +227,7 @@ export function CookingScreen({ route }: any) {
    * 2.0.0: the cooking session survives leaving the screen or restarting the
    * app - step, progress, servings and which ingredients were ticked off.
    */
-  const sessionKey = `spoonful:cooking:${title}`;
+  const sessionKey = `spoonful:cooking:${recipeKey}`;
   useEffect(() => {
     let alive = true;
     AsyncStorage.getItem(sessionKey)
@@ -282,9 +342,23 @@ export function CookingScreen({ route }: any) {
       {/* header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 10, borderBottomWidth: 1, borderBottomColor: colors.cardBorder }}>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: colors.accent }}>Cooking coach</Text>
+          <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: colors.accent }}>{t('s.cookHeader')}</Text>
           <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: 16, fontWeight: '700', color: colors.textPrimary }}>{title}</Text>
         </View>
+        {canTranslate ? (
+          <Pressable
+            onPress={() => void toggleTranslation()}
+            disabled={busyTranslate}
+            accessibilityRole="button"
+            accessibilityLabel={showTr ? t('s.cookOriginal') : t('s.cookTranslate')}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: showTr ? colors.accentSoft : colors.surfaceMuted, opacity: busyTranslate ? 0.6 : 1 }}
+          >
+            <Languages size={13} color={showTr ? colors.accent : colors.textSecondary} />
+            <Text style={{ fontSize: 12, fontWeight: '700', color: showTr ? colors.accent : colors.textSecondary }}>
+              {busyTranslate ? t('s.cookTranslating') : showTr ? t('s.cookOriginal') : t('s.cookTranslate')}
+            </Text>
+          </Pressable>
+        ) : null}
         {timers.length ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: runningCount ? colors.accentSoft : colors.surfaceMuted }}>
             <Timer size={14} color={runningCount ? colors.accent : colors.textSecondary} />
@@ -306,11 +380,11 @@ export function CookingScreen({ route }: any) {
             <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.surfaceMuted, overflow: 'hidden' }}>
               <View style={{ height: 6, width: '0%', borderRadius: 3, backgroundColor: colors.accent }} />
             </View>
-            <Text style={{ marginTop: 6, fontSize: 13, color: colors.textSecondary }}>{total} steps · ~{totalTime || '?'} min</Text>
+            <Text style={{ marginTop: 6, fontSize: 13, color: colors.textSecondary }}>{total} {t('cooking.step')} · ~{totalTime || '?'} min</Text>
 
             <View style={{ marginTop: 10, borderRadius: 22, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 18 }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: colors.accent, marginBottom: 4 }}>Get ready</Text>
-              <Text style={{ fontFamily: fonts.display, fontSize: 24, fontWeight: '800', color: colors.textPrimary, marginBottom: 6 }}>Ready to cook</Text>
+              <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: colors.accent, marginBottom: 4 }}>{t('s.cookGetReady')}</Text>
+              <Text style={{ fontFamily: fonts.display, fontSize: 24, fontWeight: '800', color: colors.textPrimary, marginBottom: 6 }}>{t('s.cookReadyToCook')}</Text>
               <Text style={{ fontSize: 13.5, lineHeight: 20, color: colors.textSecondary }}>
                 Start by scaling the recipe, then tick off every ingredient you have ready. The coach guides you through each step as you go.
               </Text>
@@ -408,7 +482,7 @@ export function CookingScreen({ route }: any) {
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <Text style={{ fontSize: 12, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', color: coach.color }}>{coach.phase}</Text>
                   <View style={{ borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: colors.surfaceMuted }}>
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary }}>{stepMinutes ? `~${stepMinutes} min` : 'Quick step'}</Text>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary }}>{stepMinutes ? `~${stepMinutes} min` : t('s.cookQuickStep')}</Text>
                   </View>
                 </View>
                 <Text style={{ fontFamily: fonts.display, fontSize: 25, lineHeight: 34, color: colors.textPrimary, fontWeight: '700', marginTop: 14 }}>
@@ -419,7 +493,7 @@ export function CookingScreen({ route }: any) {
                   <View style={{ marginTop: 16 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                       <ListChecks size={14} color={colors.textSecondary} />
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 }}>For this step</Text>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('s.cookForStep')}</Text>
                     </View>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 7 }}>
                       {stepIngredients.map((ing, i) => (
@@ -432,9 +506,9 @@ export function CookingScreen({ route }: any) {
                 ) : null}
 
                 <View style={{ marginTop: 16, borderRadius: 14, backgroundColor: colors.dark ? rgbaHelper('#ffffff', 0.05) : rgbaHelper('#ffffff', 0.7), padding: 12 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '800', color: colors.textPrimary }}>Coach tip</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: colors.textPrimary }}>{t('s.cookCoachTip')}</Text>
                   <Text style={{ fontSize: 13, lineHeight: 19, color: colors.textSecondary, marginTop: 3 }}>{coach.tip}</Text>
-                  <Text style={{ fontSize: 12.5, lineHeight: 18, color: coach.color, marginTop: 8, fontWeight: '600' }}>Look for: {coach.look}</Text>
+                  <Text style={{ fontSize: 12.5, lineHeight: 18, color: coach.color, marginTop: 8, fontWeight: '600' }}>{t('s.cookLookFor')} {coach.look}</Text>
                 </View>
 
                 {/* suggested timer for this step */}

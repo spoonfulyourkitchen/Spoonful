@@ -24,7 +24,21 @@ export type RootStackParamList = {
   Admin: undefined;
   RecipeDetail: { recipeId: string; title?: string; source?: string; recipe?: any };
   RecipeForm: { recipe?: any } | undefined;
-  Cooking: { title?: string; steps: string[]; totalTime?: number; ingredients?: string[]; calories?: number; protein?: number; carbs?: number; fat?: number };
+  Cooking: {
+    title?: string;
+    steps: string[];
+    totalTime?: number;
+    ingredients?: string[];
+    calories?: number;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
+    /* 2.1.5: Kochmodus in der angezeigten Sprache */
+    recipeKey?: string;
+    translatedTitle?: string;
+    translatedSteps?: string[];
+    translatedIngredients?: string[];
+  };
   SignOut: undefined;
 };
 

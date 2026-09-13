@@ -102,11 +102,20 @@ export function RecipeDetailScreen({ route }: any) {
 
   const startCooking = () => {
     if (!recipe) return;
+    /* 2.1.5: der Kochmodus übernimmt die gerade angezeigte Sprache - ist das
+       Rezept übersetzt, kommt es auch übersetzt in den Kochmodus. */
+    const useTr = showTranslation && !!translated;
+    const cookSteps = (useTr ? translated.steps : recipe.steps) ?? [];
+    const cookIngredients = (useTr ? translated.ingredients : recipe.ingredients) ?? [];
     navigate('Cooking', {
-      title: recipe.title,
-      steps: recipe.steps.length ? recipe.steps : ['Prepare your ingredients and enjoy.'],
+      recipeKey: recipeId ?? recipe.title,
+      title: useTr ? translated.title : recipe.title,
+      steps: cookSteps.length ? cookSteps : ['Prepare your ingredients and enjoy.'],
       totalTime: totalMinutes(recipe),
-      ingredients: recipe.ingredients ?? [],
+      ingredients: cookIngredients,
+      translatedTitle: useTr ? translated.title : undefined,
+      translatedSteps: useTr ? translated.steps : undefined,
+      translatedIngredients: useTr ? translated.ingredients : undefined,
       calories: recipe.calories,
       protein: recipe.protein,
       carbs: recipe.carbs,
