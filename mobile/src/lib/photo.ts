@@ -77,6 +77,33 @@ export async function pickSharpPhoto(): Promise<PickedPhoto | null> {
 }
 
 /**
+ * 3.0.0: komprimierte Fotos für einzelne Koch-Schritte.
+ *
+ * Schritt-Fotos bleiben **beim eigenen Konto**: sie werden nicht in den
+ * Haushalt hochgeladen, sondern nur lokal (pro Nutzer-ID) gespeichert.
+ * Deshalb wird hier base64 mitgeliefert - die App legt daraus eine data-URL
+ * an, es gibt keinen Upload.
+ */
+const STEP_OPTIONS = {
+  mediaType: 'photo' as const,
+  quality: 0.5 as const, // klein halten: die Bilder landen im Gerätespeicher
+  selectionLimit: 1,
+  includeBase64: true,
+  maxWidth: 1080,
+  maxHeight: 1080,
+};
+
+/** Foto für einen Schritt aufnehmen (Kamera, komprimiert, base64). */
+export async function takeStepPhoto(): Promise<PickedPhoto | null> {
+  return run('camera', { ...STEP_OPTIONS });
+}
+
+/** Foto für einen Schritt aus der Galerie wählen (komprimiert, base64). */
+export async function pickStepPhoto(): Promise<PickedPhoto | null> {
+  return run('library', { ...STEP_OPTIONS });
+}
+
+/**
  * Upload a picked photo to Supabase Storage and return a public URL.
  * Returns null when the bucket does not exist yet (or the device is offline)
  * so the caller can fall back to a device-local image.

@@ -4,6 +4,20 @@ Alle Ideen sind nach Themen sortiert und fortlaufend nummeriert.
 (Umgesetzt in 2.1.5 sind bereits: abwechslungsreiche Coach-Tipps ohne Wiederholung,
 übersetzte Coach-Texte und ein Übersetzungs-Umschalter im Kochmodus.)
 
+## Umgesetzt in 3.0.0
+
+**1, 2, 3, 4, 6, 8, 10, 11, 12, 14, 16, 17, 25, 26, 28** — siehe
+`RELEASE_NOTES-v3.0.0.md` für die genaue Beschreibung.
+
+* Ablauf: Schritt-Überschrift (1), Fortschritt pro Schritt (2), Gruppen (3),
+  Überspringen (4), Teilschritte (6), Wischgeste (8), "Wo war ich?" (10).
+* Zeit & Planung: Dauer je Schritt + Restzeit (11), zweites Gericht (12),
+  Abhängigkeiten (14), Soll/Ist-Zeit (25), Schwierigkeit (28).
+* Persönliches: Notiz (16) und Foto (17) je Schritt.
+* Haushalt: gemeinsam kochen – Schritt wird geteilt, andere sind sichtbar (26).
+
+Ideen 5, 7, 9, 13, 15, 18–24, 27 und 29–300 sind weiterhin offen.
+
 ## A. Ablauf & Schritte (1–30)
 1. Schritt-Zusammenfassung oben ("Schritt 3 von 8 – Scharf anbraten").
 2. Fortschrittsbalken pro Schritt statt nur pro Rezept.

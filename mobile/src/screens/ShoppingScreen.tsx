@@ -36,6 +36,13 @@ export function ShoppingScreen() {
   const clearChecked = useMutation(api.shoppingList.clearChecked);
   const clearAll = useMutation(api.shoppingList.clearAll);
   const household = useQuery(api.household.mine) as any;
+  /* 3.0.0: Kochfortschritt im Haushalt (wer kocht gerade was?) */
+  const householdCooking = useQuery(api.householdCooking.state) as any[] | undefined;
+  const householdCookingLine = (householdCooking ?? [])
+    .filter((h) => Date.now() - h.at < 12 * 3600 * 1000)
+    .map((h) => `🍳 ${h.name || '—'}: ${h.title || ''} ${h.step + 1}/${h.total}`.replace(/\s+/g, ' ').trim())
+    .slice(0, 2)
+    .join(' · ');
   const [name, setName] = useState('');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'open' | 'done' | 'have' | 'need'>('all');
@@ -518,6 +525,7 @@ export function ShoppingScreen() {
         body={[
           priceSum > 0 ? `${pick(lang, SHOP_L10N.extrasTotal)}: ${priceSum.toFixed(2)} €` : '',
           household ? `${pick(lang, SHOP_L10N.extrasHousehold)}: ${household.name}` : '',
+          householdCookingLine,
         ]
           .filter(Boolean)
           .join(' · ')}

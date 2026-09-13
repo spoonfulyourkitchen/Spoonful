@@ -137,6 +137,12 @@ export const api = {
     join: R('household.join', 'mutation'),
     leave: R('household.leave', 'mutation'),
   },
+  /* 3.0.0: Kochmodus im Haushalt teilen (wer ist bei welchem Schritt?) */
+  householdCooking: {
+    state: R('householdCooking.state', 'query'),
+    set: R('householdCooking.set', 'mutation'),
+    stop: R('householdCooking.stop', 'mutation'),
+  },
   announcement: {
     latest: R('announcement.latest', 'query'),
     list: R('announcement.list', 'query'),
@@ -474,6 +480,63 @@ ops['household.leave'] = {
   async mutation() {
     const { error } = await supabase.rpc('leave_household');
     if (error) throw rowError(error);
+    return null;
+  },
+};
+
+/* ---------- 3.0.0: gemeinsam kochen im Haushalt ---------- */
+/** True, wenn die Haushalts-Funktionen noch nicht installiert sind. */
+function missingHouseholdCooking(error: any): boolean {
+  const code = String((error as any)?.code ?? '');
+  const text = `${(error as any)?.message ?? ''} ${(error as any)?.details ?? ''}`;
+  return code === 'PGRST202' || code === '42P01' || code === '42883' || /could not find the function|schema cache|does not exist/i.test(text);
+}
+
+ops['householdCooking.state'] = {
+  async query() {
+    const { data, error } = await supabase.rpc('household_cooking_state');
+    if (error) {
+      if (missingHouseholdCooking(error)) return []; // SQL noch nicht eingespielt
+      throw rowError(error);
+    }
+    return (Array.isArray(data) ? data : []).map((r: any) => ({
+      userId: r.user_id,
+      name: r.name ?? '',
+      recipeKey: r.recipe_key ?? '',
+      title: r.title ?? '',
+      step: Number(r.step_index ?? 0),
+      total: Number(r.step_total ?? 1),
+      done: Number(r.done_steps ?? 0),
+      at: new Date(r.updated_at ?? 0).getTime(),
+    }));
+  },
+};
+
+ops['householdCooking.set'] = {
+  async mutation(_ctx, args: any) {
+    const { error } = await supabase.rpc('set_cooking_state', {
+      p_recipe_key: String(args?.recipeKey ?? ''),
+      p_title: String(args?.title ?? ''),
+      p_step: Number(args?.step ?? 0),
+      p_total: Number(args?.total ?? 1),
+      p_done: Number(args?.done ?? 0),
+    });
+    // Ohne Haushalt oder ohne SQL: kein Fehler für den Nutzer
+    if (error) {
+      if (missingHouseholdCooking(error) || /no household|sign in required/i.test(String(error.message ?? ''))) return null;
+      throw rowError(error);
+    }
+    return null;
+  },
+};
+
+ops['householdCooking.stop'] = {
+  async mutation() {
+    const { error } = await supabase.rpc('stop_cooking_state');
+    if (error) {
+      if (missingHouseholdCooking(error)) return null;
+      throw rowError(error);
+    }
     return null;
   },
 };
