@@ -17,6 +17,7 @@ import { AppShellProvider } from './src/navigation/Shell';
 import { RootTabs } from './src/navigation/RootTabs';
 import { VerifyGate } from './src/components/VerifyGate';
 import { PhotoCropHost } from './src/components/PhotoCropModal';
+import { BarcodeHost } from './src/components/BarcodeHost';
 import { AnnouncementGate } from './src/components/AnnouncementGate';
 import { UpdateGate } from './src/components/UpdateGate';
 import { TutorialGate } from './src/components/TutorialGate';
@@ -111,6 +112,8 @@ function SignedInStack() {
       </Stack.Navigator>
       {/* 3.1.0: Popup für den Bild-Ausschnitt - überall verfügbar */}
       <PhotoCropHost />
+      {/* 3.2.0: Barcode-Scanner von überall (z. B. langes Drücken auf den Tracker-Tab) */}
+      <BarcodeHost />
     </AppShellProvider>
   );
 }
