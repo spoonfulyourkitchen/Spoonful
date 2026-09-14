@@ -16,6 +16,8 @@ class MainApplication : Application(), ReactApplication {
         PackageList(this).packages.apply {
           // Packages that cannot be autolinked yet can be added manually here, for example:
           // add(MyReactNativePackage())
+          // 3.2.0: Teilen-Ziel (TikTok/Instagram/YouTube -> Spoonful)
+          add(ShareIntentPackage())
         },
     )
   }

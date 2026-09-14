@@ -44,6 +44,48 @@ function decodeEntities(text: string): string {
     .replace(/&#(\d+);/g, (_m, d) => String.fromCharCode(Number(d)));
 }
 
+/** Erkennt die Plattform eines Links. */
+export type VideoPlatform = 'youtube' | 'tiktok' | 'instagram' | 'other';
+
+export function platformOf(url: string): VideoPlatform {
+  const u = String(url ?? '').toLowerCase();
+  if (/youtu\.be|youtube\.com/.test(u)) return 'youtube';
+  if (/tiktok\.com/.test(u)) return 'tiktok';
+  if (/instagram\.com/.test(u)) return 'instagram';
+  return 'other';
+}
+
+/** TikTok: oEmbed liefert die Beschreibung (Caption) ohne Login. */
+async function tiktokText(url: string, headers: Record<string, string>): Promise<{ text: string; title: string }> {
+  try {
+    const res = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`, { headers });
+    const json: any = await res.json();
+    const title = String(json?.title ?? '');
+    const author = String(json?.author_name ?? '');
+    return { text: [title, author].filter(Boolean).join('\n'), title };
+  } catch {
+    return { text: '', title: '' };
+  }
+}
+
+/** Instagram/TikTok/allgemein: Beschreibung + Titel aus den Meta-Tags. */
+async function openGraphText(url: string, headers: Record<string, string>): Promise<{ text: string; title: string }> {
+  try {
+    const html = await fetch(url, { headers }).then((r) => r.text());
+    const ogDesc =
+      /<meta\s+property="og:description"\s+content="([^"]*)"/i.exec(html) ??
+      /<meta\s+name="description"\s+content="([^"]*)"/i.exec(html);
+    const ogTitle = /<meta\s+property="og:title"\s+content="([^"]*)"/i.exec(html) ?? /<title>([^<]{2,200})<\/title>/i.exec(html);
+    const text = [ogTitle?.[1], ogDesc?.[1]]
+      .filter(Boolean)
+      .map((s) => decodeEntities(unescapeJson(String(s))))
+      .join('\n');
+    return { text, title: decodeEntities(unescapeJson(String(ogTitle?.[1] ?? ''))) };
+  } catch {
+    return { text: '', title: '' };
+  }
+}
+
 /** Text aus einer JSON-Zeichenkette befreien (\n, \uXXXX, \" ...). */
 function unescapeJson(raw: string): string {
   let out = String(raw ?? '').replace(/\\n/g, '\n').replace(/\\r/g, '\n').replace(/\\t/g, ' ').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
@@ -154,19 +196,48 @@ export function parseRecipeFromText(text: string): { ingredients: string[]; step
  * (falscher Link, keine Untertitel oder kein Rezept im Text).
  */
 export async function recipeFromVideo(url: string): Promise<VideoRecipe | null> {
-  const id = youtubeId(url);
-  if (!id) return null;
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Mobile Safari/537.36',
+    'Accept-Language': 'de,en;q=0.8',
+  };
+  const platform = platformOf(url);
+  let text = '';
+  let title = '';
+  let language = '';
   try {
-    const transcript = await fetchTranscript(id);
-    if (!transcript) return null;
-    const { ingredients, steps } = parseRecipeFromText(transcript.text);
+    if (platform === 'youtube') {
+      const id = youtubeId(url);
+      if (!id) return null;
+      const found = await fetchTranscript(id);
+      if (!found) return null;
+      text = found.text;
+      title = found.title;
+      language = found.language;
+    } else if (platform === 'tiktok') {
+      const tt = await tiktokText(url, headers);
+      text = tt.text;
+      title = tt.title;
+      if (!text.trim()) {
+        const og = await openGraphText(url, headers);
+        text = og.text;
+        title = title || og.title;
+      }
+    } else {
+      /* Instagram und alles andere: Titel + Beschreibung der Seite */
+      const og = await openGraphText(url, headers);
+      text = og.text;
+      title = og.title;
+    }
+
+    const { ingredients, steps } = parseRecipeFromText(text);
     if (ingredients.length < 2 || steps.length < 2) return null;
+    const id = platform === 'youtube' ? youtubeId(url) : null;
     return {
-      title: transcript.title || steps[0].slice(0, 60),
+      title: title || steps[0].slice(0, 60),
       ingredients,
       steps,
-      source: `https://www.youtube.com/watch?v=${id}`,
-      language: transcript.language,
+      source: id ? `https://www.youtube.com/watch?v=${id}` : url,
+      language,
     };
   } catch {
     return null;

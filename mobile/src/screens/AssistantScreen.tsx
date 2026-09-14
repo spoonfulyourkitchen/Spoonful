@@ -17,6 +17,7 @@ import { useConnectivity, retryConnectivity } from '../lib/offline';
 import { OfflineTv } from '../components/OfflineTv';
 import { useTranslation } from '../lib/i18n';
 import { recipeFromVideo, type VideoRecipe } from '../lib/video-recipe';
+import { takePendingVideoUrl, usePendingVideoUrl } from '../lib/share-target';
 
 const QUICK = ['eggs', 'tomato', 'cheese', 'pasta', 'rice', 'chicken', 'onion', 'garlic', 'spinach', 'potato'];
 const DIETS = ['vegetarian', 'vegan', 'gluten-free', 'dairy-free', 'low-carb', 'high-protein', 'nut-free', 'keto'];
@@ -54,12 +55,13 @@ export function AssistantScreen() {
   const [videoBusy, setVideoBusy] = useState(false);
   const [videoRecipe, setVideoRecipe] = useState<VideoRecipe | null>(null);
   const [videoFailed, setVideoFailed] = useState(false);
-  const grabVideoRecipe = async () => {
+  const grabVideoRecipe = async (override?: string) => {
+    const link = String(override ?? videoUrl).trim();
     setVideoBusy(true);
     setVideoFailed(false);
     setVideoRecipe(null);
     try {
-      const found = await recipeFromVideo(videoUrl);
+      const found = await recipeFromVideo(link);
       if (found) setVideoRecipe(found);
       else setVideoFailed(true);
     } catch {
@@ -84,6 +86,17 @@ export function AssistantScreen() {
     }
   };
   const toggleBlock = (key: string) => setOpenBlock((s) => ({ ...s, [key]: !s[key] }));
+
+  /* 3.2.0: Link aus dem Teilen-Menü sofort in die Video-Box laden und starten */
+  const sharedVideoUrl = usePendingVideoUrl();
+  useEffect(() => {
+    const url = sharedVideoUrl ?? takePendingVideoUrl();
+    if (!url) return;
+    setVideoUrl(url);
+    settle(2);
+    void grabVideoRecipe(url);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sharedVideoUrl]);
 
   const CUISINES = ['italian', 'asian', 'thai', 'indian', 'mexican', 'turkish', 'mediterranean'];
   const TIMES = [15, 30, 45, 60];

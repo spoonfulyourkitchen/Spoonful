@@ -44,6 +44,13 @@
             <category android:name="android.intent.category.BROWSABLE" />
             <data android:scheme="spoonful" />
         </intent-filter>
-      </activity>
+      
+            <!-- 3.2.0: Spoonful erscheint im Teilen-Menü (TikTok, Instagram, YouTube ...) -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
     </application>
 </manifest>

@@ -18,6 +18,8 @@ import { RootTabs } from './src/navigation/RootTabs';
 import { VerifyGate } from './src/components/VerifyGate';
 import { PhotoCropHost } from './src/components/PhotoCropModal';
 import { BarcodeHost } from './src/components/BarcodeHost';
+import { useSharedVideoLink } from './src/lib/share-target';
+import { navigate } from './src/navigation/rootRef';
 import { AnnouncementGate } from './src/components/AnnouncementGate';
 import { UpdateGate } from './src/components/UpdateGate';
 import { TutorialGate } from './src/components/TutorialGate';
@@ -94,6 +96,12 @@ function SignedInStack() {
     void requestNotifications();
     void applyReminders();
   }, []);
+
+  /* 3.2.0: Link aus dem Teilen-Menü (TikTok/Instagram/YouTube) -> AI Chef */
+  useSharedVideoLink((url) => {
+    navigate('Main', { screen: 'Assistant' } as any);
+    void url;
+  });
 
   return (
     <AppShellProvider>
