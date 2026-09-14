@@ -44,29 +44,58 @@ function decodeEntities(text: string): string {
     .replace(/&#(\d+);/g, (_m, d) => String.fromCharCode(Number(d)));
 }
 
-/** Holt die Untertitel (Text) eines Videos. */
+/** Text aus einer JSON-Zeichenkette befreien (\n, \uXXXX, \" ...). */
+function unescapeJson(raw: string): string {
+  let out = String(raw ?? '').replace(/\\n/g, '\n').replace(/\\r/g, '\n').replace(/\\t/g, ' ').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+  out = out.replace(/\\u([0-9a-fA-F]{4})/g, (_m, hex) => String.fromCharCode(parseInt(hex, 16)));
+  return out;
+}
+
+/**
+ * Quelle für ein Video holen: **Untertitel UND Beschreibung**.
+ * Die Beschreibung enthält bei Kochvideos fast immer das Rezept - sie ist
+ * damit der zuverlässigste Weg, auch wenn es keine Untertitel gibt.
+ */
 async function fetchTranscript(id: string): Promise<{ text: string; title: string; language: string } | null> {
   const headers = {
     'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Mobile Safari/537.36',
     'Accept-Language': 'de,en;q=0.8',
   };
   const page = await fetch(`https://www.youtube.com/watch?v=${id}&hl=de`, { headers }).then((r) => r.text());
-  const titleMatch = /"title":"([^"]{2,160})"/.exec(page) ?? /<title>([^<]{2,160})<\/title>/.exec(page);
+  const titleMatch =
+    /"title":"([^"]{2,160})"/.exec(page) ?? /<meta name="title" content="([^"]{2,160})"/.exec(page) ?? /<title>([^<]{2,160})<\/title>/.exec(page);
   const title = decodeEntities(String(titleMatch?.[1] ?? '').replace(/ - YouTube$/, ''));
 
-  // Erste Untertitel-Spur (bevorzugt keine Automatik-Untertitel).
-  const tracks = [...page.matchAll(/"baseUrl":"([^"]+)"[^}]*?"languageCode":"([^"]*)"([^}]*)/g)];
-  if (!tracks.length) {
-    const single = /"baseUrl":"([^"]+)"/.exec(page);
-    if (!single) return null;
-    const url = decodeEntities(single[1].replace(/\\u0026/g, '&'));
-    const xml = await fetch(url, { headers }).then((r) => r.text());
-    return { text: plainFromTimedText(xml), title, language: '' };
+  /* Beschreibung (JSON oder Meta-Tag) */
+  let description = '';
+  const jsonDesc = /"shortDescription":"((?:[^"\\]|\\.)*)"/.exec(page);
+  if (jsonDesc?.[1]) description = unescapeJson(jsonDesc[1]);
+  else {
+    const metaDesc =
+      /<meta name="description" content="([^"]*)"/.exec(page) ?? /<meta property="og:description" content="([^"]*)"/.exec(page);
+    if (metaDesc?.[1]) description = decodeEntities(unescapeJson(metaDesc[1]));
   }
-  const preferred = tracks.find((t) => !/kind":"asr/.test(t[3] ?? '')) ?? tracks[0];
-  const url = decodeEntities(preferred[1].replace(/\\u0026/g, '&'));
-  const xml = await fetch(url, { headers }).then((r) => r.text());
-  return { text: plainFromTimedText(xml), title, language: String(preferred[2] ?? '') };
+
+  /* Untertitel (erste Spur, bevorzugt keine Automatik-Untertitel) */
+  let captions = '';
+  let language = '';
+  const tracks = [...page.matchAll(/"baseUrl":"([^"]+)"[^}]*?"languageCode":"([^"]*)"([^}]*)/g)];
+  const single = /"captionTracks":\[[^\]]*?"baseUrl":"([^"]+)"/.exec(page);
+  const track = tracks.length ? tracks.find((t) => !/kind":"asr/.test(t[3] ?? '')) ?? tracks[0] : null;
+  const captionUrl = track ? track[1] : single ? single[1] : '';
+  if (captionUrl) {
+    language = track ? String(track[2] ?? '') : '';
+    try {
+      const xml = await fetch(decodeEntities(captionUrl.replace(/\\u0026/g, '&')), { headers }).then((r) => r.text());
+      captions = plainFromTimedText(xml);
+    } catch {
+      captions = '';
+    }
+  }
+
+  const text = [description, captions].filter((part) => part && part.length > 0).join('\n');
+  if (!text.trim()) return null;
+  return { text, title, language };
 }
 
 function plainFromTimedText(xml: string): string {

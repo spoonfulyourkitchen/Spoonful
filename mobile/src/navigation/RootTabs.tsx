@@ -12,7 +12,6 @@ import {
   MessageCircle,
   ShoppingCart,
   UsersRound,
-  Zap,
 } from 'lucide-react-native';
 
 import { colors } from '../theme';
@@ -29,14 +28,13 @@ import { TrackerScreen } from '../screens/TrackerScreen';
 import { CommunityScreen } from '../screens/CommunityScreen';
 import { ShoppingScreen } from '../screens/ShoppingScreen';
 import { HouseholdScreen } from '../screens/HouseholdScreen';
-import { MonstrScreen } from '../screens/MonstrScreen';
 
 const Tab = createBottomTabNavigator();
 
 export type RootTabScreenNames =
-  | 'Library' | 'MyRecipes' | 'Assistant' | 'Saved' | 'Tracker' | 'Community' | 'Shopping' | 'Household' | 'Monstr';
+  | 'Library' | 'MyRecipes' | 'Assistant' | 'Saved' | 'Tracker' | 'Community' | 'Shopping' | 'Household';
 
-const ORDER: RootTabScreenNames[] = ['Library', 'MyRecipes', 'Assistant', 'Saved', 'Tracker', 'Community', 'Shopping', 'Household', 'Monstr'];
+const ORDER: RootTabScreenNames[] = ['Library', 'MyRecipes', 'Assistant', 'Saved', 'Tracker', 'Community', 'Shopping', 'Household'];
 
 const ICONS: Record<RootTabScreenNames, React.ComponentType<any>> = {
   Library,
@@ -47,7 +45,6 @@ const ICONS: Record<RootTabScreenNames, React.ComponentType<any>> = {
   Community: UsersRound,
   Shopping: ShoppingCart,
   Household: Home,
-  Monstr: Zap,
 };
 
 const TAB_KEY: Record<RootTabScreenNames, string> = {
@@ -59,7 +56,6 @@ const TAB_KEY: Record<RootTabScreenNames, string> = {
   Community: 'nav.community',
   Shopping: 'nav.shopping',
   Household: 's.hhTab',
-  Monstr: 's.monTab',
 };
 
 const SCREENS: Record<RootTabScreenNames, React.ComponentType<any>> = {
@@ -71,7 +67,6 @@ const SCREENS: Record<RootTabScreenNames, React.ComponentType<any>> = {
   Community: CommunityScreen,
   Shopping: ShoppingScreen,
   Household: HouseholdScreen,
-  Monstr: MonstrScreen,
 };
 
 function TabIcon({ name, focused }: { name: RootTabScreenNames; focused: boolean }) {

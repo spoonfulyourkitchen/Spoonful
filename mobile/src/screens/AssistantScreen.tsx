@@ -35,7 +35,7 @@ export function AssistantScreen() {
   const [preview, setPreview] = useState(false);
   const [saved, setSaved] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
-  const [mode, setMode] = useState<'ingredients' | 'describe'>('ingredients');
+  const [mode, setMode] = useState<'ingredients' | 'describe' | 'video'>('ingredients');
   const [freeText, setFreeText] = useState('');
   // 2.0.0: chef options (servings, cuisine, time budget, difficulty, spice, …)
   const [servings, setServings] = useState(4);
@@ -50,19 +50,10 @@ export function AssistantScreen() {
   /* 3.2.0: Dietary + Chef-Optionen eingeklappt, damit die Chef-Modi sichtbar bleiben */
   const [openBlock, setOpenBlock] = useState<Record<string, boolean>>({ diet: false, options: false });
   /* 3.2.0: Video-Link -> Rezept (ohne KI, verbraucht also kein Guthaben) */
-  const [videoOpen, setVideoOpen] = useState(false);
   const [videoUrl, setVideoUrl] = useState('');
   const [videoBusy, setVideoBusy] = useState(false);
   const [videoRecipe, setVideoRecipe] = useState<VideoRecipe | null>(null);
   const [videoFailed, setVideoFailed] = useState(false);
-  const videoPan = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 40 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
-      onPanResponderRelease: (_e, g) => {
-        if (g.dx < -40) setVideoOpen(true);
-      },
-    }),
-  ).current;
   const grabVideoRecipe = async () => {
     setVideoBusy(true);
     setVideoFailed(false);
@@ -86,7 +77,6 @@ export function AssistantScreen() {
         ingredients: videoRecipe.ingredients,
         steps: videoRecipe.steps,
       });
-      setVideoOpen(false);
       setVideoRecipe(null);
       setVideoUrl('');
     } catch (e) {
@@ -112,9 +102,9 @@ export function AssistantScreen() {
   const pageRef = useRef(0);
 
   const settle = (index: number) => {
-    const clamped = index < 0 ? 0 : index > 1 ? 1 : index;
+    const clamped = index < 0 ? 0 : index > 2 ? 2 : index;
     pageRef.current = clamped;
-    setMode(clamped === 1 ? 'describe' : 'ingredients');
+    setMode(clamped === 2 ? 'video' : clamped === 1 ? 'describe' : 'ingredients');
     Animated.spring(pageX, {
       toValue: -clamped * AW,
       useNativeDriver: true,
@@ -140,6 +130,9 @@ export function AssistantScreen() {
       <Pressable onPress={() => settle(1)} hitSlop={10} style={{ flex: 1 }}>
         <View style={{ height: 4, borderRadius: 2, backgroundColor: active === 1 ? colors.accent : colors.surfaceMuted }} />
       </Pressable>
+      <Pressable onPress={() => settle(2)} hitSlop={10} style={{ flex: 1 }}>
+        <View style={{ height: 4, borderRadius: 2, backgroundColor: active === 2 ? colors.accent : colors.surfaceMuted }} />
+      </Pressable>
     </View>
   );
 
@@ -152,7 +145,7 @@ export function AssistantScreen() {
         let next = base + g.dx;
         // soft rubber band at both outer edges instead of a hard stop
         if (next > 0) next *= 0.35;
-        else if (next < -AW) next = -AW + (next + AW) * 0.35;
+        else if (next < -2 * AW) next = -2 * AW + (next + 2 * AW) * 0.35;
         pageX.setValue(next);
       },
       onPanResponderRelease: (_e, g) => {
@@ -302,59 +295,14 @@ export function AssistantScreen() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 28 }} keyboardShouldPersistTaps="handled" directionalLockEnabled nestedScrollEnabled>
         <PageHeader eyebrow="Spoonful · AI Chef" title={t('assistant.title')} subtitle={t('assistant.desc')} /> 
 
-        {/* 3.2.0: nach links wischen (oder tippen) -> Rezept aus einem Video */}
-        <View {...videoPan.panHandlers}>
-          <Pressable onPress={() => setVideoOpen(true)} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12, opacity: pressed ? 0.8 : 1 }]}>
-            <Video size={18} color={colors.accent} />
-            <Text style={{ flex: 1, fontSize: 12.5, fontWeight: '700', color: colors.textPrimary }}>{t('s.videoHint')}</Text>
-          </Pressable>
-        </View>
-
-        {/* 3.2.0: Video-Popup */}
-        <Modal visible={videoOpen} transparent animationType="slide" onRequestClose={() => setVideoOpen(false)} statusBarTranslucent>
-          <View style={{ flex: 1, backgroundColor: colors.overlayStrong, justifyContent: 'flex-end' }}>
-            <Pressable style={{ flex: 1 }} onPress={() => setVideoOpen(false)} />
-            <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 26, borderTopRightRadius: 26, maxHeight: '88%' }}>
-              <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 30 }} keyboardShouldPersistTaps="handled">
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Video size={18} color={colors.accent} />
-                  <Text style={{ flex: 1, fontSize: 19, fontWeight: '800', color: colors.textPrimary }}>{t('s.videoTitle')}</Text>
-                  <Pressable onPress={() => setVideoOpen(false)} hitSlop={10}>
-                    <X size={20} color={colors.textSecondary} />
-                  </Pressable>
-                </View>
-                <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 6, marginBottom: 10 }}>{t('s.videoSub')}</Text>
-                <TextField value={videoUrl} onChangeText={setVideoUrl} placeholder={t('s.videoUrlPh')} autoCapitalize="none" keyboardType="url" />
-                <AppButton label={t('s.videoGet')} variant="dark" busy={videoBusy} onPress={() => void grabVideoRecipe()} />
-                {videoFailed ? (
-                  <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 12 }}>{t('s.videoNoRecipe')}</Text>
-                ) : null}
-                {videoRecipe ? (
-                  <View style={{ marginTop: 16 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textPrimary }}>{videoRecipe.title}</Text>
-                    <Text style={{ fontSize: 11.5, color: colors.textSecondary, marginTop: 4 }}>{t('s.videoFound', { ing: videoRecipe.ingredients.length, steps: videoRecipe.steps.length })}</Text>
-                    <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.textSecondary, marginTop: 12, textTransform: 'uppercase' }}>{t('recipe.ingredients')}</Text>
-                    {videoRecipe.ingredients.map((line, i) => (
-                      <Text key={'vi' + i} style={{ fontSize: 13, color: colors.textPrimary, marginTop: 3 }}>{'• '}{line}</Text>
-                    ))}
-                    <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.textSecondary, marginTop: 12, textTransform: 'uppercase' }}>{t('recipe.steps')}</Text>
-                    {videoRecipe.steps.map((line, i) => (
-                      <Text key={'vs' + i} style={{ fontSize: 13, color: colors.textPrimary, marginTop: 3 }}>{i + 1}. {line}</Text>
-                    ))}
-                    <AppButton label={t('s.videoSave')} variant="dark" style={{ marginTop: 16 }} onPress={() => void saveVideoRecipe()} />
-                  </View>
-                ) : null}
-              </ScrollView>
-            </View>
-          </View>
-        </Modal>
+        
 
           
 
         {/* two pages that always follow the finger */}
 
         <View style={{ overflow: 'hidden', marginHorizontal: -18 }} {...pan.panHandlers}>
-        <Animated.View style={{ width: AW * 2, flexDirection: 'row', transform: [{ translateX: pageX }] }}>
+        <Animated.View style={{ width: AW * 3, flexDirection: 'row', transform: [{ translateX: pageX }] }}>
 
         {/* page 0 — ingredients (default) */}
         <View style={{ width: AW, paddingHorizontal: 18 }}>
@@ -400,6 +348,31 @@ export function AssistantScreen() {
           />
         </GlassCard>
         </View>
+          {/* Seite 3 (zweimal nach links wischen): Rezept aus einem Video */}
+          <View style={{ width: AW, paddingHorizontal: 18 }}>
+            {pageDots(pageRef.current)}
+            <GlassCard pad={16} radius={20}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                <Video size={16} color={colors.accent} />
+                <Text style={{ fontSize: 13, fontWeight: '800', color: colors.textPrimary }}>{t('s.videoTitle')}</Text>
+              </View>
+              <Text style={pageHint}>{t('s.videoSub')}</Text>
+              <TextField value={videoUrl} onChangeText={setVideoUrl} placeholder={t('s.videoUrlPh')} autoCapitalize="none" keyboardType="url" />
+              <AppButton label={t('s.videoGet')} variant="dark" busy={videoBusy} onPress={() => void grabVideoRecipe()} />
+              {videoFailed ? <Text style={[pageHint, { marginTop: 10 }]}>{t('s.videoNoRecipe')}</Text> : null}
+              {videoRecipe ? (
+                <View style={{ marginTop: 12 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textPrimary }}>{videoRecipe.title}</Text>
+                  <Text style={pageHint}>{t('s.videoFound', { ing: videoRecipe.ingredients.length, steps: videoRecipe.steps.length })}</Text>
+                  <Text style={[fieldLabel, { marginTop: 10 }]}>{t('recipe.ingredients')}</Text>
+                  {videoRecipe.ingredients.map((line, i) => <Text key={'vi' + i} style={{ fontSize: 13, color: colors.textPrimary, marginTop: 3 }}>{'• '}{line}</Text>)}
+                  <Text style={[fieldLabel, { marginTop: 10 }]}>{t('recipe.steps')}</Text>
+                  {videoRecipe.steps.map((line, i) => <Text key={'vs' + i} style={{ fontSize: 13, color: colors.textPrimary, marginTop: 3 }}>{i + 1}. {line}</Text>)}
+                  <AppButton label={t('s.videoSave')} variant="dark" style={{ marginTop: 14 }} onPress={() => void saveVideoRecipe()} />
+                </View>
+              ) : null}
+            </GlassCard>
+          </View>
 
         </Animated.View>
         </View>
