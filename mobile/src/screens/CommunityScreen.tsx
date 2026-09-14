@@ -304,7 +304,7 @@ export function CommunityScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textPrimary }}>{t('s.commTable')}</Text>
                     <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>
-                      {filtered.length} of {items.length} recipes · everyone cooks from their own kitchen
+                      {filtered.length} of {items.length} recipes · {t('s.commAllKitchens')}
                     </Text>
                   </View>
                 </View>

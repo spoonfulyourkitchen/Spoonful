@@ -1,3 +1,4 @@
+import { translate } from '../lib/i18n';
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { WifiOff } from 'lucide-react-native';
@@ -73,7 +74,7 @@ export function OfflineTv({
           style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 22, borderRadius: 999, backgroundColor: colors.darkButton, paddingHorizontal: 24, paddingVertical: 13, opacity: pressed ? 0.85 : 1 }]}
         >
           <WifiOff size={16} color={colors.darkButtonText} />
-          <Text style={{ color: colors.darkButtonText, fontWeight: '700', fontSize: 15 }}>Retry connection</Text>
+          <Text style={{ color: colors.darkButtonText, fontWeight: '700', fontSize: 15 }}>{translate('s.retry')} connection</Text>
         </Pressable>
       ) : null}
     </View>

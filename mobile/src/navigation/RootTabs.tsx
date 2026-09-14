@@ -15,6 +15,9 @@ import {
 } from 'lucide-react-native';
 
 import { colors } from '../theme';
+import { navigate } from './rootRef';
+import { openBarcode } from '../components/BarcodeHost';
+import { setPendingBarcode } from '../lib/scan-bus';
 import { useTranslation } from '../lib/i18n';
 import { useTutorialTarget } from '../lib/tutorial';
 import { LibraryScreen } from '../screens/LibraryScreen';
@@ -118,12 +121,26 @@ function TabButton({
   width: number;
   onPress: () => void;
 }) {
+  /* 3.2.0: langes Drücken auf 'Tracker' -> Barcode scannen und direkt tracken */
+  const onLongPress =
+    name === 'Tracker'
+      ? () => {
+          openBarcode({
+            accept: 'numeric',
+            onCode: (code) => {
+              setPendingBarcode(code);
+              navigate('Tracker');
+            },
+          });
+        }
+      : undefined;
   const target = useTutorialTarget(`tut-tab-${name}`, { onPress });
   return (
     <Pressable
       ref={target.ref as any}
       collapsable={false}
       onPress={target.onPress}
+      onLongPress={onLongPress}
       accessibilityRole="tab"
       accessibilityState={{ selected: focused }}
       style={({ pressed }) => [

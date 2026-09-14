@@ -10,6 +10,7 @@ import { Collapsible } from './Collapsible';
 import { useTranslation } from '../lib/i18n';
 import { searchFoods, productByBarcode, scaleToPortion, type FoodHit } from '../lib/foodFacts';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
+import { subscribePendingBarcode, takePendingBarcode } from '../lib/scan-bus';
 import { FoodPortionSheet } from './FoodPortionSheet';
 import { Popup } from './Popup';
 import { tutorialAction, useTutorialTarget } from '../lib/tutorial';
@@ -33,6 +34,14 @@ export function TrackerExtras() {
   const addWeight = useMutation(api.tracker.addWeight);
   const weights = useQuery(api.tracker.weights) as any[] | undefined;
   const logManual = useMutation(api.calorieEntries.logManual);
+
+  /* 3.2.0: Scan vom Tab (langes Drücken) hier abholen und direkt öffnen */
+  useEffect(() => {
+    const code = takePendingBarcode();
+    if (code) void onScanned(code);
+    return subscribePendingBarcode((next) => void onScanned(next));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* 3.2.0: Abschnitte aufklappbar (weniger Scrollen) */
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({ food: true, water: false, weight: false });

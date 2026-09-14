@@ -14,6 +14,7 @@ import { SpoonfulLogo as Logo } from '../components/Logo';
 import { WashBackground } from '../components/GlassBackground';
 import { useAiTask, clearAiTask } from '../lib/aiTask';
 import { navigate } from './rootRef';
+import { useTranslation } from '../lib/i18n';
 
 type ShellContextValue = { open: () => void; close: () => void; toggle: () => void };
 const ShellContext = createContext<ShellContextValue>({
@@ -45,6 +46,7 @@ function RingSpinner() {
 }
 
 export function AiStatusIndicator() {
+  const { t } = useTranslation();
   const task = useAiTask();
   const [expired, setExpired] = useState(false);
   useEffect(() => {
@@ -85,7 +87,7 @@ export function AiStatusIndicator() {
         style={({ pressed }) => [styles.aiError, pressed && { opacity: 0.8 }]}
       >
         <AlertTriangle size={11} color={colors.rose} strokeWidth={2.5} />
-        <Text style={{ fontSize: 11, fontWeight: '600', color: colors.rose }}>Try again</Text>
+        <Text style={{ fontSize: 11, fontWeight: '600', color: colors.rose }}>{t('common.tryAgain')}</Text>
       </Pressable>
     );
   }
@@ -180,6 +182,7 @@ const LEGAL = [
 ] as const;
 
 function DrawerSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const translateX = useRef(new Animated.Value(0)).current;
   const backdrop = useRef(new Animated.Value(0)).current;
@@ -301,26 +304,26 @@ function DrawerSheet({ visible, onClose }: { visible: boolean; onClose: () => vo
               style={{ flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }}
             >
               <Search size={16} color={colors.textSecondary} />
-              <Text style={{ fontSize: 14, color: colors.textSecondary }}>Search recipes…</Text>
+              <Text style={{ fontSize: 14, color: colors.textSecondary }}>{t('nav.search')}</Text>
             </Pressable>
 
-            <DrawerLabel>Pages</DrawerLabel>
-            <Row icon={<Library {...ic(colors.accent)} />} label="Library" onPress={() => goTab('Library')} />
-            <Row icon={<ChefHat {...ic(colors.accent)} />} label="My Recipes" onPress={() => goTab('MyRecipes')} />
-            <Row icon={<MessageCircle {...ic(colors.accent)} />} label="AI Chef" onPress={() => goTab('Assistant')} />
-            <Row icon={<Bookmark {...ic(colors.accent)} />} label="Saved" onPress={() => goTab('Saved')} />
-            <Row icon={<Flame {...ic(colors.accent)} />} label="Tracker" onPress={() => goTab('Tracker')} />
+            <DrawerLabel>{t('nav.pages')}</DrawerLabel>
+            <Row icon={<Library {...ic(colors.accent)} />} label={t('nav.discover')} onPress={() => goTab('Library')} />
+            <Row icon={<ChefHat {...ic(colors.accent)} />} label={t('nav.kitchen')} onPress={() => goTab('MyRecipes')} />
+            <Row icon={<MessageCircle {...ic(colors.accent)} />} label={t('nav.ai')} onPress={() => goTab('Assistant')} />
+            <Row icon={<Bookmark {...ic(colors.accent)} />} label={t('nav.saved')} onPress={() => goTab('Saved')} />
+            <Row icon={<Flame {...ic(colors.accent)} />} label={t('nav.tracker')} onPress={() => goTab('Tracker')} />
 
-            <DrawerLabel>More</DrawerLabel>
-            <Row icon={<Home {...ic(colors.accent)} />} label="Dashboard" onPress={() => go('Dashboard')} />
-            <Row icon={<UsersRound {...ic(colors.accent)} />} label="Community" onPress={() => go('Community')} />
-            <Row icon={<ShoppingCart {...ic(colors.accent)} />} label="Shopping list" onPress={() => go('Shopping')} />
-            <Row icon={<Palette {...ic(colors.accent)} />} label="Theme" onPress={() => go('Theme')} />
-            <Row icon={<Settings {...ic(colors.accent)} />} label="Settings" onPress={() => go('Settings')} />
-            {myRole === 'admin' || myRole === 'mod' ? <Row icon={<Shield {...ic(colors.accent)} />} label={myRole === 'admin' ? 'Admin panel' : 'Moderation'} onPress={() => go('Admin')} /> : null}
+            <DrawerLabel>{t('nav.more')}</DrawerLabel>
+            <Row icon={<Home {...ic(colors.accent)} />} label={t('nav.overview')} onPress={() => go('Dashboard')} />
+            <Row icon={<UsersRound {...ic(colors.accent)} />} label={t('nav.community')} onPress={() => go('Community')} />
+            <Row icon={<ShoppingCart {...ic(colors.accent)} />} label={t('nav.shopping')} onPress={() => go('Shopping')} />
+            <Row icon={<Palette {...ic(colors.accent)} />} label={t('nav.theme')} onPress={() => go('Theme')} />
+            <Row icon={<Settings {...ic(colors.accent)} />} label={t('nav.settings')} onPress={() => go('Settings')} />
+            {myRole === 'admin' || myRole === 'mod' ? <Row icon={<Shield {...ic(colors.accent)} />} label={myRole === 'admin' ? t('nav.adminPanel') : t('s.drawerModeration')} onPress={() => go('Admin')} /> : null}
 
             <View style={{ height: 1, backgroundColor: colors.cardBorder, marginVertical: 12 }} />
-            <Row icon={<LogOut {...ic(colors.rose)} />} label="Sign out" tint={colors.rose} onPress={() => { onClose(); setTimeout(() => signOut(), 200); }} />
+            <Row icon={<LogOut {...ic(colors.rose)} />} label={t('nav.signOut')} tint={colors.rose} onPress={() => { onClose(); setTimeout(() => signOut(), 200); }} />
 
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 16, paddingHorizontal: 8 }}>
               {LEGAL.map((l) => (

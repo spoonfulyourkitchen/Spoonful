@@ -297,7 +297,7 @@ export function TrackerScreen() {
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {(['male', 'female'] as Sex[]).map((s) => (
                 <Pressable key={s} onPress={() => updateProfile({ sex: s })} style={({ pressed }) => [{ flex: 1, borderRadius: 12, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: profileReady.sex === s ? colors.accent : colors.cardBorder, backgroundColor: profileReady.sex === s ? colors.accentSoft : colors.card, opacity: pressed ? 0.8 : 1 }]}>
-                  <Text style={{ fontSize: 13, fontWeight: profileReady.sex === s ? '800' : '600', color: profileReady.sex === s ? colors.accent : colors.textPrimary }}>{s === 'male' ? 'Male' : 'Female'}</Text>
+                  <Text style={{ fontSize: 13, fontWeight: profileReady.sex === s ? '800' : '600', color: profileReady.sex === s ? colors.accent : colors.textPrimary }}>{s === 'male' ? t('s.trackMale') : t('s.trackFemale')}</Text>
                 </Pressable>
               ))}
             </View>
@@ -362,10 +362,10 @@ export function TrackerScreen() {
           const onTarget = logged.filter((w) => w.cals <= kcalGoal && w.cals >= kcalGoal * 0.7).length;
           const bestDay = logged.length ? logged.reduce((best, w) => (w.cals > best.cals ? w : best), logged[0]) : null;
           const badges: { days: number; label: string }[] = [
-            { days: 3, label: '3-day streak' },
-            { days: 7, label: '1 week' },
-            { days: 14, label: '2 weeks' },
-            { days: 30, label: '1 month' },
+            { days: 3, label: t('s.trackBadge3') },
+            { days: 7, label: t('s.trackBadge7') },
+            { days: 14, label: t('s.trackBadge14') },
+            { days: 30, label: t('s.trackBadge30') },
           ];
           return (
             <GlassCard pad={16} radius={22} style={{ marginTop: 12 }}>

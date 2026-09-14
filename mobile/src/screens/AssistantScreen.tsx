@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Modal, PanResponder, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
-import { Minus, Play, Plus, Send, Sparkles, Trash2, X } from 'lucide-react-native';
+import { Minus, Play, Plus, Send, Sparkles, Trash2, Video, X } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAction, useMutation, useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';
@@ -16,6 +16,7 @@ import { notifyAiReady, notifyRecipeAdded } from '../lib/notifications';
 import { useConnectivity, retryConnectivity } from '../lib/offline';
 import { OfflineTv } from '../components/OfflineTv';
 import { useTranslation } from '../lib/i18n';
+import { recipeFromVideo, type VideoRecipe } from '../lib/video-recipe';
 
 const QUICK = ['eggs', 'tomato', 'cheese', 'pasta', 'rice', 'chicken', 'onion', 'garlic', 'spinach', 'potato'];
 const DIETS = ['vegetarian', 'vegan', 'gluten-free', 'dairy-free', 'low-carb', 'high-protein', 'nut-free', 'keto'];
@@ -48,6 +49,50 @@ export function AssistantScreen() {
   const [optionsOpen, setOptionsOpen] = useState(false);
   /* 3.2.0: Dietary + Chef-Optionen eingeklappt, damit die Chef-Modi sichtbar bleiben */
   const [openBlock, setOpenBlock] = useState<Record<string, boolean>>({ diet: false, options: false });
+  /* 3.2.0: Video-Link -> Rezept (ohne KI, verbraucht also kein Guthaben) */
+  const [videoOpen, setVideoOpen] = useState(false);
+  const [videoUrl, setVideoUrl] = useState('');
+  const [videoBusy, setVideoBusy] = useState(false);
+  const [videoRecipe, setVideoRecipe] = useState<VideoRecipe | null>(null);
+  const [videoFailed, setVideoFailed] = useState(false);
+  const videoPan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 40 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
+      onPanResponderRelease: (_e, g) => {
+        if (g.dx < -40) setVideoOpen(true);
+      },
+    }),
+  ).current;
+  const grabVideoRecipe = async () => {
+    setVideoBusy(true);
+    setVideoFailed(false);
+    setVideoRecipe(null);
+    try {
+      const found = await recipeFromVideo(videoUrl);
+      if (found) setVideoRecipe(found);
+      else setVideoFailed(true);
+    } catch {
+      setVideoFailed(true);
+    } finally {
+      setVideoBusy(false);
+    }
+  };
+  const saveVideoRecipe = async () => {
+    if (!videoRecipe) return;
+    try {
+      await createRecipe({
+        title: videoRecipe.title,
+        description: videoRecipe.source,
+        ingredients: videoRecipe.ingredients,
+        steps: videoRecipe.steps,
+      });
+      setVideoOpen(false);
+      setVideoRecipe(null);
+      setVideoUrl('');
+    } catch (e) {
+      Alert.alert(t('s.hhError'), e instanceof Error ? e.message : undefined);
+    }
+  };
   const toggleBlock = (key: string) => setOpenBlock((s) => ({ ...s, [key]: !s[key] }));
 
   const CUISINES = ['italian', 'asian', 'thai', 'indian', 'mexican', 'turkish', 'mediterranean'];
@@ -156,7 +201,7 @@ export function AssistantScreen() {
   if (conn === 'offline') {
     return (
       <OfflineTv
-        title="AI Chef"
+        title={t('nav.ai')}
         message="The AI Chef needs the internet to craft new recipes. Everything you saved before still works offline."
         onRetry={() => { void retryConnectivity(); }}
       />
@@ -256,6 +301,54 @@ export function AssistantScreen() {
     <Page>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 28 }} keyboardShouldPersistTaps="handled" directionalLockEnabled nestedScrollEnabled>
         <PageHeader eyebrow="Spoonful · AI Chef" title={t('assistant.title')} subtitle={t('assistant.desc')} /> 
+
+        {/* 3.2.0: nach links wischen (oder tippen) -> Rezept aus einem Video */}
+        <View {...videoPan.panHandlers}>
+          <Pressable onPress={() => setVideoOpen(true)} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12, opacity: pressed ? 0.8 : 1 }]}>
+            <Video size={18} color={colors.accent} />
+            <Text style={{ flex: 1, fontSize: 12.5, fontWeight: '700', color: colors.textPrimary }}>{t('s.videoHint')}</Text>
+          </Pressable>
+        </View>
+
+        {/* 3.2.0: Video-Popup */}
+        <Modal visible={videoOpen} transparent animationType="slide" onRequestClose={() => setVideoOpen(false)} statusBarTranslucent>
+          <View style={{ flex: 1, backgroundColor: colors.overlayStrong, justifyContent: 'flex-end' }}>
+            <Pressable style={{ flex: 1 }} onPress={() => setVideoOpen(false)} />
+            <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 26, borderTopRightRadius: 26, maxHeight: '88%' }}>
+              <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 30 }} keyboardShouldPersistTaps="handled">
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Video size={18} color={colors.accent} />
+                  <Text style={{ flex: 1, fontSize: 19, fontWeight: '800', color: colors.textPrimary }}>{t('s.videoTitle')}</Text>
+                  <Pressable onPress={() => setVideoOpen(false)} hitSlop={10}>
+                    <X size={20} color={colors.textSecondary} />
+                  </Pressable>
+                </View>
+                <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 6, marginBottom: 10 }}>{t('s.videoSub')}</Text>
+                <TextField value={videoUrl} onChangeText={setVideoUrl} placeholder={t('s.videoUrlPh')} autoCapitalize="none" keyboardType="url" />
+                <AppButton label={t('s.videoGet')} variant="dark" busy={videoBusy} onPress={() => void grabVideoRecipe()} />
+                {videoFailed ? (
+                  <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 12 }}>{t('s.videoNoRecipe')}</Text>
+                ) : null}
+                {videoRecipe ? (
+                  <View style={{ marginTop: 16 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textPrimary }}>{videoRecipe.title}</Text>
+                    <Text style={{ fontSize: 11.5, color: colors.textSecondary, marginTop: 4 }}>{t('s.videoFound', { ing: videoRecipe.ingredients.length, steps: videoRecipe.steps.length })}</Text>
+                    <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.textSecondary, marginTop: 12, textTransform: 'uppercase' }}>{t('recipe.ingredients')}</Text>
+                    {videoRecipe.ingredients.map((line, i) => (
+                      <Text key={'vi' + i} style={{ fontSize: 13, color: colors.textPrimary, marginTop: 3 }}>{'• '}{line}</Text>
+                    ))}
+                    <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.textSecondary, marginTop: 12, textTransform: 'uppercase' }}>{t('recipe.steps')}</Text>
+                    {videoRecipe.steps.map((line, i) => (
+                      <Text key={'vs' + i} style={{ fontSize: 13, color: colors.textPrimary, marginTop: 3 }}>{i + 1}. {line}</Text>
+                    ))}
+                    <AppButton label={t('s.videoSave')} variant="dark" style={{ marginTop: 16 }} onPress={() => void saveVideoRecipe()} />
+                  </View>
+                ) : null}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
           
 
         {/* two pages that always follow the finger */}
@@ -268,7 +361,7 @@ export function AssistantScreen() {
         {pageDots(pageRef.current)}
         <Text style={pageHint}>{'Swipe left to describe it in your own words ←'}</Text>
         <GlassCard pad={16} radius={22}>
-          <Text style={fieldLabel}>Available ingredients</Text>
+          <Text style={fieldLabel}>{t('s.chefIngredientsAvail')}</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
             {ingredients.map((ing) => (
               <Chip key={ing} label={ing} active onPress={() => removeIng(ing)} icon={<Text style={{ color: colors.accentText, fontWeight: '800' }}>×</Text>} />
@@ -276,13 +369,13 @@ export function AssistantScreen() {
           </View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <View style={{ flex: 1 }}>
-              <TextField value={draft} onChangeText={setDraft} placeholder="Type an ingredient…" onSubmitEditing={() => addIngredient(draft)} style={{ marginBottom: 0 }} />
+              <TextField value={draft} onChangeText={setDraft} placeholder={t('s.chefIngredientPh')} onSubmitEditing={() => addIngredient(draft)} style={{ marginBottom: 0 }} />
             </View>
             <Pressable onPress={() => addIngredient(draft)} style={({ pressed }) => [{ marginBottom: 14, borderRadius: 14, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accent, opacity: pressed ? 0.8 : 1 }]}>
               <Send size={18} color={colors.accentText} strokeWidth={2.2} />
             </Pressable>
           </View>
-          <Text style={[fieldLabel, { marginTop: 6 }]}>Quick suggestions</Text>
+          <Text style={[fieldLabel, { marginTop: 6 }]}>{t('s.chefSuggestions')}</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
             {QUICK.map((q) => (
               <Chip key={q} label={q} active={ingredients.includes(q)} onPress={() => addIngredient(q)} />
@@ -296,7 +389,7 @@ export function AssistantScreen() {
         {pageDots(pageRef.current)}
         <Text style={pageHint}>{'Swipe right to go back to your ingredients →'}</Text>
         <GlassCard pad={16} radius={22}>
-          <Text style={fieldLabel}>Describe what you want</Text>
+          <Text style={fieldLabel}>{t('s.chefDescribe')}</Text>
           <TextInput
             value={freeText}
             onChangeText={setFreeText}
@@ -363,12 +456,12 @@ export function AssistantScreen() {
                 {['easy', 'medium', 'hard'].map((d) => (
                   <Chip key={d} label={d} active={difficultyPick === d} onPress={() => setDifficultyPick(difficultyPick === d ? '' : d)} />
                 ))}
-                <Chip label="mild" active={spice === 'mild'} onPress={() => setSpice(spice === 'mild' ? '' : 'mild')} />
-                <Chip label="medium" active={spice === 'medium'} onPress={() => setSpice(spice === 'medium' ? '' : 'medium')} />
+                <Chip label={t('s.chefMild')} active={spice === 'mild'} onPress={() => setSpice(spice === 'mild' ? '' : 'mild')} />
+                <Chip label={t('s.chefMedium')} active={spice === 'medium'} onPress={() => setSpice(spice === 'medium' ? '' : 'medium')} />
                 <Chip label="hot" active={spice === 'hot'} onPress={() => setSpice(spice === 'hot' ? '' : 'hot')} />
               </View>
 
-              <Text style={[fieldLabel, { marginTop: 10 }]}>Tools</Text>
+              <Text style={[fieldLabel, { marginTop: 10 }]}>{t('s.chefTools')}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                 {EQUIPMENT.map((e) => (
                   <Chip key={e.label} label={e.label} active={equipment === e.value} onPress={() => setEquipment(e.value)} />
@@ -391,7 +484,7 @@ export function AssistantScreen() {
               { marginTop: 8, alignItems: 'center', borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingVertical: 11, opacity: pressed ? 0.8 : 1 },
             ]}
           >
-            <Text style={{ color: colors.accent, fontWeight: '700', fontSize: 13.5 }}>Reroll - something new</Text>
+            <Text style={{ color: colors.accent, fontWeight: '700', fontSize: 13.5 }}>{t('s.chefReroll')} - something new</Text>
           </Pressable>
         ) : null}
 
@@ -441,10 +534,10 @@ export function AssistantScreen() {
         {history.length > (result ? 1 : 0) ? (
           <View style={{ marginTop: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={fieldLabel}>Recent generations</Text>
+              <Text style={fieldLabel}>{t('s.chefRecents')}</Text>
               <Pressable onPress={clearHistory} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                 <Trash2 size={13} color={colors.textSecondary} />
-                <Text style={{ fontSize: 12, color: colors.textSecondary }}>Clear history</Text>
+                <Text style={{ fontSize: 12, color: colors.textSecondary }}>{t('s.chefClearHistory')}</Text>
               </Pressable>
             </View>
             {history.slice(result ? 1 : 0, (result ? 1 : 0) + 6).map((h: any, i: number) => (
