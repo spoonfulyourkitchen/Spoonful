@@ -72,6 +72,46 @@ export function PhotoCropHost() {
   frameRef.current = { w: frameW, h: frameH };
 
   const crop = state?.crop ?? DEFAULT_CROP;
+
+  /* 3.1.2: Seitenverhältnis des Fotos, damit die markierte Stelle stimmt. */
+  const [imgSize, setImgSize] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    if (!state?.uri) {
+      setImgSize(null);
+      return;
+    }
+    let alive = true;
+    try {
+      Image.getSize(
+        state.uri,
+        (w, h) => {
+          if (alive && w > 0 && h > 0) setImgSize({ w, h });
+        },
+        () => {
+          if (alive) setImgSize(null);
+        },
+      );
+    } catch {
+      setImgSize(null);
+    }
+    return () => {
+      alive = false;
+    };
+  }, [state?.uri]);
+
+  /* Markierte Stelle: exakt aus derselben Rechnung wie die Vorschau. */
+  const marker = (() => {
+    const zoom = Math.max(1, crop.zoom);
+    const part = 1 / zoom;
+    const cx = crop.fx - 0.5 + part / 2;
+    const cy = crop.fy - 0.5 + part / 2;
+    const x = Math.max(0, Math.min(1 - part, cx - part / 2));
+    const y = Math.max(0, Math.min(1 - part, cy - part / 2));
+    return { x, y, w: part, h: part };
+  })();
+  const miniW = 92;
+  const miniH = imgSize ? Math.round((miniW * imgSize.h) / imgSize.w) : Math.round((miniW * frameH) / frameW);
+
   const pill = { alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: colors.surfaceMuted };
 
   return (
@@ -91,7 +131,7 @@ export function PhotoCropHost() {
           <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 4 }}>{t('s.cropHint')}</Text>
 
           {/* Vorschau: Ziehen verschiebt den sichtbaren Ausschnitt */}
-          <View {...pan.panHandlers} style={{ marginTop: 12, borderRadius: 16, overflow: 'hidden', backgroundColor: colors.surfaceMuted }}>
+          <View {...pan.panHandlers} style={{ marginTop: 12, borderRadius: 16, overflow: 'hidden', backgroundColor: colors.surfaceMuted, borderWidth: 2, borderColor: rgbaHelper(colors.accent, 0.55) }}>
             <View style={{ width: frameW, height: frameH, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
               {state ? (
                 <Image
@@ -125,6 +165,29 @@ export function PhotoCropHost() {
               <RotateCcw size={14} color={colors.textSecondary} />
               <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.textSecondary }}>{t('s.cropReset')}</Text>
             </Pressable>
+          </View>
+
+          {/* Markierte Stelle: das ganze Foto klein, der Rahmen zeigt den Ausschnitt */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>
+            <View style={{ width: miniW, height: miniH, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.surfaceMuted }}>
+              {state ? (
+                <Image source={{ uri: state.uri }} resizeMode="cover" style={{ width: miniW, height: miniH, opacity: 0.4 }} />
+              ) : null}
+              <View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  left: marker.x * miniW,
+                  top: marker.y * miniH,
+                  width: Math.max(8, marker.w * miniW),
+                  height: Math.max(8, marker.h * miniH),
+                  borderWidth: 2,
+                  borderColor: colors.accent,
+                  borderRadius: 6,
+                }}
+              />
+            </View>
+            <Text style={{ flex: 1, fontSize: 12, lineHeight: 17, color: colors.textSecondary }}>{t('s.cropMoveHint')}</Text>
           </View>
 
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>

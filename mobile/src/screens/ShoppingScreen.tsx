@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { FlatList, Modal, Pressable, Share, Text, TextInput, View } from 'react-native';
-import { BookmarkCheck, Check, ChefHat, ChevronDown, Pencil, Plus, Search, Share2, ShoppingCart, X } from 'lucide-react-native';
+import { BookmarkCheck, Check, ChefHat, ChevronDown, Pencil, Plus, Search, Share2, ShoppingCart, UsersRound, X } from 'lucide-react-native';
 import { useMutation, useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';
 import { colors, readableText } from '../theme';
@@ -12,6 +12,7 @@ import { tutorialAction, useTutorialTarget } from '../lib/tutorial';
 import { useCachedList, OfflineBadge, addPendingOp } from '../lib/offline';
 import { useTranslation } from '../lib/i18n';
 import { SHOP_L10N, pick } from '../lib/l10n';
+import { logEvent } from '../lib/household';
 
 const QUICK_ADD = ['Eggs', 'Milk', 'Butter', 'Bread', 'Chicken', 'Rice', 'Tomatoes', 'Onions', 'Garlic', 'Salt', 'Olive oil', 'Cheese'];
 
@@ -44,6 +45,8 @@ export function ShoppingScreen() {
     .slice(0, 2)
     .join(' · ');
   const [name, setName] = useState('');
+  /* 3.1.2: Vorschläge sind eingeklappt - weniger Knöpfe im Weg */
+  const [quickOpen, setQuickOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'open' | 'done' | 'have' | 'need'>('all');
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -196,6 +199,26 @@ export function ShoppingScreen() {
     }
   };
 
+  /**
+   * 3.1.2: "Mit Haushalt teilen" - dieselbe Liste plus Eintrag im
+   * Haushalts-Feed, damit die anderen sehen, dass eingekauft werden muss.
+   */
+  const shareWithHousehold = async () => {
+    const open = list.filter((i: any) => !i.checked);
+    if (!open.length) {
+      flash(t('shopping.emptyList'));
+      return;
+    }
+    const text = [`${t('shopping.title')}`, ...open.map((i: any) => `- ${i.name}`)].join('\n');
+    try {
+      await Share.share({ title: t('shopping.title'), message: text });
+      await logEvent('', 'shopping', `${open.length} × ${t('s.shopSharedOk')}`);
+      flash(t('s.shopSharedOk'));
+    } catch {
+      flash(t('common.error'));
+    }
+  };
+
   return (
 
     <Page>
@@ -208,27 +231,6 @@ export function ShoppingScreen() {
       <View style={{ paddingTop: 4, paddingBottom: 2 }}>
         <PageHeader eyebrow={t('shopping.whatYouNeed')} title={t('shopping.title')} />
         {offline ? <OfflineBadge /> : null}
-        <Pressable
-          onPress={() => void shareList()}
-          style={({ pressed }) => [
-            {
-              alignSelf: 'flex-start',
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 6,
-              marginBottom: 10,
-              borderRadius: 999,
-              borderWidth: 1,
-              borderColor: colors.cardBorder,
-              backgroundColor: pressed ? colors.surfaceMuted : colors.card,
-              paddingHorizontal: 12,
-              paddingVertical: 7,
-            },
-          ]}
-        >
-          <Share2 size={14} color={colors.accent} />
-          <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.accent }}>{t('s.shopShare')}</Text>
-        </Pressable>
         <TutorialTarget id="tut-shopping-add" style={{ flexDirection: 'row', gap: 8 }}>
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, paddingHorizontal: 12 }}>
             <Plus size={17} color={colors.textSecondary} />
@@ -249,14 +251,22 @@ export function ShoppingScreen() {
           </Pressable>
         </TutorialTarget>
 
-        <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 14, marginBottom: 6 }}>{t('s.shopQuickAdd')}</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-          {QUICK_ADD.map((item) => (
-            <Pressable key={item} onPress={() => quickAdd(item)} style={({ pressed }) => [{ borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.7 : 1 }]}>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textPrimary }}>{item}</Text>
-            </Pressable>
-          ))}
-        </View>
+        <Pressable
+          onPress={() => setQuickOpen((v) => !v)}
+          style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 14, marginBottom: 6, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.7 : 1 }]}
+        >
+          <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.6 }}>{t('s.shopQuickAdd')}</Text>
+          <ChevronDown size={13} color={colors.textSecondary} />
+        </Pressable>
+        {quickOpen ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            {QUICK_ADD.map((item) => (
+              <Pressable key={item} onPress={() => quickAdd(item)} style={({ pressed }) => [{ borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.7 : 1 }]}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textPrimary }}>{item}</Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
 
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
           <Chip label={`${t('common.all')} ${total}`} active={filter === 'all'} onPress={() => setFilter('all')} />
@@ -279,6 +289,10 @@ export function ShoppingScreen() {
           <Pressable onPress={shareList} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 13, paddingVertical: 7, opacity: pressed ? 0.8 : 1 }]}>
             <Share2 size={14} color={colors.accent} />
             <Text style={{ color: colors.accent, fontWeight: '600', fontSize: 13 }}>{t('shop.shareList')}</Text>
+          </Pressable>
+          <Pressable onPress={() => void shareWithHousehold()} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, backgroundColor: colors.accentSoft, opacity: pressed ? 0.8 : 1 }]}>
+            <UsersRound size={14} color={colors.accent} />
+            <Text style={{ color: colors.accent, fontWeight: '700', fontSize: 13 }}>{t('s.shopShareHh')}</Text>
           </Pressable>
         </View>
 

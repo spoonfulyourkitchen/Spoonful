@@ -27,21 +27,31 @@ export function BarcodeScannerModal({
   visible,
   onClose,
   onCode,
+  accept = 'numeric',
 }: {
   visible: boolean;
   onClose: () => void;
   onCode: (code: string) => void;
+  /** 'numeric' = Produkt-Barcode (Ziffern), 'any' = jeder Code, z. B. Haushalts-QR */
+  accept?: 'numeric' | 'any';
 }) {
-  const { lang } = useTranslation();
+  const { t, lang } = useTranslation();
   const [image, setImage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [manual, setManual] = useState('');
   const [notice, setNotice] = useState<'blurry' | 'noCode' | null>(null);
+  /* 3.1.2: Live-Scanner - Handy hinhalten statt Foto machen. */
+  const [live, setLive] = useState(true);
+  const [liveError, setLiveError] = useState(false);
 
   useEffect(() => {
-    if (visible) return;
+    if (visible) {
+      setLive(true);
+      setLiveError(false);
+      return;
+    }
     setImage(null);
     setBusy(false);
     setFailed(false);
@@ -228,6 +238,69 @@ if (document.readyState === 'complete') run(); else window.addEventListener('loa
     onClose();
   };
 
+  /* ── 3.1.2: Live-Scanner ───────────────────────────────────────────────── */
+  const liveFormats =
+    accept === 'any'
+      ? 'ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.DATA_MATRIX, ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.EAN_13'
+      : 'ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E, ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.ITF, ZXing.BarcodeFormat.CODABAR, ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.DATA_MATRIX';
+
+  const liveHtml = useMemo(
+    () => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>html,body{margin:0;background:#000;height:100%}video{width:100%;height:100%;object-fit:cover}
+.frame{position:fixed;left:8%;right:8%;top:24%;bottom:24%;border:3px solid rgba(255,255,255,.9);border-radius:18px;box-sizing:border-box;box-shadow:0 0 0 100vmax rgba(0,0,0,.35)}</style></head>
+<body><div class="frame"></div><video id="v" playsinline autoplay muted></video>
+<script src="file:///android_asset/zxing.min.js"></script>
+<script>
+function report(o){ try { window.ReactNativeWebView.postMessage(JSON.stringify(o)); } catch(e){} }
+function go(){
+  try{
+    if (!window.ZXing || !window.ZXing.BrowserMultiFormatReader) { report({ error: 'decoder-missing' }); return; }
+    var hints = new Map();
+    if (ZXing.DecodeHintType) {
+      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [${liveFormats}]);
+    }
+    var reader = new ZXing.BrowserMultiFormatReader(hints);
+    var done = false;
+    reader.decodeFromVideoDevice(null, 'v', function(result){
+      if (!result || done) return;
+      done = true;
+      report({ code: result.getText() });
+      try { reader.reset(); } catch(e){}
+    }).catch(function(e){ report({ error: String(e && e.message ? e.message : e) }); });
+  } catch(e){ report({ error: String(e) }); }
+}
+window.addEventListener('load', go);
+</script></body></html>`,
+    [liveFormats],
+  );
+
+  /** Meldungen des Live-Scanners: Code oder Fehler. */
+  const onLiveMessage = (event: any) => {
+    let data: any = {};
+    try {
+      data = JSON.parse(event?.nativeEvent?.data ?? '{}');
+    } catch {
+      data = {};
+    }
+    if (data?.error) {
+      setLiveError(true);
+      return;
+    }
+    const raw = String(data?.code ?? '');
+    if (!raw) return;
+    if (accept === 'any') {
+      onCode(raw);
+      onClose();
+      return;
+    }
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length >= 6) {
+      onCode(digits);
+      onClose();
+    }
+  };
+
   return (
     <>
       <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
@@ -246,7 +319,57 @@ if (document.readyState === 'complete') run(); else window.addEventListener('loa
                 </Pressable>
               </View>
 
-              {/* how to take a picture that decodes on the first pass */}
+              {/* 3.1.2: Live-Scanner — Handy hinhalten, bis der Code erkannt wird */}
+              {live && !image ? (
+                <View style={{ marginTop: 12 }}>
+                  <View style={{ height: 200, borderRadius: 18, overflow: 'hidden', backgroundColor: '#000' }}>
+                    {liveError ? (
+                      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+                        <TriangleAlert size={18} color="#fff" />
+                        <Text style={{ color: '#fff', fontSize: 12.5, textAlign: 'center', marginTop: 8 }}>{t('s.scanNoCamera')}</Text>
+                      </View>
+                    ) : (
+                      <WebView
+                        originWhitelist={['*']}
+                        source={{ html: liveHtml, baseUrl: 'file:///android_asset/' }}
+                        allowFileAccess
+                        allowFileAccessFromFileURLs
+                        allowUniversalAccessFromFileURLs
+                        javaScriptEnabled
+                        domStorageEnabled={false}
+                        mediaPlaybackRequiresUserAction={false}
+                        allowsInlineMediaPlayback
+                        onMessage={onLiveMessage}
+                        onPermissionRequest={(event: any) => {
+                          try {
+                            const request = event?.nativeEvent?.request;
+                            const resources = event?.nativeEvent?.resources ?? ['android.webkit.resource.VIDEO_CAPTURE'];
+                            if (request?.grant) request.grant(resources);
+                            else if (event?.nativeEvent?.grant) event.nativeEvent.grant(resources);
+                          } catch {
+                            setLiveError(true);
+                          }
+                        }}
+                        onError={() => setLiveError(true)}
+                        style={{ flex: 1, backgroundColor: '#000' }}
+                      />
+                    )}
+                  </View>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: colors.textPrimary, marginTop: 10 }}>{t('s.scanLive')}</Text>
+                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>{t('s.scanLiveHint')}</Text>
+                  <Pressable
+                    onPress={() => setLive(false)}
+                    style={({ pressed }) => [{ alignSelf: 'flex-start', marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6, backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.7 : 1 }]}
+                  >
+                    <Camera size={13} color={colors.textSecondary} />
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textSecondary }}>{t('s.scanFallback')}</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+
+              {/* how to take a picture that decodes on the first pass (nur im Foto-Modus) */}
+              {live && !image ? null : (
+                <>
               <View style={{ marginTop: 12, borderRadius: 16, backgroundColor: colors.surfaceMuted, padding: 12 }}>
                 <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.textPrimary }}>
                   {pick(lang, BARCODE_L10N.sharpnessTitle)}
@@ -258,6 +381,8 @@ if (document.readyState === 'complete') run(); else window.addEventListener('loa
                   </View>
                 ))}
               </View>
+                </>
+              )}
 
               <Pressable
                 onPress={() => void grab('camera')}
