@@ -15,6 +15,7 @@ import { APP_312 } from './i18n-312';
 import { APP_320 } from './i18n-320';
 import { APP_320B } from './i18n-320b';
 import { APP_320C } from './i18n-320c';
+import { APP_320D } from './i18n-320d';
 
 export type Language = "en" | "de" | "ar" | "fr" | "es" | "it" | "tr" | "pt" | "nl" | "ru";
 
@@ -460,7 +461,7 @@ function mergeDict(base: Dict, extra?: Dict): Dict {
 }
 
 const translations: Record<Language, Dict> = (Object.keys(baseDicts) as Language[]).reduce((acc, lang) => {
-  const merged = mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(baseDicts[lang], FEATURES[lang] ?? {}), APP_212[lang] ?? {}), APP_310[lang] ?? {}), APP_312[lang] ?? {}), APP_320[lang] ?? {}), APP_320B[lang] ?? {}), APP_320C[lang] ?? {});
+  const merged = mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(baseDicts[lang], FEATURES[lang] ?? {}), APP_212[lang] ?? {}), APP_310[lang] ?? {}), APP_312[lang] ?? {}), APP_320[lang] ?? {}), APP_320B[lang] ?? {}), APP_320C[lang] ?? {}), APP_320D[lang] ?? {});
   acc[lang] = {
     ...merged,
     ui: { ...(merged.ui ?? {}), ...(UI_L10N[lang] ?? {}) },
