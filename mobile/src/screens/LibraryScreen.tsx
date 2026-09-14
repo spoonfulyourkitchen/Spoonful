@@ -580,7 +580,7 @@ export function LibraryScreen() {
         ListHeaderComponent={listHeader}
         ListEmptyComponent={
           !loadedOnce ? (
-            <BookLoader label="Cooking" />
+            <BookLoader label={t('s.loadCooking')} />
           ) : (
             <EmptyState
               icon={<Filter size={24} color={colors.accent} strokeWidth={2} />}

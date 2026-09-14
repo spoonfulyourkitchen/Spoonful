@@ -1,3 +1,4 @@
+import { translate } from '../lib/i18n';
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { ArrowLeft, Check, Lock, Mail, User } from 'lucide-react-native';
@@ -403,8 +404,8 @@ export function AuthScreen() {
                     <Field icon={<Lock size={16} color={colors.textSecondary} />} placeholder="Password" secureTextEntry value={password} onChangeText={setPassword} />
                   ) : null}
                   <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
-                    <ModePill active={method === 'password'} label="Password" onPress={() => setMethod('password')} />
-                    <ModePill active={method === 'magic'} label="Magic link" onPress={() => setMethod('magic')} />
+                    <ModePill active={method === 'password'} label={translate('s.authPassword')} onPress={() => setMethod('password')} />
+                    <ModePill active={method === 'magic'} label={translate('s.authMagic')} onPress={() => setMethod('magic')} />
                   </View>
                 </>
               )
@@ -457,7 +458,7 @@ export function AuthScreen() {
             <View style={{ alignItems: 'center', marginTop: 18 }}>
               <Pressable onPress={() => switchMode('register')} hitSlop={6}>
                 <Text style={{ fontSize: 14, color: colors.textSecondary }}>
-                  New to Spoonful? <Text style={{ color: colors.accent, fontWeight: '800' }}>Create account</Text>
+                  {translate('s.authNew')} <Text style={{ color: colors.accent, fontWeight: '800' }}>{translate('s.authCreate')}</Text>
                 </Text>
               </Pressable>
               <Pressable onPress={() => switchMode('forgot')} hitSlop={6} style={{ marginTop: 8 }}>

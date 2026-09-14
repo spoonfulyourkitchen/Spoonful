@@ -642,7 +642,7 @@ export function CookingScreen({ route }: any) {
 
               {/* servings */}
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 }}>
-                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>Servings</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>{t('s.cookServings')}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                   <Pressable onPress={() => setServings((s) => Math.max(1, s - 1))} disabled={servings <= 1} style={({ pressed }) => [{ width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, opacity: pressed || servings <= 1 ? 0.5 : 1 }]}>
                     <Minus size={15} color={colors.textPrimary} />
@@ -664,8 +664,8 @@ export function CookingScreen({ route }: any) {
             {ingredients.length > 0 ? (
               <View style={{ marginTop: 12, borderRadius: 20, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 16 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: colors.textPrimary }}>Your ingredients</Text>
-                  <Text style={{ fontSize: 11, color: colors.textSecondary }}>{checkedIng.size}/{ingredients.length} ready</Text>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: colors.textPrimary }}>{t('s.cookYourIngredients')}</Text>
+                  <Text style={{ fontSize: 11, color: colors.textSecondary }}>{checkedIng.size}/{ingredients.length} {t('s.cookReadyCount', { n: checkedIng.size, m: ingredients.length })}</Text>
                 </View>
                 <View style={{ marginTop: 6 }}>
                   {scaledIngredients.map((ing, i) => {
@@ -682,7 +682,7 @@ export function CookingScreen({ route }: any) {
                 </View>
                 <Pressable onPress={() => void sendToShopping()} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 11, paddingVertical: 10, backgroundColor: colors.surfaceMuted, marginTop: 6, opacity: pressed ? 0.7 : 1 }]}>
                   <ShoppingCart size={15} color={colors.textSecondary} />
-                  <Text style={{ color: colors.textSecondary, fontWeight: '700', fontSize: 13 }}>Add all to shopping list</Text>
+                  <Text style={{ color: colors.textSecondary, fontWeight: '700', fontSize: 13 }}>{t('s.cookAddAllShop')}</Text>
                 </Pressable>
               </View>
             ) : null}
@@ -701,8 +701,8 @@ export function CookingScreen({ route }: any) {
             {hasNutrition ? (
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 20 }}>
                 {scaledNutrition.calories !== null ? <NutChip label="kcal" value={String(scaledNutrition.calories)} /> : null}
-                {scaledNutrition.protein !== null ? <NutChip label="protein" value={`${scaledNutrition.protein}g`} /> : null}
-                {scaledNutrition.carbs !== null ? <NutChip label="carbs" value={`${scaledNutrition.carbs}g`} /> : null}
+                {scaledNutrition.protein !== null ? <NutChip label={t('common.protein')} value={`${scaledNutrition.protein}g`} /> : null}
+                {scaledNutrition.carbs !== null ? <NutChip label={t('common.carbs')} value={`${scaledNutrition.carbs}g`} /> : null}
                 {scaledNutrition.fat !== null ? <NutChip label="fat" value={`${scaledNutrition.fat}g`} /> : null}
               </View>
             ) : null}

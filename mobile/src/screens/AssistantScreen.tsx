@@ -510,11 +510,11 @@ export function AssistantScreen() {
                 ))}
               </View>
             ) : null}
-            <Text style={[fieldLabel, { marginTop: 14 }]}>Ingredients</Text>
+            <Text style={[fieldLabel, { marginTop: 14 }]}>{t('recipe.ingredients')}</Text>
             {(result.ingredients ?? []).map((ing: string, i: number) => (
               <Text key={i} style={{ fontSize: 14.5, color: colors.textPrimary, paddingVertical: 2 }}>• {ing}</Text>
             ))}
-            <Text style={[fieldLabel, { marginTop: 12 }]}>Steps</Text>
+            <Text style={[fieldLabel, { marginTop: 12 }]}>{t('recipe.steps')}</Text>
             {(result.steps ?? []).map((s: string, i: number) => (
               <Text key={i} style={{ fontSize: 14, color: colors.textPrimary, lineHeight: 21, paddingVertical: 3 }}>
                 {i + 1}. {s}
@@ -564,7 +564,7 @@ export function AssistantScreen() {
                   {result.cuisine || 'Home cooking'} · {result.calories ?? '?'} kcal · {result.prepTime ?? 0} min prep
                 </Text>
                 <View style={{ marginTop: 16, gap: 10 }}>
-                  <AppButton label="View full recipe" variant="dark" icon={<Sparkles size={17} color={colors.darkButtonText} />} onPress={() => { setPreview(false); openResult(); }} />
+                  <AppButton label={t('s.chefViewRecipe')} variant="dark" icon={<Sparkles size={17} color={colors.darkButtonText} />} onPress={() => { setPreview(false); openResult(); }} />
                   <Pressable onPress={() => void saveToMine()} disabled={saved} style={({ pressed }) => [{ borderRadius: 14, paddingVertical: 12, alignItems: 'center', backgroundColor: saved ? colors.success : colors.darkButton, opacity: pressed ? 0.85 : 1 }]}>
                     <Text style={{ color: saved ? readableText(colors.success) : colors.darkButtonText, fontWeight: '700', fontSize: 14 }}>{saved ? `${t('assistant.saved')} ✓` : t('assistant.saveToRecipes')}</Text>
                   </Pressable>
