@@ -9,6 +9,7 @@ import { Page } from '../navigation/Shell';
 import { navigate } from '../navigation/rootRef';
 import { AppButton, Chip, GlassCard, PageHeader, TextField } from '../components/ui';
 import { RecipeImage } from '../components/RecipeImage';
+import { Collapsible } from '../components/Collapsible';
 import { asRecipeFromDoc } from '../lib/recipe';
 import { setAiRunning, setAiDone, setAiError } from '../lib/aiTask';
 import { notifyAiReady, notifyRecipeAdded } from '../lib/notifications';
@@ -45,6 +46,9 @@ export function AssistantScreen() {
   const [kidFriendly, setKidFriendly] = useState(false);
   const [equipment, setEquipment] = useState('');
   const [optionsOpen, setOptionsOpen] = useState(false);
+  /* 3.2.0: Dietary + Chef-Optionen eingeklappt, damit die Chef-Modi sichtbar bleiben */
+  const [openBlock, setOpenBlock] = useState<Record<string, boolean>>({ diet: false, options: false });
+  const toggleBlock = (key: string) => setOpenBlock((s) => ({ ...s, [key]: !s[key] }));
 
   const CUISINES = ['italian', 'asian', 'thai', 'indian', 'mexican', 'turkish', 'mediterranean'];
   const TIMES = [15, 30, 45, 60];
@@ -307,8 +311,8 @@ export function AssistantScreen() {
         </Animated.View>
         </View>
 
-        <Text style={[fieldLabel, { marginTop: 16, paddingHorizontal: 2 }]}>Dietary preferences</Text>
-        <GlassCard pad={14} radius={20}>
+        <Collapsible bare title={t('s.chefDietary')} open={openBlock.diet} onToggle={() => toggleBlock('diet')} />
+        <GlassCard pad={14} radius={20} visible={openBlock.diet}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
             {DIETS.map((p) => (
               <Chip key={p} label={p} active={prefs.includes(p)} tone={prefs.includes(p) ? 'green' : 'neutral'} onPress={() => togglePref(p)} />
@@ -316,8 +320,8 @@ export function AssistantScreen() {
           </View>
         </GlassCard>
 
-        <Text style={[fieldLabel, { marginTop: 16, paddingHorizontal: 2 }]}>Chef options</Text>
-        <GlassCard pad={14} radius={20}>
+        <Collapsible bare title={t('s.chefOptions')} open={openBlock.options} onToggle={() => toggleBlock('options')} />
+        <GlassCard pad={14} radius={20} visible={openBlock.options}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, borderWidth: 1, borderColor: colors.cardBorder, paddingHorizontal: 10, paddingVertical: 5 }}>
               <Pressable onPress={() => setServings((s) => Math.max(1, s - 1))} hitSlop={6}>
@@ -330,32 +334,32 @@ export function AssistantScreen() {
                 <Plus size={14} color={colors.textPrimary} />
               </Pressable>
             </View>
-            <Chip label="lighter" active={lighter} tone={lighter ? 'green' : 'neutral'} onPress={() => setLighter((v) => !v)} />
-            <Chip label="kid friendly" active={kidFriendly} tone={kidFriendly ? 'green' : 'neutral'} onPress={() => setKidFriendly((v) => !v)} />
-            <Chip label={optionsOpen ? 'less options' : 'more options'} active={optionsOpen} onPress={() => setOptionsOpen((v) => !v)} />
+            <Chip label={t('s.chefLighter')} active={lighter} tone={lighter ? 'green' : 'neutral'} onPress={() => setLighter((v) => !v)} />
+            <Chip label={t('s.chefKid')} active={kidFriendly} tone={kidFriendly ? 'green' : 'neutral'} onPress={() => setKidFriendly((v) => !v)} />
+            <Chip label={optionsOpen ? t('s.chefLess') : t('s.chefMore')} active={optionsOpen} onPress={() => setOptionsOpen((v) => !v)} />
           </View>
 
           {optionsOpen ? (
             <>
-              <Text style={[fieldLabel, { marginTop: 10 }]}>Cuisine</Text>
+              <Text style={[fieldLabel, { marginTop: 10 }]}>{t('s.chefCuisine')}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                <Chip label="any" active={cuisinePick === ''} tone="neutral" onPress={() => setCuisinePick('')} />
+                <Chip label={t('s.chefAny')} active={cuisinePick === ''} tone="neutral" onPress={() => setCuisinePick('')} />
                 {CUISINES.map((c) => (
                   <Chip key={c} label={c} active={cuisinePick === c} onPress={() => setCuisinePick(cuisinePick === c ? '' : c)} />
                 ))}
               </View>
 
-              <Text style={[fieldLabel, { marginTop: 10 }]}>Ready in</Text>
+              <Text style={[fieldLabel, { marginTop: 10 }]}>{t('s.chefReadyIn')}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                <Chip label="any" active={maxMinutes === null} tone="neutral" onPress={() => setMaxMinutes(null)} />
+                <Chip label={t('s.chefAny')} active={maxMinutes === null} tone="neutral" onPress={() => setMaxMinutes(null)} />
                 {TIMES.map((m) => (
                   <Chip key={m} label={`${m} ${t('common.min')}`} active={maxMinutes === m} onPress={() => setMaxMinutes(maxMinutes === m ? null : m)} />
                 ))}
               </View>
 
-              <Text style={[fieldLabel, { marginTop: 10 }]}>Difficulty & heat</Text>
+              <Text style={[fieldLabel, { marginTop: 10 }]}>{t('s.chefDiffHeat')}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                <Chip label="any" active={difficultyPick === ''} tone="neutral" onPress={() => setDifficultyPick('')} />
+                <Chip label={t('s.chefAny')} active={difficultyPick === ''} tone="neutral" onPress={() => setDifficultyPick('')} />
                 {['easy', 'medium', 'hard'].map((d) => (
                   <Chip key={d} label={d} active={difficultyPick === d} onPress={() => setDifficultyPick(difficultyPick === d ? '' : d)} />
                 ))}

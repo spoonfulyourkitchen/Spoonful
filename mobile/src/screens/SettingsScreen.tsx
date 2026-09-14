@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, Linking, Modal, Pressable, ScrollView, Share, Switch, Text, TextInput, View } from 'react-native';
-import { ChevronRight, Check, Download, FileText, Globe, LogOut, Mail, Palette, Play, ShieldCheck, Star, Trash2, Users } from 'lucide-react-native';
+import { ChevronRight, Check, Download, FileText, Globe, LogOut, Mail, Palette, Play, ShieldCheck, Star, Trash2, UserRound, Users } from 'lucide-react-native';
 import { useAction, useAuthActions, useMutation, useQuery } from '../lib/convex-auth';
 import { useTranslation, LANGUAGES, isRtlLanguage, isRestartRequired, markLanguagePickerShown, tryReloadApp, type Language } from '../lib/i18n';
 import { loadPrefs, savePrefs, applyReminders, NotifPrefs } from '../lib/notifications';
@@ -11,6 +11,7 @@ import { Page } from '../navigation/Shell';
 import { navigate } from '../navigation/rootRef';
 import { Divider, GlassCard, PageHeader, SectionLabel } from '../components/ui';
 import { LanguagePicker } from '../components/LanguagePicker';
+import { ProfileEditor } from '../components/ProfileEditor';
 import { Popup } from '../components/Popup';
 import { restartTutorial } from '../lib/tutorial';
 import { useCookingAdvanced } from '../lib/app-prefs';
@@ -26,6 +27,8 @@ export function SettingsScreen() {
   const [prefs, setPrefs] = useState<NotifPrefs | null>(null);
   /* 3.1.0: Kochmodus advanced / klassisch */
   const [cookingAdvanced, setCookingAdvancedPref] = useCookingAdvanced();
+  /* 3.2.0: alle Profildaten an einer Stelle bearbeiten */
+  const [profileOpen, setProfileOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -191,6 +194,18 @@ export function SettingsScreen() {
             onChange={() => setCookingAdvancedPref(!cookingAdvanced)}
           />
         </GlassCard>
+
+        {/* 3.2.0: Profildaten an einer Stelle bearbeiten */}
+        <Text style={label}>{t('s.profileTitle')}</Text>
+        <GlassCard pad={4} radius={20}>
+          <NavRow
+            icon={<UserRound size={18} color={colors.accent} />}
+            label={t('s.profileEdit')}
+            value={String((user as any)?.name ?? '')}
+            onPress={() => setProfileOpen(true)}
+          />
+        </GlassCard>
+        <ProfileEditor visible={profileOpen} onClose={() => setProfileOpen(false)} />
 
 
         <Text style={label}>{t('ui.help')}</Text>

@@ -1,17 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, Dimensions, FlatList, PanResponder, Pressable, RefreshControl, Text, TextInput, useWindowDimensions, View } from 'react-native';
-import { Bookmark, BookmarkCheck, Clock3, Flame, Heart, MessageSquare, Play, Search, Star, UsersRound, X } from 'lucide-react-native';
+import { ActivityIndicator, Alert, Animated, Dimensions, FlatList, Modal, PanResponder, Pressable, RefreshControl, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Bookmark, BookmarkCheck, Clock3, Flame, Heart, MessageSquare, Play, Search, SlidersHorizontal, Star, UsersRound, X } from 'lucide-react-native';
 import { useMutation, useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';
 import { colors } from '../theme';
 import { Page } from '../navigation/Shell';
 import { navigate } from '../navigation/rootRef';
-import { Chip, EmptyState, GlassCard, PageHeader } from '../components/ui';
+import { AppButton, Chip, EmptyState, GlassCard, PageHeader } from '../components/ui';
 import { RecipeImage } from '../components/RecipeImage';
 import { CommentSheet } from '../components/CommentSheet';
 import { CommunityExtras } from '../components/CommunityExtras';
 import { TutorialTarget } from '../components/TutorialTarget';
 import { tutorialAction } from '../lib/tutorial';
+import { translate } from '../lib/i18n';
 import { difficultyLabel } from '../lib/recipe';
 import { asRecipeFromDoc } from '../lib/recipe';
 import { useConnectivity, retryConnectivity } from '../lib/offline';
@@ -23,6 +24,8 @@ import { OfflineTv } from '../components/OfflineTv';
 const DIFFS = ['all', 'easy', 'medium', 'hard'] as const;
 
 export function CommunityScreen() {
+  /* 3.2.0: alle Filter stecken in einem Popup hinter dem Filter-Knopf */
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const community = useQuery(api.sharing.community);
   const savedList = useQuery(api.savedRecipes.list);
   const saveRecipe = useMutation(api.savedRecipes.save);
@@ -238,9 +241,6 @@ export function CommunityScreen() {
       <View style={{ paddingTop: 4, paddingBottom: 2 }}>
         <PageHeader eyebrow={t('community.fromCommunity')} title={t('community.title')} subtitle={t('community.desc')} />
 
-        {/* 2.0.0: cooking challenges + "near me" region */}
-        <CommunityExtras />
-
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder, paddingHorizontal: 10 }}>
             <Search size={15} color={colors.textSecondary} />
@@ -253,25 +253,47 @@ export function CommunityScreen() {
             />
             {q ? <Pressable onPress={() => setQ('')} hitSlop={8}><X size={15} color={colors.textSecondary} /></Pressable> : null}
           </View>
-          <TutorialTarget id="tut-community-publish">
-            <Pressable onPress={() => navigate('Main', { screen: 'MyRecipes' })} style={({ pressed }) => [{ borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9, backgroundColor: colors.darkButton, opacity: pressed ? 0.85 : 1 }]}>
-              <Text style={{ color: colors.darkButtonText, fontWeight: '700', fontSize: 13 }}>{t('community.goRecipes')}</Text>
-            </Pressable>
-          </TutorialTarget>
+          <Pressable onPress={() => setFiltersOpen(true)} accessibilityLabel={t('s.commFilters')} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: colors.darkButton, opacity: pressed ? 0.85 : 1 }]}>
+            <SlidersHorizontal size={15} color={colors.darkButtonText} />
+            <Text style={{ color: colors.darkButtonText, fontWeight: '700', fontSize: 13 }}>{t('s.commFilters')}</Text>
+          </Pressable>
         </View>
 
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-          <Chip label={t('s.commSortNew')} active={sort === 'recent'} onPress={() => setSort('recent')} />
-          <Chip label={t('s.commSortTop')} active={sort === 'popular'} onPress={() => setSort('popular')} />
-        </View>
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-          {DIFFS.map((d) => (
-            <Chip key={d} label={d === 'all' ? 'Any difficulty' : d.charAt(0).toUpperCase() + d.slice(1)} active={diff === d} onPress={() => setDiff(d)} tone={d === 'hard' ? 'rose' : d === 'medium' ? 'accent' : 'green'} />
-          ))}
+          <Chip label={sort === 'recent' ? t('s.commSortNew') : t('s.commSortTop')} active onPress={() => setSort(sort === 'recent' ? 'popular' : 'recent')} />
+          {diff !== 'all' ? <Chip label={dLabel(diff)} active tone={diff === 'hard' ? 'rose' : diff === 'medium' ? 'accent' : 'green'} onPress={() => setDiff('all')} /> : null}
         </View>
         <Pressable onPress={() => goPage(1)} hitSlop={8} style={{ marginTop: 10 }}>
           <Text style={{ fontSize: 12, color: colors.textSecondary }}>{t('s.commForYou')}</Text>
         </Pressable>
+
+        {/* 3.2.0: Filter-Popup */}
+        <Modal visible={filtersOpen} transparent animationType="fade" onRequestClose={() => setFiltersOpen(false)}>
+          <View style={{ flex: 1, backgroundColor: colors.overlayStrong, justifyContent: 'flex-end' }}>
+            <Pressable style={{ flex: 1 }} onPress={() => setFiltersOpen(false)} />
+            <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 28 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <SlidersHorizontal size={17} color={colors.accent} />
+                <Text style={{ flex: 1, fontSize: 17, fontWeight: '800', color: colors.textPrimary }}>{t('s.commFilters')}</Text>
+                <Pressable onPress={() => setFiltersOpen(false)} hitSlop={10}>
+                  <X size={19} color={colors.textSecondary} />
+                </Pressable>
+              </View>
+              <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.textSecondary, marginTop: 14, marginBottom: 6, textTransform: 'uppercase' }}>{t('s.commSort')}</Text>
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                <Chip label={t('s.commSortNew')} active={sort === 'recent'} onPress={() => setSort('recent')} />
+                <Chip label={t('s.commSortTop')} active={sort === 'popular'} onPress={() => setSort('popular')} />
+              </View>
+              <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.textSecondary, marginTop: 16, marginBottom: 6, textTransform: 'uppercase' }}>{t('s.commDifficulty')}</Text>
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                {DIFFS.map((d) => (
+                  <Chip key={d} label={dLabel(d)} active={diff === d} onPress={() => setDiff(d)} tone={d === 'hard' ? 'rose' : d === 'medium' ? 'accent' : 'green'} />
+                ))}
+              </View>
+              <AppButton label={t('common.close')} variant="dark" style={{ marginTop: 20 }} onPress={() => setFiltersOpen(false)} />
+            </View>
+          </View>
+        </Modal>
       </View>
 {items.length > 0 ? (
               <GlassCard pad={14} radius={18} style={{ marginBottom: 2 }}>
@@ -328,6 +350,10 @@ export function CommunityScreen() {
   );
 }
 
+
+function dLabel(d: string): string {
+  return d === 'all' ? translate('s.commAnyDiff') : d.charAt(0).toUpperCase() + d.slice(1);
+}
 
 function CommunityCard({ item, saved, liked, likesCount, commentCount, likeBusyId, onLike, onSave, onCook, onOpen, onComments }: {
   item: any;

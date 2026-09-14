@@ -18,6 +18,7 @@ import {
 
 import { AppButton, EmptyState, GlassCard, PageHeader, SectionLabel } from '../components/ui';
 import { QrCodeView } from '../components/QrCodeView';
+import { Collapsible } from '../components/Collapsible';
 import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
 import { useTranslation } from '../lib/i18n';
 import { useMutation, useQuery } from '../lib/convex-auth';
@@ -28,7 +29,8 @@ import { showAdminLoginAlert } from '../lib/notifications';
 import { recipeLines } from '../lib/recipe';
 import {
   addExpense, addNamesToShopping, addNote, addPlanEntry, addTask,
-  fetchEvents, fetchExpenses, fetchMembers, fetchNotes, fetchPlan, fetchStats, fetchTasks,
+  fetchEvents, fetchExpenses, fetchHouseholdLists, fetchMembers, fetchNotes, fetchPlan, fetchStats, fetchTasks,
+  removeHouseholdList, updateHouseholdList, type HhList,
   logEvent, removeExpense, removeNote, removePlanEntry, removeTask, renameHousehold,
   setHouseholdRole, setTaskDone,
   type HhEvent, type HhExpense, type HhMember, type HhNote, type HhPlanEntry, type HhStats, type HhTask,
@@ -62,6 +64,9 @@ export function HouseholdScreen() {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  /* 3.2.0: geteilte Einkaufslisten (max. 2) */
+  const [lists, setLists] = useState<HhList[]>([]);
+  const [openList, setOpenList] = useState<string | null>(null);
 
   const [nameDraft, setNameDraft] = useState('');
   const [renameOpen, setRenameOpen] = useState(false);
@@ -88,9 +93,10 @@ export function HouseholdScreen() {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [m, tk, pl, nt, ex, ev, st] = await Promise.all([
-        fetchMembers(), fetchTasks(), fetchPlan(), fetchNotes(), fetchExpenses(), fetchEvents(), fetchStats(),
+      const [m, tk, pl, nt, ex, ev, st, hl] = await Promise.all([
+        fetchMembers(), fetchTasks(), fetchPlan(), fetchNotes(), fetchExpenses(), fetchEvents(), fetchStats(), fetchHouseholdLists(),
       ]);
+      setLists(hl);
       setMembers(m);
       setTasks(tk);
       setPlan(pl);
@@ -263,6 +269,21 @@ export function HouseholdScreen() {
     return { sum, diff: mine - sum / per };
   }, [expenses, members.length, myProfile?.id]);
 
+  /** Posten in einer Haushalts-Liste abhaken (alle dürfen das). */
+  const toggleHhItem = (list: HhList, index: number) => {
+    const next = list.items.map((it, i) => (i === index ? { ...it, checked: !it.checked } : it));
+    setLists((all) => all.map((l) => (l.id === list.id ? { ...l, items: next } : l)));
+    void updateHouseholdList(list.id, next);
+  };
+
+  /** Liste zurückholen: Posten kommen wieder in meine Einkaufsliste. */
+  const takeList = (list: HhList) =>
+    run(async () => {
+      const names = list.items.map((it) => it.name).filter(Boolean);
+      if (names.length) await addManyShopping({ items: names.map((name) => ({ name, recipeTitle: list.title })) });
+      await removeHouseholdList(list.id);
+    }, () => setOpenList(null));
+
   const doRemind = () => {
     const body = t('s.hhRemindBody', { n: tasks.filter((x) => !x.done).length, m: openShopping.length });
     void showAdminLoginAlert(t('s.hhRemindTitle'), body);
@@ -389,6 +410,34 @@ export function HouseholdScreen() {
                   <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.textSecondary }}>{t('s.hhShoppingClear')}</Text>
                 </Pressable>
               ) : null}
+            </GlassCard>
+
+            {/* 3b. geteilte Einkaufslisten (max. 2) */}
+            <SectionLabel style={{ marginTop: 18 }}>{t('s.hhLists')}</SectionLabel>
+            <GlassCard variant="solid" pad={14}>
+              {!lists.length ? <Text style={{ fontSize: 12.5, color: colors.textSecondary }}>{t('s.hhListsHint')}</Text> : null}
+              {lists.map((list) => (
+                <Collapsible
+                  key={list.id}
+                  title={list.title}
+                  subtitle={`${list.ownerName} · ${list.items.filter((i) => !i.checked).length}/${list.items.length}`}
+                  open={openList === list.id}
+                  onToggle={() => setOpenList(openList === list.id ? null : list.id)}
+                >
+                  {list.items.map((it, idx) => (
+                    <Pressable key={`${it.name}-${idx}`} onPress={() => toggleHhItem(list, idx)} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, opacity: pressed ? 0.7 : 1 }]}>
+                      <View style={{ width: 21, height: 21, borderRadius: 7, borderWidth: 2, borderColor: it.checked ? colors.success : colors.textSecondary, backgroundColor: it.checked ? colors.success : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                        {it.checked ? <Check size={12} color="#fff" strokeWidth={3} /> : null}
+                      </View>
+                      <Text style={{ flex: 1, fontSize: 14, color: it.checked ? colors.textSecondary : colors.textPrimary, textDecorationLine: it.checked ? 'line-through' : 'none' }}>{it.name}</Text>
+                    </Pressable>
+                  ))}
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                    <MiniBtn label={t('s.hhListTake')} onPress={() => void takeList(list)} />
+                    <MiniBtn label={t('s.hhListRemove')} danger onPress={() => void run(() => removeHouseholdList(list.id))} />
+                  </View>
+                </Collapsible>
+              ))}
             </GlassCard>
 
             {/* 4. Wochenplan — Gerichte aus Bibliothek / Meine / Gespeichert */}

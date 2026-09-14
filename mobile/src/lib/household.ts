@@ -316,6 +316,64 @@ export async function unshareRecipe(id: string): Promise<void> {
   }, null);
 }
 
+/* ── Geteilte Einkaufslisten (3.2.0, max. 2 pro Haushalt) ─────────────────── */
+export type HhShoppingItem = { name: string; checked: boolean };
+export type HhList = {
+  id: string;
+  userId: string;
+  ownerName: string;
+  title: string;
+  items: HhShoppingItem[];
+  createdAt: number;
+};
+
+const asItems = (raw: any): HhShoppingItem[] => {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((i: any) => (typeof i === 'string' ? { name: i, checked: false } : { name: String(i?.name ?? ''), checked: !!i?.checked }))
+    .filter((i) => !!i.name);
+};
+
+export async function fetchHouseholdLists(): Promise<HhList[]> {
+  return safe(async () => {
+    const { data, error } = await supabase.rpc('household_lists_state');
+    if (error) throw error;
+    return ((data ?? []) as any[]).map((r) => ({
+      id: String(r.id),
+      userId: String(r.user_id),
+      ownerName: String(r.owner_name ?? ''),
+      title: String(r.title ?? ''),
+      items: asItems(r.items),
+      createdAt: time(r.created_at),
+    }));
+  }, [] as HhList[]);
+}
+
+/** Teilt eine Liste mit dem Haushalt. Wirft bei "limit reached" (2 Listen). */
+export async function shareHouseholdList(title: string, items: HhShoppingItem[]): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const { error } = await supabase.rpc('share_household_list', { p_title: title, p_items: items });
+    if (error) return { ok: false, error: String(error.message ?? '') };
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, error: String(e?.message ?? e) };
+  }
+}
+
+export async function updateHouseholdList(id: string, items: HhShoppingItem[]): Promise<void> {
+  await safe(async () => {
+    await supabase.rpc('update_household_list', { p_id: id, p_items: items });
+    return null;
+  }, null);
+}
+
+export async function removeHouseholdList(id: string): Promise<void> {
+  await safe(async () => {
+    await supabase.rpc('remove_household_list', { p_id: id });
+    return null;
+  }, null);
+}
+
 /* ── Gemeinsame Einkaufsliste (Funktionen 13/16) ──────────────────────────── */
 /** Namen (z. B. aus dem Wochenplan) auf die geteilte Einkaufsliste setzen. */
 export async function addNamesToShopping(names: string[], recipeTitle?: string): Promise<number> {

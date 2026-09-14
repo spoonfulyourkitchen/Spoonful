@@ -37,13 +37,17 @@ export function GlassCard({
   pad = 16,
   radius = 22,
   style,
+  visible = true,
 }: {
   children: React.ReactNode;
   variant?: 'glass' | 'glassDark' | 'solid';
   pad?: number;
   radius?: Radius;
   style?: StyleProp<ViewStyle>;
+  /** 3.2.0: false = Karte ist eingeklappt (z. B. hinter einem Collapsible) */
+  visible?: boolean;
 }) {
+  if (!visible) return null;
   const bg =
     variant === 'solid' ? colors.card
       : variant === 'glassDark' ? (colors.dark ? colors.card : 'rgba(30,41,59,0.9)')

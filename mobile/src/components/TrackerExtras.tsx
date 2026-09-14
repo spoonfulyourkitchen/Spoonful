@@ -6,6 +6,7 @@ import { useMutation, useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';
 import { colors } from '../theme';
 import { GlassCard, SectionLabel } from './ui';
+import { Collapsible } from './Collapsible';
 import { useTranslation } from '../lib/i18n';
 import { searchFoods, productByBarcode, scaleToPortion, type FoodHit } from '../lib/foodFacts';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
@@ -32,6 +33,10 @@ export function TrackerExtras() {
   const addWeight = useMutation(api.tracker.addWeight);
   const weights = useQuery(api.tracker.weights) as any[] | undefined;
   const logManual = useMutation(api.calorieEntries.logManual);
+
+  /* 3.2.0: Abschnitte aufklappbar (weniger Scrollen) */
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({ food: true, water: false, weight: false });
+  const toggleSection = (key: string) => setOpenSections((s) => ({ ...s, [key]: !s[key] }));
 
   const [bodyWeight, setBodyWeight] = useState(75);
   const [goal, setGoal] = useState<'lose' | 'maintain' | 'gain'>('maintain');
@@ -119,7 +124,7 @@ export function TrackerExtras() {
   const saveWeight = async () => {
     const kg = Number(kgInput.replace(',', '.'));
     if (!Number.isFinite(kg) || kg < 20 || kg > 400) {
-      setPopup({ title: pick(lang, TRACKER_L10N.weightTitle), body: pick(lang, TRACKER_L10N.weightInvalid) });
+      <Collapsible bare title={pick(lang, TRACKER_L10N.weightTitle)} open={openSections.weight} onToggle={() => toggleSection('weight')} />
       return;
     }
     setKgBusy(true);
@@ -198,8 +203,8 @@ export function TrackerExtras() {
   return (
     <>
       {/* 2.1.1: the food card (scan + search) is the first thing on the tracker */}
-      <SectionLabel>{pick(lang, TRACKER_L10N.scanCardTitle)}</SectionLabel>
-      <GlassCard pad={16} radius={20}>
+      <Collapsible bare title={pick(lang, TRACKER_L10N.scanCardTitle)} open={openSections.food} onToggle={() => toggleSection('food')} />
+      <GlassCard visible={openSections.food} pad={16} radius={20}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 10 }}>
             <Search size={15} color={colors.textSecondary} />
@@ -287,8 +292,8 @@ export function TrackerExtras() {
       </GlassCard>
 
       {/* water */}
-      <SectionLabel>{t('x.water')}</SectionLabel>
-      <GlassCard pad={16} radius={20}>
+      <Collapsible bare title={t('x.water')} open={openSections.water} onToggle={() => toggleSection('water')} />
+      <GlassCard visible={openSections.water} pad={16} radius={20}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <Droplets size={20} color={colors.cyan} />
           <View style={{ flex: 1 }}>

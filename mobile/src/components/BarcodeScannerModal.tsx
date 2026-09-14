@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { Camera, Image as ImageIcon, RotateCcw, ScanLine, TriangleAlert, X } from 'lucide-react-native';
+import { Camera, Image as ImageIcon, RotateCcw, ScanLine, Search, TriangleAlert, X } from 'lucide-react-native';
 import { WebView } from 'react-native-webview';
 import { colors, fonts } from '../theme';
 import { useTranslation } from '../lib/i18n';
 import { pickSharpPhoto, takeSharpPhoto } from '../lib/photo';
+import { searchFoods, type FoodHit } from '../lib/foodFacts';
 import { BARCODE_L10N, pick } from '../lib/l10n';
 import { Popup } from './Popup';
 
@@ -42,6 +43,10 @@ export function BarcodeScannerModal({
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [manual, setManual] = useState('');
   const [notice, setNotice] = useState<'blurry' | 'noCode' | null>(null);
+  /* 3.2.0: Produktsuche in der offenen Produktdatenbank */
+  const [searchQ, setSearchQ] = useState('');
+  const [hits, setHits] = useState<FoodHit[]>([]);
+  const [searching, setSearching] = useState(false);
   /* 3.1.2: Live-Scanner - Handy hinhalten statt Foto machen. */
   const [live, setLive] = useState(true);
   const [liveError, setLiveError] = useState(false);
@@ -231,6 +236,20 @@ if (document.readyState === 'complete') run(); else window.addEventListener('loa
     setNotice(sharp >= 0 && sharp < 3.2 ? 'blurry' : 'noCode');
   };
 
+  /** Sucht Produkte nach Namen (offene Datenbank, kostenlos). */
+  const runSearch = async () => {
+    const q = searchQ.trim();
+    if (q.length < 3) return;
+    setSearching(true);
+    try {
+      setHits(await searchFoods(q, 12));
+    } catch {
+      setHits([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+
   const useManual = () => {
     const code = manual.replace(/\D/g, '');
     if (code.length < 6) return;
@@ -366,6 +385,28 @@ window.addEventListener('load', go);
                   </Pressable>
                 </View>
               ) : null}
+
+              {/* 3.2.0: Produkt suchen statt nur scannen */}
+              <View style={{ marginTop: 14 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 12 }}>
+                  <Search size={16} color={colors.textSecondary} />
+                  <TextInput value={searchQ} onChangeText={setSearchQ} onSubmitEditing={() => void runSearch()} placeholder={t('s.scanSearchPh')} placeholderTextColor={colors.textSecondary} style={{ flex: 1, paddingVertical: 11, fontSize: 15, color: colors.textPrimary }} />
+                  <Pressable onPress={() => void runSearch()} hitSlop={8}>
+                    <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.accent }}>{t('s.scanSearchGo')}</Text>
+                  </Pressable>
+                </View>
+                {searching ? <ActivityIndicator size="small" color={colors.accent} style={{ marginTop: 10 }} /> : null}
+                {hits.map((hit) => (
+                  <Pressable key={hit.code} onPress={() => { onCode(hit.code); onClose(); }} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.cardBorder, opacity: pressed ? 0.7 : 1 }]}>
+                    <ImageIcon size={15} color={colors.textSecondary} />
+                    <Text numberOfLines={1} style={{ flex: 1, fontSize: 13.5, color: colors.textPrimary }}>{hit.name}{hit.brand ? ` · ${hit.brand}` : ''}</Text>
+                    <Text style={{ fontSize: 11, color: colors.textSecondary }}>{hit.kcal != null ? `${hit.kcal} kcal` : ''}</Text>
+                  </Pressable>
+                ))}
+                {!searching && !hits.length && searchQ.trim().length > 2 ? (
+                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 8 }}>{t('s.scanNoHits')}</Text>
+                ) : null}
+              </View>
 
               {/* how to take a picture that decodes on the first pass (nur im Foto-Modus) */}
               {live && !image ? null : (
