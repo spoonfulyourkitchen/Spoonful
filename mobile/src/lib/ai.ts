@@ -7,6 +7,10 @@
  * Deploying that function once is enough — no app update needed afterwards.
  */
 import { supabase } from './supabase';
+import { withTimeout } from './safe';
+
+/** 3.2.2: Obergrenze für einen KI-Aufruf. */
+const AI_TIMEOUT_MS = 60000;
 
 function jsonFromText(text: string): any {
   const cleaned = text
@@ -37,13 +41,19 @@ async function functionError(error: any): Promise<string> {
 }
 
 async function chatJSON(system: string, user: string, temperature = 0.7): Promise<any> {
-  const { data, error } = await supabase.functions.invoke('ai', {
-    body: {
-      system,
-      user,
-      temperature: Math.max(0, Math.min(1.2, Number(temperature) || 0.7)),
-    },
-  });
+  // 3.2.2: Zeitlimit (Punkt 13). Ohne das konnte ein hängender KI-Aufruf die
+  // Oberfläche „einfrieren" lassen, weil auf das Versprechen kein Ende kam.
+  const { data, error } = await withTimeout(
+    supabase.functions.invoke('ai', {
+      body: {
+        system,
+        user,
+        temperature: Math.max(0, Math.min(1.2, Number(temperature) || 0.7)),
+      },
+    }),
+    AI_TIMEOUT_MS,
+    'Die KI hat zu lange gebraucht.',
+  );
   if (error) throw new Error(await functionError(error));
   const content = (data as any)?.content;
   if (!content) throw new Error('AI returned no content.');
@@ -361,6 +371,42 @@ export async function aiSubstituteIngredient(args: {
       .filter((o: any) => o.name)
       .slice(0, 3),
   };
+}
+
+/**
+ * 3.2.1: Ordnet einen Video-Text (Beschreibung/Untertitel) zu einem Rezept.
+ *
+ * Wird nur als **Notfall** benutzt, wenn die lokale Erkennung nichts findet.
+ * Läuft über die Supabase-Funktion `ai`, die Gratis-Modelle benutzt - es wird
+ * also kein Guthaben verbraucht. Bei Fehlern kommt `null` zurück.
+ */
+export async function aiRecipeFromText(args: {
+  title?: string;
+  text: string;
+}): Promise<{ title: string; ingredients: string[]; steps: string[] } | null> {
+  const raw = String(args.text ?? '').trim();
+  if (raw.length < 60) return null;
+  const system =
+    'You turn the description or the subtitles of a cooking video into a recipe. ' +
+    'Answer with valid JSON only: {"title": string, "ingredients": string[], "steps": string[]}. ' +
+    'Keep the original language of the text and keep every amount (e.g. "500 g Mehl"). ' +
+    'Steps must be short imperative sentences in the cooking order. ' +
+    'Do not invent ingredients that are not in the text. ' +
+    'If the text contains no recipe at all, answer {"title":"","ingredients":[],"steps":[]}.';
+  const user = [args.title ? `Video title: ${args.title}` : '', 'Text:', raw.slice(0, 6000)]
+    .filter(Boolean)
+    .join('\n');
+  const parsed = await chatJSON(system, user, 0.2);
+  const ingredients = strList(parsed?.ingredients)
+    .map((i) => i.trim())
+    .filter(Boolean)
+    .slice(0, 30);
+  const steps = strList(parsed?.steps)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 25);
+  if (!ingredients.length || !steps.length) return null;
+  return { title: str(parsed?.title, args.title ?? ''), ingredients, steps };
 }
 
 /** Nutrition estimator used on the recipe form. */

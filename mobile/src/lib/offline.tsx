@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useSyncExternalStore } from 'react';
-import { Alert, Text } from 'react-native';
+import { Alert, AppState, Text } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SUPABASE_URL } from '../config';
 import { convexClient } from './convex-auth';
 import { api } from './api';
+import { useTranslation } from './i18n';
 
 /**
  * Spoonful offline support.
@@ -40,6 +41,28 @@ export function getConn(): ConnState {
 const PROBE_TIMEOUT_MS = 4500;
 const PROBE_INTERVAL_ONLINE_MS = 20000;
 const PROBE_INTERVAL_OFFLINE_MS = 6000;
+/** 3.2.1: no probing while the app is in the background (saves battery + data). */
+const PROBE_INTERVAL_BACKGROUND_MS = 30000;
+
+let appActive = true;
+let appStateWatched = false;
+
+function watchAppState() {
+  if (appStateWatched) return;
+  appStateWatched = true;
+  try {
+    appActive = AppState.currentState === 'active';
+    AppState.addEventListener('change', (state) => {
+      const nowActive = state === 'active';
+      const wasActive = appActive;
+      appActive = nowActive;
+      // Back in the foreground: check right away instead of waiting for the loop.
+      if (nowActive && !wasActive) void probeNow();
+    });
+  } catch {
+    /* AppState is optional - the loop keeps running then */
+  }
+}
 
 async function probeNow(): Promise<boolean> {
   if (probing) return conn === 'online';
@@ -71,9 +94,15 @@ let monitoringStarted = false;
 function startMonitoring() {
   if (monitoringStarted) return;
   monitoringStarted = true;
+  watchAppState();
   (async () => {
     await probeNow();
     const loop = async () => {
+      // In the background the probe is only a slow keep-alive.
+      if (!appActive) {
+        setTimeout(loop, PROBE_INTERVAL_BACKGROUND_MS);
+        return;
+      }
       const wasOnline = conn === 'online';
       await probeNow();
       const nextDelay = wasOnline ? PROBE_INTERVAL_ONLINE_MS : PROBE_INTERVAL_OFFLINE_MS;
@@ -120,6 +149,25 @@ export function listPendingOps(): PendingOp[] {
   return [...pendingOps];
 }
 
+/** 3.2.2: Anzahl der Änderungen, die noch nicht auf dem Server sind. */
+export function pendingOpsCount(): number {
+  return pendingOps.length;
+}
+
+/** Abo für die Anzahl (Badge in der Oberfläche). */
+const pendingListeners = new Set<() => void>();
+
+export function subscribePendingOps(listener: () => void): () => void {
+  pendingListeners.add(listener);
+  return () => {
+    pendingListeners.delete(listener);
+  };
+}
+
+function emitPending() {
+  pendingListeners.forEach((listener) => listener());
+}
+
 async function persistPendingOps() {
   try {
     await AsyncStorage.setItem(PENDING_KEY, JSON.stringify(pendingOps));
@@ -153,12 +201,14 @@ export async function addPendingOp(kind: string, payload: any) {
     pendingOps = pendingOps.slice(pendingOps.length - MAX_PENDING_OPS);
   }
 
+  emitPending();
   await persistPendingOps();
 }
 
 export async function removePendingOps(ids: string[]) {
   const remove = new Set(ids);
   pendingOps = pendingOps.filter((op) => !remove.has(op.id));
+  emitPending();
   await persistPendingOps();
 }
 
@@ -317,10 +367,18 @@ startMonitoring();
 /* Export a tiny offline badge for screens that stay usable while offline. */
 export function OfflineBadge({ style }: { style?: object }) {
   const conn = useConnectivity();
+  /**
+   * 3.2.2: „Offline" allein sagt nichts über die Arbeit, die noch wartet.
+   * Jetzt steht die Anzahl dabei ("Offline · 3 Änderungen warten") — so weiß
+   * man, dass nichts verloren ist (Punkt 71 der Stabilitäts-Liste).
+   */
+  const { t } = useTranslation();
+  const pending = useSyncExternalStore(subscribePendingOps, pendingOpsCount, pendingOpsCount);
   if (conn !== 'offline') return null;
+  const label = pending > 0 ? `Offline · ${t('s.offlinePending', { n: pending })}` : 'Offline';
   return (
     <Text style={[{ fontSize: 11, fontWeight: '700', color: '#fff', backgroundColor: '#b45309', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, overflow: 'hidden', alignSelf: 'flex-start', marginBottom: 6 }, style]}>
-      Offline
+      {label}
     </Text>
   );
 }

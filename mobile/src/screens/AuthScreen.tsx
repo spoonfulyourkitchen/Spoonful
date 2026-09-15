@@ -346,7 +346,7 @@ export function AuthScreen() {
 
           <GlassCard pad={18} radius={24} style={{ marginTop: 20 }}>
             {mode === 'register' && regStep === 1 ? (
-              <Field icon={<User size={16} color={colors.textSecondary} />} placeholder="Your name" value={name} onChangeText={setName} autoCapitalize="words" />
+              <Field icon={<User size={16} color={colors.textSecondary} />} placeholder={translate('s.xPhName')} value={name} onChangeText={setName} autoCapitalize="words" />
             ) : null}
 
             {mode === 'register' && regStep === 2 ? (
@@ -375,8 +375,8 @@ export function AuthScreen() {
             {mode === 'register' && regStep === 3 ? (
               <>
                 <Field icon={<Mail size={16} color={colors.textSecondary} />} placeholder="you@example.com" keyboardType="email-address" autoCapitalize="none" value={email} onChangeText={setEmail} />
-                <Field icon={<Lock size={16} color={colors.textSecondary} />} placeholder="Password (min 8 characters)" secureTextEntry value={password} onChangeText={setPassword} />
-                <Field icon={<Lock size={16} color={colors.textSecondary} />} placeholder="Repeat password" secureTextEntry value={confirm} onChangeText={setConfirm} />
+                <Field icon={<Lock size={16} color={colors.textSecondary} />} placeholder={translate('s.xPhPasswordMin')} secureTextEntry value={password} onChangeText={setPassword} />
+                <Field icon={<Lock size={16} color={colors.textSecondary} />} placeholder={translate('s.xPhRepeatPassword')} secureTextEntry value={confirm} onChangeText={setConfirm} />
               </>
             ) : null}
 
@@ -401,7 +401,7 @@ export function AuthScreen() {
                 <>
                   <Field icon={<Mail size={16} color={colors.textSecondary} />} placeholder="you@example.com" keyboardType="email-address" autoCapitalize="none" value={email} onChangeText={setEmail} />
                   {method === 'password' ? (
-                    <Field icon={<Lock size={16} color={colors.textSecondary} />} placeholder="Password" secureTextEntry value={password} onChangeText={setPassword} />
+                    <Field icon={<Lock size={16} color={colors.textSecondary} />} placeholder={translate('s.xPhPassword')} secureTextEntry value={password} onChangeText={setPassword} />
                   ) : null}
                   <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
                     <ModePill active={method === 'password'} label={translate('s.authPassword')} onPress={() => setMethod('password')} />
@@ -462,7 +462,7 @@ export function AuthScreen() {
                 </Text>
               </Pressable>
               <Pressable onPress={() => switchMode('forgot')} hitSlop={6} style={{ marginTop: 8 }}>
-                <Text style={{ fontSize: 13, color: colors.accent, fontWeight: '600' }}>Forgot password?</Text>
+                <Text style={{ fontSize: 13, color: colors.accent, fontWeight: '600' }}>{translate('s.xForgotPassword')}</Text>
               </Pressable>
             </View>
           ) : null}

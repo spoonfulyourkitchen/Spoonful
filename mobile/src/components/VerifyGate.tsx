@@ -5,6 +5,7 @@ import { MailCheck, RefreshCw, Send } from 'lucide-react-native';
 
 import { useAuth, useAuthActions } from '../lib/convex-auth';
 import { colors } from '../theme';
+import { useTranslation } from '../lib/i18n';
 import {
   clearVerifyState,
   loadVerifyState,
@@ -24,6 +25,7 @@ import {
  */
 export function VerifyGate() {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { signOut } = useAuthActions();
   const [state, setState] = useState<VerifyState | null>(null);
@@ -129,7 +131,7 @@ export function VerifyGate() {
       >
         <MailCheck size={16} color={colors.accent} />
         <Text style={{ flex: 1, fontSize: 12.5, color: colors.textPrimary }}>
-          Confirm your email address to finish setting up your account.
+          {t('s.xConfirmBanner')}
         </Text>
         <Pressable
           onPress={() => void send()}
@@ -148,7 +150,7 @@ export function VerifyGate() {
           ]}
         >
           {busy ? <ActivityIndicator size="small" color={colors.darkButtonText} /> : <Send size={13} color={colors.darkButtonText} />}
-          <Text style={{ color: colors.darkButtonText, fontSize: 12, fontWeight: '700' }}>Send code</Text>
+          <Text style={{ color: colors.darkButtonText, fontSize: 12, fontWeight: '700' }}>{t('s.xSendCode')}</Text>
         </Pressable>
         <Pressable onPress={() => setBannerHidden(true)} hitSlop={8}>
           <Text style={{ color: colors.textSecondary, fontSize: 16, fontWeight: '700' }}>×</Text>
@@ -163,11 +165,10 @@ export function VerifyGate() {
         <View style={{ borderRadius: 22, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder, padding: 20 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <MailCheck size={18} color={colors.accent} />
-            <Text style={{ fontSize: 17, fontWeight: '800', color: colors.textPrimary }}>Confirm your email</Text>
+            <Text style={{ fontSize: 17, fontWeight: '800', color: colors.textPrimary }}>{t('s.xConfirmTitle')}</Text>
           </View>
           <Text style={{ fontSize: 13.5, lineHeight: 20, color: colors.textSecondary, marginTop: 10 }}>
-            We sent an 8 digit confirmation code to {(user as any)?.email ?? state?.email}. Enter it in the account screen to unlock
-            Spoonful.
+            {t('s.xConfirmBody', { mail: (user as any)?.email ?? state?.email ?? '' })}
           </Text>
 
           {note ? <Text style={{ fontSize: 12.5, color: colors.accent, marginTop: 10 }}>{note}</Text> : null}
@@ -190,7 +191,7 @@ export function VerifyGate() {
             ]}
           >
             {busy ? <ActivityIndicator size="small" color={colors.darkButtonText} /> : <RefreshCw size={16} color={colors.darkButtonText} />}
-            <Text style={{ color: colors.darkButtonText, fontWeight: '800' }}>I confirmed - check again</Text>
+            <Text style={{ color: colors.darkButtonText, fontWeight: '800' }}>{t('s.xConfirmedCheck')}</Text>
           </Pressable>
 
           <Pressable
@@ -213,15 +214,15 @@ export function VerifyGate() {
             ]}
           >
             <Send size={15} color={colors.textPrimary} />
-            <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>Send the code again</Text>
+            <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>{t('s.xSendCodeAgain')}</Text>
           </Pressable>
 
           <Pressable
             onPress={() => {
-              Alert.alert('Sign out?', 'You can sign in again after confirming your email.', [
-                { text: 'Cancel', style: 'cancel' },
+              Alert.alert(t('s.xSignOutQuestion'), t('s.xSignOutBody'), [
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                  text: 'Sign out',
+                  text: t('s.xSignOutTitle'),
                   style: 'destructive',
                   onPress: () => {
                     void clearVerifyState().then(() => signOut());
@@ -231,7 +232,7 @@ export function VerifyGate() {
             }}
             style={{ marginTop: 14, alignSelf: 'center' }}
           >
-            <Text style={{ color: colors.textSecondary, fontSize: 12.5, textDecorationLine: 'underline' }}>Sign out</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 12.5, textDecorationLine: 'underline' }}>{t('s.xSignOutTitle')}</Text>
           </Pressable>
         </View>
       </View>

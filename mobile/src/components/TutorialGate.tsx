@@ -4,7 +4,7 @@ import { Play, X } from 'lucide-react-native';
 import { useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';
 import { colors, fonts } from '../theme';
-import { useTranslation, deviceLanguageNeedsChoice, wasLanguagePickerShown, markLanguagePickerShown, clearDeviceLanguageAsk, LANGUAGES } from '../lib/i18n';
+import { useTranslation, deviceLanguageNeedsChoice, wasLanguagePickerShown, markLanguagePickerShown, clearDeviceLanguageAsk } from '../lib/i18n';
 import { TutorialOverlay } from './TutorialOverlay';
 import { LanguagePicker } from './LanguagePicker';
 import {

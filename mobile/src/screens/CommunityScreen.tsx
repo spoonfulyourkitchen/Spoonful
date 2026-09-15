@@ -9,7 +9,6 @@ import { navigate } from '../navigation/rootRef';
 import { AppButton, Chip, EmptyState, GlassCard, PageHeader } from '../components/ui';
 import { RecipeImage } from '../components/RecipeImage';
 import { CommentSheet } from '../components/CommentSheet';
-import { CommunityExtras } from '../components/CommunityExtras';
 import { TutorialTarget } from '../components/TutorialTarget';
 import { tutorialAction } from '../lib/tutorial';
 import { translate } from '../lib/i18n';
@@ -86,11 +85,30 @@ export function CommunityScreen() {
   const [q, setQ] = useState('');
   const [diff, setDiff] = useState<string>('all');
   const [refreshing, setRefreshing] = useState(false);
-  const items: any[] = community ?? [];
+  const items: any[] = useMemo(() => community ?? [], [community]);
   const savedDocs: any[] = savedList ?? [];
   const { t } = useTranslation();
 
   const conn = useConnectivity();
+  /**
+   * 3.2.1 CRASH-FIX: Diese Liste war ein `useMemo` **nach** dem Offline-`return`
+   * unten. Beim Wechsel online/offline ändert sich damit die Zahl der Hooks ->
+   * React bricht mit „Rendered more hooks than during the previous render" ab.
+   * Die gefilterte Liste gehört vor jeden `return`.
+   */
+  const filtered = useMemo(() => {
+    const query = q.trim().toLowerCase();
+    const base = [...items].filter((it: any) => {
+      if (diff !== 'all' && (it.difficulty ?? 'medium') !== diff) return false;
+      if (!query) return true;
+      const hay = `${it.title} ${it.cuisine ?? ''} ${it.authorName ?? ''} ${(it.description ?? '')}`.toLowerCase();
+      return hay.includes(query);
+    });
+    return base.sort((a: any, b: any) =>
+      sort === 'popular' ? (b.ratingAverage ?? 0) - (a.ratingAverage ?? 0) : (b.createdAt ?? 0) - (a.createdAt ?? 0),
+    );
+  }, [items, sort, q, diff]);
+
   if (conn === 'offline') {
     return (
       <OfflineTv
@@ -161,19 +179,6 @@ export function CommunityScreen() {
     });
   };
 
-  const filtered = useMemo(() => {
-    const query = q.trim().toLowerCase();
-    const base = [...items].filter((it: any) => {
-      if (diff !== 'all' && (it.difficulty ?? 'medium') !== diff) return false;
-      if (!query) return true;
-      const hay = `${it.title} ${it.cuisine ?? ''} ${it.authorName ?? ''} ${(it.description ?? '')}`.toLowerCase();
-      return hay.includes(query);
-    });
-    return base.sort((a: any, b: any) =>
-      sort === 'popular' ? (b.ratingAverage ?? 0) - (a.ratingAverage ?? 0) : (b.createdAt ?? 0) - (a.createdAt ?? 0),
-    );
-  }, [items, sort, q, diff]);
-
   const feedPage = (
     <View style={{ width: W, flex: 1, backgroundColor: colors.bg }}>
       <Pressable
@@ -190,7 +195,7 @@ export function CommunityScreen() {
             showsVerticalScrollIndicator={false}
             renderItem={({ item }: any) => (
               <View style={{ height: feedHeight, paddingTop: 40 }}>
-                <RecipeImage uri={item.imageUrl} style={{ height: feedHeight * 0.55, width: '100%' }} />
+                <RecipeImage uri={item.imageUrl} thumbWidth={460} style={{ height: feedHeight * 0.55, width: '100%' }} />
                 <View style={{ flex: 1, padding: 20 }}>
                   <Text style={{ fontSize: 24, fontWeight: '800', color: colors.textPrimary, fontFamily: 'serif' }}>{item.title}</Text>
                   <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: 6 }} numberOfLines={3}>
@@ -375,7 +380,7 @@ function CommunityCard({ item, saved, liked, likesCount, commentCount, likeBusyI
   return (
     <GlassCard pad={0} radius={22} variant="solid">
       <Pressable onPress={onOpen} style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1 }]}>
-        <RecipeImage uri={item.imageUrl} style={{ height: 140, width: '100%' }} />
+        <RecipeImage uri={item.imageUrl} thumbWidth={340} style={{ height: 140, width: '100%' }} />
         <View style={{ padding: 16, paddingBottom: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
             <View style={{ flex: 1 }}>

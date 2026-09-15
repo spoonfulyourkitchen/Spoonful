@@ -12,7 +12,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Share, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  Bell, Check, ChefHat, Copy, MoreHorizontal, Plus, QrCode, Search, Share2,
+  Bell, Check, ChefHat, MoreHorizontal, Plus, QrCode, Search, Share2,
   ShoppingCart, Trash2, UsersRound, Utensils, X,
 } from 'lucide-react-native';
 
@@ -31,7 +31,7 @@ import {
   addExpense, addNamesToShopping, addNote, addPlanEntry, addTask,
   fetchEvents, fetchExpenses, fetchHouseholdLists, fetchMembers, fetchNotes, fetchPlan, fetchStats, fetchTasks,
   removeHouseholdList, updateHouseholdList, type HhList,
-  logEvent, removeExpense, removeNote, removePlanEntry, removeTask, renameHousehold,
+  logEvent, removeExpense, removeNote, removePlanEntry, removeTask,
   setHouseholdRole, setTaskDone,
   type HhEvent, type HhExpense, type HhMember, type HhNote, type HhPlanEntry, type HhStats, type HhTask,
 } from '../lib/household';
@@ -69,7 +69,6 @@ export function HouseholdScreen() {
   const [openList, setOpenList] = useState<string | null>(null);
 
   const [nameDraft, setNameDraft] = useState('');
-  const [renameOpen, setRenameOpen] = useState(false);
   const [joinCode, setJoinCode] = useState('');
   const [invite, setInvite] = useState<string | null>(null);
   const [qrOpen, setQrOpen] = useState(false);
@@ -170,11 +169,6 @@ export function HouseholdScreen() {
   };
 
   const doCreate = () => run(() => createHousehold({ name: nameDraft.trim() || `${me} ${t('hh.title')}` }));
-  const doRename = () =>
-    run(() => renameHousehold(nameDraft.trim() || String(household?.name ?? '')), () => {
-      setNameDraft('');
-      setRenameOpen(false);
-    });
   const doJoin = () =>
     run(() => joinHousehold({ code: joinCode.trim().toUpperCase() }), () => {
       setJoinCode('');

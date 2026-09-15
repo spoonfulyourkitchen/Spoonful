@@ -65,6 +65,17 @@ export function BarcodeScannerModal({
     setNotice(null);
   }, [visible]);
 
+  /**
+   * 3.2.2: Der Live-Scanner schließt sich nach 45 Sekunden von selbst
+   * (Punkt 12). Vorher lief die Kamera weiter, wenn man das Popup einfach
+   * liegen ließ — das kostet Akku und kann den Speicher voll laufen lassen.
+   */
+  useEffect(() => {
+    if (!visible || !live || busy) return;
+    const timer = setTimeout(() => onClose(), 45000);
+    return () => clearTimeout(timer);
+  }, [visible, live, busy, onClose]);
+
   const grab = async (source: 'camera' | 'library') => {
     setFailed(false);
     setNotice(null);

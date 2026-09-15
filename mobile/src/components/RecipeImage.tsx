@@ -8,26 +8,24 @@ import { CroppedImage } from './CroppedImage';
 /**
  * Recipe photo. When a real remote image exists and loads we show it;
  * otherwise a warm decorative plate tile (no emoji, per the design rules).
+ *
+ * 3.2.2: `thumbWidth` lädt eine kleine Bildvariante (siehe lib/image-url.ts).
+ * Ohne das hing eine Liste mit 24 Kacheln an 24 Originalfotos — der übliche
+ * Grund für Ruckeln, Akku-Durst und Abstürze auf kleinen Handys.
  */
 export function RecipeImage({
   uri,
   style,
   imageStyle,
+  thumbWidth,
 }: {
   uri?: string | null;
   style?: StyleProp<ViewStyle>;
   imageStyle?: object;
+  thumbWidth?: number;
 }) {
   const [failed, setFailed] = useState(false);
   const showFallback = !uri || failed;
-
-  // Wikimedia-hosted library photos block generic HTTP clients (403) unless a
-  // descriptive User-Agent is sent. NOTE: header values must stay pure ASCII
-  // (OkHttp rejects non-Latin-1), so no special characters here.
-  const source = React.useMemo(
-    () => (uri ? { uri, headers: { 'User-Agent': 'Spoonful/1.0 (Android; React Native recipe app)' } } : undefined),
-    [uri],
-  );
 
   return (
     <View
@@ -62,10 +60,17 @@ export function RecipeImage({
         </Svg>
       ) : (
         /* 3.1.0: zeigt den vom Nutzer gewählten Bild-Ausschnitt (siehe PhotoCropModal) */
-        <CroppedImage uri={uri} source={source} style={{ width: '100%', height: '100%' }} imageStyle={imageStyle} onError={() => setFailed(true)} />
+        <CroppedImage
+          uri={uri}
+          thumbWidth={thumbWidth}
+          style={{ width: '100%', height: '100%' }}
+          imageStyle={imageStyle}
+          onError={() => setFailed(true)}
+        />
       )}
     </View>
   );
 }
 
 export default RecipeImage;
+

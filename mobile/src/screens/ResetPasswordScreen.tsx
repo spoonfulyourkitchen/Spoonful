@@ -1,3 +1,4 @@
+import { translate } from '../lib/i18n';
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -76,15 +77,15 @@ export function ResetPasswordScreen() {
               </View>
             ) : (
               <>
-                <Field icon={<Lock size={16} color={colors.textSecondary} />} placeholder="New password (min 8 characters)" secureTextEntry value={password} onChangeText={setPassword} />
-                <Field icon={<Lock size={16} color={colors.textSecondary} />} placeholder="Repeat new password" secureTextEntry value={confirm} onChangeText={setConfirm} />
+                <Field icon={<Lock size={16} color={colors.textSecondary} />} placeholder={translate('s.xPhNewPasswordMin')} secureTextEntry value={password} onChangeText={setPassword} />
+                <Field icon={<Lock size={16} color={colors.textSecondary} />} placeholder={translate('s.xPhRepeatNewPassword')} secureTextEntry value={confirm} onChangeText={setConfirm} />
                 {error ? <Text style={{ color: colors.rose, fontSize: 13, marginTop: 6, lineHeight: 18 }}>{error}</Text> : null}
                 <AppButton label={busy ? 'Updating…' : 'Set new password'} variant="dark" style={{ marginTop: 14 }} busy={busy} onPress={() => void submit()} />
               </>
             )}
             {!done ? (
               <Pressable onPress={finishLater} hitSlop={8} style={{ alignItems: 'center', paddingTop: 14 }}>
-                <Text style={{ fontSize: 13, color: colors.textSecondary }}>Later - keep the current password</Text>
+                <Text style={{ fontSize: 13, color: colors.textSecondary }}>{translate('s.xLaterKeepPassword')}</Text>
               </Pressable>
             ) : null}
           </GlassCard>

@@ -24,6 +24,11 @@ import { AnnouncementGate } from './src/components/AnnouncementGate';
 import { UpdateGate } from './src/components/UpdateGate';
 import { TutorialGate } from './src/components/TutorialGate';
 import { logLoginEvent } from './src/lib/admin-login';
+import { hydrateCrashLog, installGlobalErrorHandler, recordError } from './src/lib/crash-log';
+import { translate, tryReloadApp } from './src/lib/i18n';
+
+// 3.2.2: globale JS-Fehler mitprotokollieren (Absturz-Spur für die Einstellungen).
+installGlobalErrorHandler();
 
 import { SpoonfulLogo as Logo } from './src/components/Logo';
 
@@ -58,21 +63,38 @@ function Splash() {
   );
 }
 
-/** Catches render errors so one screen can never kill the whole app. */
+/**
+ * Catches render errors so one screen can never kill the whole app.
+ *
+ * 3.2.2: Der Fehler landet im Absturz-Protokoll (`lib/crash-log.ts`, sichtbar
+ * unter Einstellungen → Letzte Fehler) und der Nutzer kann neu starten, statt
+ * nur „nochmal" zu tippen.
+ */
 class CrashBoundary extends Component<{ children: React.ReactNode }, { error: string | null }> {
   state = { error: null as string | null };
   static getDerivedStateFromError(error: unknown) {
     return { error: error instanceof Error ? error.message : 'Unexpected error' };
   }
+  componentDidCatch(error: unknown) {
+    recordError('screen', error);
+  }
   render() {
     if (this.state.error) {
       return (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, paddingHorizontal: 28 }}>
-          <Text style={{ fontSize: 17, fontWeight: '700', color: colors.textPrimary, textAlign: 'center' }}>Something went wrong</Text>
+          <Text style={{ fontSize: 17, fontWeight: '700', color: colors.textPrimary, textAlign: 'center' }}>{translate('s.xCrashTitle')}</Text>
           <Text style={{ fontSize: 12, color: colors.textSecondary, textAlign: 'center', marginTop: 6 }}>{this.state.error}</Text>
-          <Pressable onPress={() => this.setState({ error: null })} style={({ pressed }) => [{ marginTop: 18, borderRadius: 999, backgroundColor: colors.darkButton, paddingHorizontal: 22, paddingVertical: 12, opacity: pressed ? 0.85 : 1 }]}>
-            <Text style={{ color: colors.darkButtonText, fontWeight: '700' }}>Try again</Text>
-          </Pressable>
+          <Text style={{ fontSize: 11, color: colors.textSecondary, textAlign: 'center', marginTop: 10 }}>
+            {translate('s.xCrashSaved')}
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <Pressable onPress={() => this.setState({ error: null })} style={({ pressed }) => [{ marginTop: 18, borderRadius: 999, backgroundColor: colors.surfaceMuted, paddingHorizontal: 22, paddingVertical: 12, opacity: pressed ? 0.85 : 1 }]}>
+              <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>{translate('s.xCrashTryAgain')}</Text>
+            </Pressable>
+            <Pressable onPress={() => tryReloadApp()} style={({ pressed }) => [{ marginTop: 18, borderRadius: 999, backgroundColor: colors.darkButton, paddingHorizontal: 22, paddingVertical: 12, opacity: pressed ? 0.85 : 1 }]}>
+              <Text style={{ color: colors.darkButtonText, fontWeight: '700' }}>{translate('s.xCrashRestart')}</Text>
+            </Pressable>
+          </View>
         </View>
       );
     }
@@ -141,6 +163,7 @@ function RootNavigator() {
   useEffect(() => {
     let alive = true;
     void hydrateOfflineCaches(['mine', 'saved', 'tracker', 'shopping']);
+    void hydrateCrashLog();
     AsyncStorage.getItem(SESSION_KEY).then((v) => {
       if (alive) {
         setCachedSession(v === '1');

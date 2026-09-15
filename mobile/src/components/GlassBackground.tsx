@@ -5,6 +5,62 @@ import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { colors } from '../theme';
 
 /**
+ * 3.2.1: the gradient layer is memoised.
+ *
+ * Every screen sits inside a WashBackground, so this SVG tree (4 gradients,
+ * 12 stops) used to be rebuilt on every single re-render of a screen - which
+ * includes every keystroke in a search field and every list re-render. The
+ * props are plain color strings, so React can skip it until the theme changes.
+ */
+const WashLayers = React.memo(function WashLayers({
+  mint,
+  sky,
+  amber,
+  soft,
+  washOpacity,
+  amberOpacity,
+}: {
+  mint: string;
+  sky: string;
+  amber: string;
+  soft: string;
+  washOpacity: number;
+  amberOpacity: number;
+}) {
+  return (
+    <Svg pointerEvents="none" style={StyleSheet_absolute}>
+      <Defs>
+        <RadialGradient id="wash1" cx="15%" cy="12%" r="75%" fx="15%" fy="12%">
+          <Stop offset="0" stopColor={mint} stopOpacity={0.55 * washOpacity} />
+          <Stop offset="0.6" stopColor={mint} stopOpacity={0.1 * washOpacity} />
+          <Stop offset="1" stopColor={mint} stopOpacity={0} />
+        </RadialGradient>
+        <RadialGradient id="wash2" cx="88%" cy="90%" r="80%" fx="88%" fy="90%">
+          <Stop offset="0" stopColor={sky} stopOpacity={0.6 * washOpacity} />
+          <Stop offset="0.6" stopColor={sky} stopOpacity={0.12 * washOpacity} />
+          <Stop offset="1" stopColor={sky} stopOpacity={0} />
+        </RadialGradient>
+        <RadialGradient id="wash3" cx="50%" cy="50%" r="50%">
+          <Stop offset="0" stopColor={amber} stopOpacity={amberOpacity} />
+          <Stop offset="0.55" stopColor={amber} stopOpacity={0.12 * amberOpacity} />
+          <Stop offset="1" stopColor={amber} stopOpacity={0} />
+        </RadialGradient>
+        <RadialGradient id="wash4" cx="50%" cy="50%" r="50%">
+          <Stop offset="0" stopColor={soft} stopOpacity={0.22 * washOpacity} />
+          <Stop offset="0.7" stopColor={soft} stopOpacity={0.05 * washOpacity} />
+          <Stop offset="1" stopColor={soft} stopOpacity={0} />
+        </RadialGradient>
+      </Defs>
+      <Rect x="0" y="0" width="100%" height="100%" fill="url(#wash1)" />
+      <Rect x="0" y="0" width="100%" height="100%" fill="url(#wash2)" />
+      {/* decorative blobs (off-screen like the web amber blob) */}
+      <Rect x="-18%" y="-10%" width="45%" height="45%" fill="url(#wash3)" />
+      <Rect x="62%" y="42%" width="60%" height="60%" fill="url(#wash4)" />
+    </Svg>
+  );
+});
+
+/**
  * The Spoonful background stack (section 9.1 of the spec): a warm-cream base
  * color + soft radial gradient washes (mint top-left, sky bottom-right, an
  * amber "blur blob" off-screen) that sit behind every glass panel. Colors are
@@ -26,37 +82,14 @@ export function WashBackground({
 
   return (
     <View style={[{ flex: 1, backgroundColor: colors.bg, overflow: 'hidden' }, style]}>
-      {/* Soft gradient washes */}
-      <Svg pointerEvents="none" style={StyleSheet_absolute}>
-        <Defs>
-          <RadialGradient id="wash1" cx="15%" cy="12%" r="75%" fx="15%" fy="12%">
-            <Stop offset="0" stopColor={mint} stopOpacity={0.55 * washOpacity} />
-            <Stop offset="0.6" stopColor={mint} stopOpacity={0.1 * washOpacity} />
-            <Stop offset="1" stopColor={mint} stopOpacity={0} />
-          </RadialGradient>
-          <RadialGradient id="wash2" cx="88%" cy="90%" r="80%" fx="88%" fy="90%">
-            <Stop offset="0" stopColor={sky} stopOpacity={0.6 * washOpacity} />
-            <Stop offset="0.6" stopColor={sky} stopOpacity={0.12 * washOpacity} />
-            <Stop offset="1" stopColor={sky} stopOpacity={0} />
-          </RadialGradient>
-          <RadialGradient id="wash3" cx="50%" cy="50%" r="50%">
-            <Stop offset="0" stopColor={amber} stopOpacity={amberOpacity} />
-            <Stop offset="0.55" stopColor={amber} stopOpacity={0.12 * amberOpacity} />
-            <Stop offset="1" stopColor={amber} stopOpacity={0} />
-          </RadialGradient>
-          <RadialGradient id="wash4" cx="50%" cy="50%" r="50%">
-            <Stop offset="0" stopColor={soft} stopOpacity={0.22 * washOpacity} />
-            <Stop offset="0.7" stopColor={soft} stopOpacity={0.05 * washOpacity} />
-            <Stop offset="1" stopColor={soft} stopOpacity={0} />
-          </RadialGradient>
-        </Defs>
-        <Rect x="0" y="0" width="100%" height="100%" fill="url(#wash1)" />
-        <Rect x="0" y="0" width="100%" height="100%" fill="url(#wash2)" />
-        {/* decorative blobs (off-screen like the web amber blob) */}
-        <Rect x="-18%" y="-10%" width="45%" height="45%" fill="url(#wash3)" />
-        <Rect x="62%" y="42%" width="60%" height="60%" fill="url(#wash4)" />
-      </Svg>
-
+      <WashLayers
+        mint={mint}
+        sky={sky}
+        amber={amber}
+        soft={soft}
+        washOpacity={washOpacity}
+        amberOpacity={amberOpacity}
+      />
       {children}
     </View>
   );

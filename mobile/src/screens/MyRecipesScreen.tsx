@@ -81,7 +81,7 @@ export function MyRecipesScreen() {
                 onPress={() => navigate('RecipeDetail', { recipeId: recipe._id, title: recipe.title, source: 'mine', recipe: asLibrary(recipe) })}
                 style={{ flexDirection: 'row' }}
               >
-                <RecipeImage uri={recipe.imageUrl} style={{ width: 100, height: 100 }} />
+                <RecipeImage uri={recipe.imageUrl} thumbWidth={110} style={{ width: 100, height: 100 }} />
                 <View style={{ flex: 1, padding: 13, justifyContent: 'center' }}>
                   <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: '700', color: colors.textPrimary }}>{recipe.title}</Text>
                   <Text numberOfLines={1} style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 5 }}>

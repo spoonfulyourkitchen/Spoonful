@@ -15,6 +15,10 @@ import { APP_312 } from './i18n-312';
 import { APP_320 } from './i18n-320';
 import { APP_320B } from './i18n-320b';
 import { APP_320C } from './i18n-320c';
+import { APP_321 } from './i18n-321';
+import { APP_322 } from './i18n-322';
+import { I18N_TEXTS } from './i18n-texts';
+import { I18N_TEXTS_EXTRA } from './i18n-texts-extra';
 
 export type Language = "en" | "de" | "ar" | "fr" | "es" | "it" | "tr" | "pt" | "nl" | "ru";
 
@@ -460,7 +464,7 @@ function mergeDict(base: Dict, extra?: Dict): Dict {
 }
 
 const translations: Record<Language, Dict> = (Object.keys(baseDicts) as Language[]).reduce((acc, lang) => {
-  const merged = mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(baseDicts[lang], FEATURES[lang] ?? {}), APP_212[lang] ?? {}), APP_310[lang] ?? {}), APP_312[lang] ?? {}), APP_320[lang] ?? {}), APP_320B[lang] ?? {}), APP_320C[lang] ?? {});
+  const merged = mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(baseDicts[lang], FEATURES[lang] ?? {}), APP_212[lang] ?? {}), APP_310[lang] ?? {}), APP_312[lang] ?? {}), APP_320[lang] ?? {}), APP_320B[lang] ?? {}), APP_320C[lang] ?? {}), APP_321[lang] ?? {}), mergeDict(mergeDict(APP_322[lang] ?? {}, I18N_TEXTS[lang] ?? {}), I18N_TEXTS_EXTRA[lang] ?? {}));
   acc[lang] = {
     ...merged,
     ui: { ...(merged.ui ?? {}), ...(UI_L10N[lang] ?? {}) },
@@ -474,7 +478,13 @@ const translations: Record<Language, Dict> = (Object.keys(baseDicts) as Language
  * Simple dot-notation key resolver with English fallback (the fallback is the
  * last instance only — every key should exist in every language).
  * Supports `{name}` placeholders: t('tutorial.stepOf', { n: 3, total: 7 }).
+ *
+ * 3.2.1: resolved strings are cached per language + key. Long lists (library
+ * tiles, shopping rows, the tab bar) call `t()` dozens of times per scroll
+ * frame, and splitting the key on every call was pure overhead.
  */
+const textCache = new Map<string, string>();
+
 function resolveIn(dict: Dict | undefined, keys: string[]): string | undefined {
   let result: any = dict;
   for (const k of keys) result = result?.[k];
@@ -489,9 +499,17 @@ function interpolate(text: string, params?: Record<string, string | number>): st
 }
 
 function getTranslation(lang: Language, key: string, params?: Record<string, string | number>): string {
+  // Placeholders are cheap to fill, so only plain labels are cached.
+  const cacheKey = params ? "" : `${lang}|${key}`;
+  if (cacheKey) {
+    const hit = textCache.get(cacheKey);
+    if (hit !== undefined) return hit;
+  }
   const keys = key.split(".");
   const found = resolveIn(translations[lang], keys) ?? resolveIn(translations.en, keys);
-  return interpolate(found ?? key, params);
+  const text = found ?? key;
+  if (cacheKey) textCache.set(cacheKey, text);
+  return interpolate(text, params);
 }
 
 import React, { useState, useEffect, useCallback, createContext, useContext } from "react";

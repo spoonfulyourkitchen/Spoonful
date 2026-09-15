@@ -349,14 +349,25 @@ export async function fetchHouseholdLists(): Promise<HhList[]> {
   }, [] as HhList[]);
 }
 
-/** Teilt eine Liste mit dem Haushalt. Wirft bei "limit reached" (2 Listen). */
+/**
+ * Teilt eine Liste mit dem Haushalt. Wirft bei "limit reached" (2 Listen).
+ *
+ * 3.2.2: Doppel-Tipp-Schutz (Punkt 85). Vorher konnte ein zweites Tippen
+ * parallel dieselbe Liste anlegen — dann stand sie zweimal im Haushalt.
+ */
+let shareInFlight = false;
+
 export async function shareHouseholdList(title: string, items: HhShoppingItem[]): Promise<{ ok: boolean; error?: string }> {
+  if (shareInFlight) return { ok: false, error: 'busy' };
+  shareInFlight = true;
   try {
     const { error } = await supabase.rpc('share_household_list', { p_title: title, p_items: items });
     if (error) return { ok: false, error: String(error.message ?? '') };
     return { ok: true };
   } catch (e: any) {
     return { ok: false, error: String(e?.message ?? e) };
+  } finally {
+    shareInFlight = false;
   }
 }
 

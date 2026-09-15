@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Flag, ListChecks, LogIn, MessageSquare, Rocket, Shield, Star, Trash2, UsersRound, XCircle } from 'lucide-react-native';
 import { useMutation, useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';

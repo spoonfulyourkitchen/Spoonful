@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AlertTriangle, Bookmark, ChefHat, Flame, Home, Library, LogOut, Menu,
   MessageCircle, Palette, Search, Settings, Shield, ShoppingCart, Sparkles,
-  UsersRound, X,
+  UsersRound, X, Zap,
 } from 'lucide-react-native';
 import { useQuery, useAuthActions } from '../lib/convex-auth';
 import { api } from '../lib/api';
@@ -62,7 +62,7 @@ export function AiStatusIndicator() {
     return (
       <View style={styles.aiRunning}>
         <RingSpinner />
-        <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textSecondary }}>AI working…</Text>
+        <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textSecondary }}>{t('s.xAiWorking')}</Text>
       </View>
     );
   }
@@ -76,7 +76,7 @@ export function AiStatusIndicator() {
         <Text numberOfLines={1} style={styles.aiDoneText}>
           {task.recipeTitle}
         </Text>
-        <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 0.5, color: colors.accent }}>READY</Text>
+        <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 0.5, color: colors.accent }}>{t('s.xReady')}</Text>
       </Pressable>
     );
   }
@@ -237,9 +237,29 @@ function DrawerSheet({ visible, onClose }: { visible: boolean; onClose: () => vo
     }),
   ).current;
 
+  const goTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (goTimer.current) clearTimeout(goTimer.current);
+    },
+    [],
+  );
+
+  /**
+   * 3.2.1: deferred actions (drawer slid out, then navigate / sign out) with a
+   * timer that is always cleared - before it used to fire after a sign-out.
+   */
+  const runLater = (fn: () => void, delay = 140) => {
+    if (goTimer.current) clearTimeout(goTimer.current);
+    goTimer.current = setTimeout(() => {
+      goTimer.current = null;
+      fn();
+    }, delay);
+  };
+
   const go = (route: any, params?: any) => {
     onClose();
-    setTimeout(() => navigate(route, params), 140);
+    runLater(() => navigate(route, params));
   };
   const goTab = (screen: string) => go('Main', { screen });
   const ic = (color: string) => ({ size: 19, color, strokeWidth: 2 }) as const;
@@ -318,12 +338,13 @@ function DrawerSheet({ visible, onClose }: { visible: boolean; onClose: () => vo
             <Row icon={<Home {...ic(colors.accent)} />} label={t('nav.overview')} onPress={() => go('Dashboard')} />
             <Row icon={<UsersRound {...ic(colors.accent)} />} label={t('nav.community')} onPress={() => go('Community')} />
             <Row icon={<ShoppingCart {...ic(colors.accent)} />} label={t('nav.shopping')} onPress={() => go('Shopping')} />
+            <Row icon={<Zap {...ic(colors.accent)} />} label={t('s.monTab')} onPress={() => goTab('Monstr')} />
             <Row icon={<Palette {...ic(colors.accent)} />} label={t('nav.theme')} onPress={() => go('Theme')} />
             <Row icon={<Settings {...ic(colors.accent)} />} label={t('nav.settings')} onPress={() => go('Settings')} />
             {myRole === 'admin' || myRole === 'mod' ? <Row icon={<Shield {...ic(colors.accent)} />} label={myRole === 'admin' ? t('nav.adminPanel') : t('s.drawerModeration')} onPress={() => go('Admin')} /> : null}
 
             <View style={{ height: 1, backgroundColor: colors.cardBorder, marginVertical: 12 }} />
-            <Row icon={<LogOut {...ic(colors.rose)} />} label={t('nav.signOut')} tint={colors.rose} onPress={() => { onClose(); setTimeout(() => signOut(), 200); }} />
+            <Row icon={<LogOut {...ic(colors.rose)} />} label={t('nav.signOut')} tint={colors.rose} onPress={() => { onClose(); runLater(() => signOut(), 200); }} />
 
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 16, paddingHorizontal: 8 }}>
               {LEGAL.map((l) => (

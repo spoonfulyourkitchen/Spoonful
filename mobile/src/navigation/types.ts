@@ -20,6 +20,7 @@ export type RootStackParamList = {
   Community: undefined;
   Shopping: undefined;
   Household: undefined;
+  Monstr: undefined;
   Theme: undefined;
   Settings: undefined;
   Admin: undefined;

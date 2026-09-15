@@ -55,13 +55,23 @@ export function AssistantScreen() {
   const [videoBusy, setVideoBusy] = useState(false);
   const [videoRecipe, setVideoRecipe] = useState<VideoRecipe | null>(null);
   const [videoFailed, setVideoFailed] = useState(false);
+  /**
+   * 3.2.1 CRASH-FIX: Dieser Zustand stand vorher **nach** einem frühen
+   * `return` (Offline-Seite). Sobald die Verbindung umsprang, änderte sich die
+   * Zahl der Hooks zwischen zwei Render-Durchläufen -> React wirft
+   * „Rendered more hooks than during the previous render" und die App stürzt ab.
+   * Alle Hooks müssen vor jedem `return` stehen.
+   */
+  const [reroll, setReroll] = useState(false);
   const grabVideoRecipe = async (override?: string) => {
     const link = String(override ?? videoUrl).trim();
     setVideoBusy(true);
     setVideoFailed(false);
     setVideoRecipe(null);
     try {
-      const found = await recipeFromVideo(link);
+      // 3.2.1: Sprache mitgeben (deutsche Beschreibung wird bevorzugt) und den
+      // KI-Notfall erlauben - beides läuft über Gratis-Modelle, kostet nichts.
+      const found = await recipeFromVideo(link, { languages: [lang, 'de', 'en'] });
       if (found) setVideoRecipe(found);
       else setVideoFailed(true);
     } catch {
@@ -203,12 +213,12 @@ export function AssistantScreen() {
   };
 
   const conn = useConnectivity();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   if (conn === 'offline') {
     return (
       <OfflineTv
         title={t('nav.ai')}
-        message="The AI Chef needs the internet to craft new recipes. Everything you saved before still works offline."
+        message={t('s.xOfflineAiBody')}
         onRetry={() => { void retryConnectivity(); }}
       />
     );
@@ -223,7 +233,6 @@ export function AssistantScreen() {
   const togglePref = (p: string) => setPrefs((cur) => (cur.includes(p) ? cur.filter((x) => x !== p) : [...cur, p]));
   const removeIng = (ing: string) => setIngredients((cur) => cur.filter((x) => x !== ing));
 
-  const [reroll, setReroll] = useState(false);
   const run = async () => {
     const describing = mode === 'describe';
     if (describing && !freeText.trim()) { setError('Describe what you feel like cooking.'); return; }
@@ -354,7 +363,7 @@ export function AssistantScreen() {
           <TextInput
             value={freeText}
             onChangeText={setFreeText}
-            placeholder="e.g. a quick spicy Turkish dinner with chickpeas for 4"
+            placeholder={t('s.xPhDescribe')}
             placeholderTextColor={colors.textSecondary}
             multiline
             style={{ minHeight: 110, textAlignVertical: 'top', borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, color: colors.textPrimary, padding: 12, fontSize: 15 }}
@@ -377,6 +386,13 @@ export function AssistantScreen() {
                 <View style={{ marginTop: 12 }}>
                   <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textPrimary }}>{videoRecipe.title}</Text>
                   <Text style={pageHint}>{t('s.videoFound', { ing: videoRecipe.ingredients.length, steps: videoRecipe.steps.length })}</Text>
+                  {/* 3.2.1: sagen, woher der Text kam bzw. dass man drüberschauen soll */}
+                  {videoRecipe.textSource === 'ai' ? (
+                    <Text style={[pageHint, { color: colors.accent }]}>{t('s.videoFromAi')}</Text>
+                  ) : null}
+                  {videoRecipe.needsReview ? (
+                    <Text style={[pageHint, { color: colors.accent }]}>{t('s.videoCheck')}</Text>
+                  ) : null}
                   <Text style={[fieldLabel, { marginTop: 10 }]}>{t('recipe.ingredients')}</Text>
                   {videoRecipe.ingredients.map((line, i) => <Text key={'vi' + i} style={{ fontSize: 13, color: colors.textPrimary, marginTop: 3 }}>{'• '}{line}</Text>)}
                   <Text style={[fieldLabel, { marginTop: 10 }]}>{t('recipe.steps')}</Text>

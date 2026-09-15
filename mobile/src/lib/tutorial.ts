@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ComponentRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { View } from 'react-native';
+import { AppState, type View } from 'react-native';
 import type { Language } from './i18n';
 
 /**
@@ -603,8 +603,13 @@ export function useTutorialTargetRect(id?: string): TutorialTargetRect | null {
     }
     let alive = true;
     const tick = async () => {
+      // 3.2.1: im Hintergrund nicht messen (Akku) - die Lupe ist dann eh unsichtbar.
+      if (AppState.currentState !== 'active') return;
       const next = await measureTutorialTarget(id);
-      if (alive) setRect(next);
+      if (!alive) return;
+      // 3.2.1: only re-render when the target really moved. The overlay used to
+      // re-render three times per second even when nothing changed on screen.
+      setRect((prev) => (sameRect(prev, next) ? prev : next));
     };
     void tick();
     // Polling keeps the spotlight glued to the element while the user scrolls,
@@ -618,5 +623,10 @@ export function useTutorialTargetRect(id?: string): TutorialTargetRect | null {
     };
   }, [id]);
   return rect;
+}
+
+function sameRect(a: TutorialTargetRect | null, b: TutorialTargetRect | null): boolean {
+  if (!a || !b) return a === b;
+  return a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
 }
 

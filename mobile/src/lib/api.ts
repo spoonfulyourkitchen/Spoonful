@@ -1,6 +1,6 @@
 import { supabase, requireUserId, toError, ts, mapRecipe, mapSaved, mapUser, mapShopping, mapCalorie, mapCollection, mapShared, mapReport, mapFeedback, mapLibrary } from './supabase';
 import { aiGenerateRecipe, aiEstimateNutrition, aiImproveRecipe, aiSubstituteIngredient } from './ai';
-import { translateRecipeContent, translateRecipeContentOnline } from './recipe-translate';
+import { translateRecipeContentOnline } from './recipe-translate';
 
 /**
  * Spoonful data layer — Convex-style API refs backed by Supabase.
@@ -407,7 +407,7 @@ ops['collections.list'] = {
 
 /* ---------- shopping list ---------- */
 ops['shoppingList.list'] = {
-  async query({ uid }) {
+  async query(_ctx) {
     // RLS returns the user's own items plus everything shared in the household.
     const { data, error } = await supabase
       .from('shopping_list_items')
@@ -562,14 +562,33 @@ ops['shoppingList.addMany'] = {
   async mutation({ uid }, args: any) {
     const items: any[] = Array.isArray(args.items) ? args.items : [];
     const t = ts();
-    const rows = items.map((it) => ({
-      user_id: uid,
-      name: it?.name ?? '',
-      recipe_key: it?.recipeKey ?? null,
-      recipe_title: it?.recipeTitle ?? null,
-      checked: false,
-      created_at: t,
-    }));
+    // 3.2.2: gleiche Zutat nicht doppelt anlegen (Punkt 82 der Stabilitäts-Liste).
+    // Doppelte innerhalb der Anfrage und gegenüber der offenen Liste fallen raus.
+    const wanted = new Map<string, any>();
+    for (const it of items) {
+      const name = String(it?.name ?? '').trim();
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (!wanted.has(key)) wanted.set(key, { ...it, name });
+    }
+    if (!wanted.size) return [];
+    let have = new Set<string>();
+    try {
+      const { data: existing } = await supabase.from('shopping_list_items').select('name').eq('checked', false);
+      have = new Set((existing ?? []).map((r: any) => String(r?.name ?? '').trim().toLowerCase()));
+    } catch {
+      /* Wenn die Liste nicht lesbar ist, wird trotzdem eingetragen */
+    }
+    const rows = [...wanted.entries()]
+      .filter(([key]) => !have.has(key))
+      .map(([, it]: any) => ({
+        user_id: uid,
+        name: it?.name ?? '',
+        recipe_key: it?.recipeKey ?? null,
+        recipe_title: it?.recipeTitle ?? null,
+        checked: false,
+        created_at: t,
+      }));
     if (!rows.length) return [];
     const { data, error } = await supabase.from('shopping_list_items').insert(rows).select();
     if (error) throw rowError(error);
@@ -1226,7 +1245,7 @@ ops['tracker.addWater'] = {
   },
 };
 ops['tracker.removeWater'] = {
-  async mutation({ uid }, args: any) {
+  async mutation({ uid }, _args: any) {
     const start = new Date();
     start.setHours(0, 0, 0, 0);
     const { data, error } = await supabase

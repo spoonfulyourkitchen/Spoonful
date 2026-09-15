@@ -2,10 +2,13 @@ import { configureTutorial, type TutorialStep } from './tutorial';
 import { navigate } from '../navigation/rootRef';
 
 /**
- * Spoonful onboarding tour — rebuilt in 2.1.2.
+ * Spoonful onboarding tour — rebuilt in 2.1.2, extended in 3.2.1.
  *
- * 8 steps, every one real: the user taps the element the pointer shows and the
- * tour advances by itself (the engine listens to `tutorialAction`).
+ * Every step is real: the user taps the element the pointer shows and the tour
+ * advances by itself (the engine listens to `tutorialAction`). Steps marked
+ * `newIn: 4` are only shown to people who already finished an older tour, so
+ * nobody has to walk the whole thing twice.
+ *
  * Copy exists in all 10 app languages (English is the last fallback only).
  *
  * How to add a step
@@ -23,7 +26,7 @@ import { navigate } from '../navigation/rootRef';
  *      newIn : 4           -> only shown to users who finished an older tour
  * 3. raise TOUR_VERSION so everyone sees the new step.
  */
-export const TOUR_VERSION = 3;
+export const TOUR_VERSION = 4;
 
 /** Switch to a bottom tab before the step is shown. */
 const openTab = (screen: string) => () => navigate('Main' as any, { screen } as any);
@@ -46,16 +49,16 @@ export const TOUR_STEPS: TutorialStep[] = [
       ru: 'Добро пожаловать в Spoonful',
     },
     text: {
-      en: 'A short tour in 8 steps. You do every tap yourself - I only point at where.',
-      de: 'Eine kurze Tour in 8 Schritten. Du tippst selbst - ich zeige nur, wo.',
-      ar: 'جولة قصيرة من ٨ خطوات. أنت من ينقر، وأنا أوضّح المكان.',
-      fr: 'Une courte visite en 8 étapes. Vous cliquez vous-même, je montre où.',
-      es: 'Un tour corto en 8 pasos. Tú pulsas, yo solo señalo dónde.',
-      it: 'Un breve tour in 8 passi. Tocchi tu, io indico solo dove.',
-      tr: '8 adımlık kısa bir tur. Dokunan sensin, ben sadece yeri gösteriyorum.',
-      pt: 'Um tour curto em 8 passos. Você toca, eu só mostro onde.',
-      nl: 'Een korte tour in 8 stappen. Jij tikt, ik wijs alleen waar.',
-      ru: 'Короткий тур из 8 шагов. Нажимаете вы, я лишь показываю куда.',
+      en: 'A short tour, step by step. You do every tap yourself - I only point at where. Any step can be skipped.',
+      de: 'Eine kurze Tour, Schritt für Schritt. Du tippst selbst - ich zeige nur, wo. Jeden Schritt kannst du überspringen.',
+      ar: 'جولة قصيرة خطوة بخطوة. أنت من ينقر، وأنا أوضّح المكان. يمكنك تخطي أي خطوة.',
+      fr: 'Une courte visite, pas a pas. Vous cliquez vous-meme, je montre ou. Chaque etape peut etre passee.',
+      es: 'Un tour corto, paso a paso. Tu pulsas, yo solo senalo donde. Puedes saltar cualquier paso.',
+      it: 'Un breve tour, passo dopo passo. Tocchi tu, io indico solo dove. Ogni passo si puo saltare.',
+      tr: 'Kisa bir tur, adim adim. Dokunan sensin, ben sadece yeri gosteriyorum. Her adimi atlayabilirsin.',
+      pt: 'Um tour curto, passo a passo. Voces tocam, eu so mostro onde. Podes saltar qualquer passo.',
+      nl: 'Een korte tour, stap voor stap. Jij tikt, ik wijs alleen waar. Je kunt elke stap overslaan.',
+      ru: 'Короткий тур, шаг за шагом. Нажимаете вы, я лишь показываю куда. Любой шаг можно пропустить.',
     },
   },
   {
@@ -197,6 +200,151 @@ export const TOUR_STEPS: TutorialStep[] = [
     },
   },
   {
+    id: 'nav-ai',
+    targetId: 'tut-tab-Assistant',
+    expect: 'tap',
+    before: openTab('Assistant'),
+    padding: 6,
+    newIn: 4,
+    title: {
+      en: 'AI Chef', de: 'KI-Koch', ar: 'الشيف الذكي', fr: 'Chef IA', es: 'Chef IA',
+      it: 'Chef IA', tr: 'Yapay zeka sef', pt: 'Chef IA', nl: 'AI-chef', ru: 'ИИ-повар',
+    },
+    text: {
+      en: 'Ingredients in, recipe out. A link you share from TikTok, Instagram or YouTube also lands here - tap the tab.',
+      de: 'Zutaten rein, Rezept raus. Auch ein geteilter Link aus TikTok, Instagram oder YouTube landet hier - tippe den Tab.',
+      ar: 'المكوّنات تدخل والوصفة تخرج. وهنا يصل أيضاً رابط مشارَك من تيك توك أو إنستغرام أو يوتيوب - انقر التبويب.',
+      fr: 'Ingredients en entree, recette en sortie. Un lien partage depuis TikTok, Instagram ou YouTube arrive ici - touche l onglet.',
+      es: 'Ingredientes dentro, receta fuera. Un enlace compartido de TikTok, Instagram o YouTube llega aqui - toca la pestana.',
+      it: 'Ingredienti dentro, ricetta fuori. Anche un link condiviso da TikTok, Instagram o YouTube arriva qui - tocca la scheda.',
+      tr: 'Malzeme girer, tarif cikar. TikTok, Instagram veya YouTube paylasim linki de buraya duser - sekmeye dokun.',
+      pt: 'Ingredientes entram, receita sai. Um link partilhado do TikTok, Instagram ou YouTube tambem chega aqui - toca no separador.',
+      nl: 'Ingredienten erin, recept eruit. Een gedeelde link uit TikTok, Instagram of YouTube komt hier ook - tik op de tab.',
+      ru: 'Ингредиенты внутрь, рецепт наружу. Сюда попадает и ссылка из TikTok, Instagram или YouTube - нажмите вкладку.',
+    },
+  },
+  {
+    id: 'nav-saved',
+    targetId: 'tut-tab-Saved',
+    expect: 'tap',
+    before: openTab('Saved'),
+    padding: 6,
+    newIn: 4,
+    title: {
+      en: 'Saved', de: 'Gemerkt', ar: 'المحفوظات', fr: 'Enregistres', es: 'Guardado',
+      it: 'Salvati', tr: 'Kaydedilenler', pt: 'Guardados', nl: 'Bewaard', ru: 'Сохранённое',
+    },
+    text: {
+      en: 'Everything you bookmark waits here, with your own notes. Tap the tab.',
+      de: 'Alles, was du merkst, liegt hier - mit deinen eigenen Notizen. Tippe den Tab.',
+      ar: 'كل ما تحفظه يبقى هنا مع ملاحظاتك. انقر التبويب.',
+      fr: 'Tout ce que tu gardes reste ici, avec tes notes. Touche l onglet.',
+      es: 'Todo lo que guardas espera aqui, con tus notas. Toca la pestana.',
+      it: 'Tutto cio che salvi resta qui, con le tue note. Tocca la scheda.',
+      tr: 'Kaydettiklerin notlarinla birlikte burada. Sekmeye dokun.',
+      pt: 'Tudo o que guardas fica aqui, com as tuas notas. Toca no separador.',
+      nl: 'Alles wat je bewaart staat hier, met je eigen notities. Tik op de tab.',
+      ru: 'Всё сохранённое лежит здесь, вместе с вашими заметками. Нажмите вкладку.',
+    },
+  },
+  {
+    id: 'nav-household',
+    targetId: 'tut-tab-Household',
+    expect: 'tap',
+    before: openTab('Household'),
+    padding: 6,
+    newIn: 4,
+    title: {
+      en: 'Household', de: 'Haushalt', ar: 'الأسرة', fr: 'Foyer', es: 'Hogar',
+      it: 'Famiglia', tr: 'Hane', pt: 'Agregado', nl: 'Huishouden', ru: 'Семья',
+    },
+    text: {
+      en: 'Shared shopping lists, a week plan and who cooks when. Tap the tab.',
+      de: 'Geteilte Listen, Wochenplan und wer wann kocht. Tippe den Tab.',
+      ar: 'قوائم مشتركة وخطة أسبوعية ومن يطبخ. انقر التبويب.',
+      fr: 'Listes partagees, planning hebdo et qui cuisine. Touche l onglet.',
+      es: 'Listas compartidas, plan semanal y quien cocina. Toca la pestana.',
+      it: 'Liste condivise, piano settimanale e chi cucina. Tocca la scheda.',
+      tr: 'Paylasilan listeler, haftalik plan ve kim pisiriyor. Sekmeye dokun.',
+      pt: 'Listas partilhadas, plano semanal e quem cozinha. Toca no separador.',
+      nl: 'Gedeelde lijsten, weekplan en wie kookt. Tik op de tab.',
+      ru: 'Общие списки, план на неделю и кто готовит. Нажмите вкладку.',
+    },
+  },
+  {
+    id: 'nav-community',
+    targetId: 'tut-tab-Community',
+    expect: 'tap',
+    before: openTab('Community'),
+    padding: 6,
+    newIn: 4,
+    title: {
+      en: 'Community', de: 'Community', ar: 'المجتمع', fr: 'Communaute', es: 'Comunidad',
+      it: 'Community', tr: 'Topluluk', pt: 'Comunidade', nl: 'Community', ru: 'Сообщество',
+    },
+    text: {
+      en: 'Recipes from other people: read, cook, rate and publish your own. Tap the tab.',
+      de: 'Rezepte anderer Leute: lesen, nachkochen, bewerten und eigene hochladen. Tippe den Tab.',
+      ar: 'وصفات من مستخدمين آخرين: اقرأ واطبّق وقيّم وانشر وصفاتك. انقر التبويب.',
+      fr: 'Recettes des autres : lire, cuisiner, noter et publier les tiennes. Touche l onglet.',
+      es: 'Recetas de otros: leer, cocinar, valorar y publicar las tuyas. Toca la pestana.',
+      it: 'Ricette degli altri: leggere, cucinare, valutare e pubblicare le tue. Tocca la scheda.',
+      tr: 'Baskalarinin tarifleri: oku, pisir, puanla ve kendini yayinla. Sekmeye dokun.',
+      pt: 'Receitas de outros: ler, cozinhar, avaliar e publicar as tuas. Toca no separador.',
+      nl: 'Recepten van anderen: lezen, koken, beoordelen en je eigen uploaden. Tik op de tab.',
+      ru: 'Рецепты других: читать, готовить, оценивать и публиковать свои. Нажмите вкладку.',
+    },
+  },
+  {
+    id: 'nav-monstr',
+    targetId: 'tut-tab-Monstr',
+    expect: 'tap',
+    before: openTab('Monstr'),
+    padding: 6,
+    newIn: 4,
+    title: {
+      en: 'Monstr', de: 'Monstr', ar: 'مونستر', fr: 'Monstr', es: 'Monstr',
+      it: 'Monstr', tr: 'Monstr', pt: 'Monstr', nl: 'Monstr', ru: 'Монстр',
+    },
+    text: {
+      en: 'Can deals from three price sources, black and neon only. Tap the tab.',
+      de: 'Dosen-Angebote aus drei Preisquellen, nur schwarz und neon. Tippe den Tab.',
+      ar: 'عروض العلب من ثلاثة مصادر أسعار، أسود ونيون فقط. انقر التبويب.',
+      fr: 'Offres de canettes de trois sources, noir et neon seulement. Touche l onglet.',
+      es: 'Ofertas de latas de tres fuentes, solo negro y neon. Toca la pestana.',
+      it: 'Offerte di lattine da tre fonti, solo nero e neon. Tocca la scheda.',
+      tr: 'Uc fiyat kaynagindan kutu firsatlari, sadece siyah ve neon. Sekmeye dokun.',
+      pt: 'Ofertas de latas de tres fontes, so preto e neon. Toca no separador.',
+      nl: 'Blikjes-deals uit drie prijsbronnen, alleen zwart en neon. Tik op de tab.',
+      ru: 'Акции на банки из трёх источников цен, только чёрный и неон. Нажмите вкладку.',
+    },
+  },
+  {
+    id: 'monstr-load',
+    targetId: 'tut-mon-load',
+    expect: 'tap',
+    allowContinue: true,
+    before: openTab('Monstr'),
+    padding: 6,
+    newIn: 4,
+    title: {
+      en: 'Get prices', de: 'Preise holen', ar: 'اجلب الأسعار', fr: 'Obtenir les prix', es: 'Obtener precios',
+      it: 'Ottieni prezzi', tr: 'Fiyatlari al', pt: 'Obter precos', nl: 'Prijzen ophalen', ru: 'Узнать цены',
+    },
+    text: {
+      en: 'Tap it once: three sources are asked in parallel, the cheapest litre price wins.',
+      de: 'Einmal tippen: drei Quellen werden gleichzeitig gefragt, der günstigste Literpreis gewinnt.',
+      ar: 'اضغط مرة: تُسأل المصادر الثلاثة معاً، ويفوز أرخص سعر للتر.',
+      fr: 'Touche une fois : trois sources sont interrogees en parallele, le meilleur prix au litre gagne.',
+      es: 'Pulsa una vez: se consultan tres fuentes a la vez y gana el mejor precio por litro.',
+      it: 'Tocca una volta: tre fonti vengono interrogate insieme, vince il miglior prezzo al litro.',
+      tr: 'Bir kez dokun: uc kaynak ayni anda sorgulanir, en iyi litre fiyati kazanir.',
+      pt: 'Toca uma vez: tres fontes sao consultadas em paralelo e vence o melhor preco por litro.',
+      nl: 'Tik een keer: drie bronnen worden tegelijk bevraagd, de beste literprijs wint.',
+      ru: 'Нажмите один раз: три источника опрашиваются одновременно, побеждает лучшая цена за литр.',
+    },
+  },
+  {
     id: 'done',
     expect: 'observe',
     title: {
@@ -224,19 +372,22 @@ configureTutorial({ version: TOUR_VERSION, steps: TOUR_STEPS });
 /**
  * Targets used by this tour (all of them are registered by the screens):
  *
- *  tut-tab-Library, tut-tab-Shopping, tut-tab-Tracker  (navigation/RootTabs)
+ *  tut-tab-Library, tut-tab-Assistant, tut-tab-Saved, tut-tab-Shopping,
+ *  tut-tab-Tracker, tut-tab-Community, tut-tab-Household, tut-tab-Monstr
+ *                                                        (navigation/RootTabs)
+ *  tut-mon-load                                         (screens/MonstrScreen)
  *  tut-library-search, tut-library-card                 (LibraryScreen)
  *  tut-detail-save, tut-detail-back, tut-detail-ingredients (RecipeDetailScreen)
  *  tut-shopping-add, tut-shopping-extras                (ShoppingScreen)
  *  tut-barcode, tut-portion                             (TrackerExtras / FoodPortionSheet)
  *  tut-community-feed, tut-community-publish            (CommunityScreen)
  *
- * The last four are used by optional steps: copy the block below, give it a
+ * The last block is used by optional steps: copy the block below, give it a
  * unique id, set `newIn: TOUR_VERSION` so only users with an older tour see it,
  * and register the step again in TOUR_STEPS.
  *
  *   { id: 'tracker-barcode', targetId: 'tut-barcode', expect: 'tap', allowContinue: true,
- *     newIn: 3,
+ *     newIn: 4,
  *     title: { en: 'Scan products', de: 'Produkte scannen', ar: 'امسح المنتجات' },
  *     text:  { en: '…', de: '…', ar: '…' } }
  */

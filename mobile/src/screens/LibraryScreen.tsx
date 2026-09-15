@@ -317,7 +317,7 @@ export function LibraryScreen() {
     }
   }, [hasMore, queryArgs, queryKey, tracksItems]);
 
-  /** "Surprise me": jump straight into a random catalog recipe. */
+  /** "{t('s.xSurpriseMe')}": jump straight into a random catalog recipe. */
   const surpriseMe = useCallback(async () => {
     try {
       const item = (await runOp(api.recipes.random, 'query', null, {})) as LibraryRecipe | null;
@@ -400,19 +400,25 @@ export function LibraryScreen() {
   if (sort !== 'title') activeChips.push({ key: 'sort', label: `${t('common.sort')}: ${sortLabel(sort)}`, remove: () => setSort('title') });
 
   const conn = useConnectivity();
+  /**
+   * 3.2.1 CRASH-FIX: `openRecipe` stand als `useCallback` **nach** dem
+   * Offline-`return` -> beim Wechsel online/offline änderte sich die Zahl der
+   * Hooks und React brach ab („Rendered more hooks than during the previous
+   * render"). Hooks immer vor jeden `return`.
+   */
+  const openRecipe = useCallback((recipe: LibraryRecipe) => {
+    navigate('RecipeDetail', { recipeId: recipe.id, title: recipe.title, source: 'library', recipe });
+  }, []);
+
   if (conn === 'offline') {
     return (
       <OfflineTv
-        title="Recipe library"
-        message="The library needs the internet. Everything you saved before is still available offline under My Recipes and Saved."
+        title={t('s.xOfflineLibraryTitle')}
+        message={t('s.xOfflineLibraryBody')}
         onRetry={() => { void retryConnectivity(); }}
       />
     );
   }
-
-  const openRecipe = useCallback((recipe: LibraryRecipe) => {
-    navigate('RecipeDetail', { recipeId: recipe.id, title: recipe.title, source: 'library', recipe });
-  }, []);
 
   const listHeader = (
     <>
@@ -680,7 +686,7 @@ export function LibraryScreen() {
                     ]}
                   >
                     <Shuffle size={14} color={colors.accent} />
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: colors.accent }}>Surprise me</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: colors.accent }}>{t('s.xSurpriseMe')}</Text>
                   </Pressable>
                 </View>
 
@@ -788,7 +794,7 @@ export function LibraryScreen() {
                 </ScrollView>
               </FilterSection>
 
-              <FilterSection title="Total time">
+              <FilterSection title={t('s.xTotalTime')}>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {timeOptions.map((o) => (
                     <Chip key={o.value} label={o.label} active={timeRange === o.value} onPress={() => setTimeRange(o.value === timeRange ? 'all' : o.value)} />
@@ -876,7 +882,7 @@ const RecipeTile = React.memo(function RecipeTile({
       style={({ pressed }) => [{ width: cardWidth ?? '100%' }, pressed && { opacity: 0.85 }]}
     >
       <GlassCard pad={0} radius={20} style={{ overflow: 'hidden', height: single ? undefined : 196 }}>
-        <RecipeImage uri={recipe.imageUrl} style={{ height: single ? 150 : 106, width: '100%' }} />
+        <RecipeImage uri={recipe.imageUrl} thumbWidth={single ? 420 : 260} style={{ height: single ? 150 : 106, width: '100%' }} />
         <View style={{ flex: 1, padding: 11, justifyContent: 'space-between' }}>
           <Text numberOfLines={2} style={{ fontSize: 14.5, fontWeight: '700', color: colors.textPrimary, lineHeight: 19 }}>
             {recipe.title}

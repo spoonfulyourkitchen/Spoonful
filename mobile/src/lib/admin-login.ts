@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import { supabase } from './supabase';
 import { useQuery } from './convex-auth';
 import { api } from './api';
@@ -132,8 +132,20 @@ export function useAdminLoginAlerts(opts: { title: (name: string, device: string
   useEffect(() => {
     if (isAdminQuery !== true) return;
     void reload();
-    const timer = setInterval(() => void reload(), 45000);
-    return () => clearInterval(timer);
+    // 3.2.1: im Hintergrund nicht weiter pollen (Akku); beim Zurückkommen sofort.
+    let active = true;
+    const sub = AppState.addEventListener('change', (next) => {
+      const nowActive = next === 'active';
+      if (nowActive && !active) void reload();
+      active = nowActive;
+    });
+    const timer = setInterval(() => {
+      if (active) void reload();
+    }, 45000);
+    return () => {
+      clearInterval(timer);
+      sub.remove();
+    };
   }, [isAdminQuery, reload]);
 
   const markSeen = useCallback(async () => {

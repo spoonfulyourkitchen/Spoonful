@@ -226,7 +226,6 @@ function computePalette(theme: ThemeDef): Palette {
   const card = flattenOver(theme.cardBg, theme.bodyBg);
   const header = flattenOver(theme.headerBg, theme.bodyBg);
   const bottomBar = flattenOver(theme.bottomBarBg, theme.bodyBg);
-  const borderSolid = flattenOver(theme.cardBorder, card);
   const accentRgba = parseColor(theme.accent) || { r: 146, g: 64, b: 14, a: 1 };
   const accentSoft = flattenOver(rgba(accentRgba, 0.12), theme.bodyBg);
   const accentSofter = flattenOver(rgba(accentRgba, 0.08), theme.bodyBg);

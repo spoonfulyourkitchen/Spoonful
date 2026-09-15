@@ -18,7 +18,7 @@ class ShareIntentModule(private val ctx: ReactApplicationContext) : ReactContext
   override fun getName(): String = "ShareIntent"
 
   private fun sharedText(): String? {
-    val intent = currentActivity?.intent ?: return null
+    val intent = getCurrentActivity()?.intent ?: return null
     if (intent.type != null && intent.type != "text/plain") return null
     return intent.getStringExtra(Intent.EXTRA_TEXT)
   }
@@ -36,7 +36,7 @@ class ShareIntentModule(private val ctx: ReactApplicationContext) : ReactContext
   @ReactMethod
   fun clear() {
     try {
-      currentActivity?.intent?.removeExtra(Intent.EXTRA_TEXT)
+      getCurrentActivity()?.intent?.removeExtra(Intent.EXTRA_TEXT)
     } catch (_: Exception) {
     }
   }

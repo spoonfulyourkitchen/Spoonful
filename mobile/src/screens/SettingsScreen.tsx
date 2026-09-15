@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { Alert, Linking, Modal, Pressable, ScrollView, Share, Switch, Text, TextInput, View } from 'react-native';
 import { ChevronRight, Check, Download, FileText, Globe, LogOut, Mail, Palette, Play, ShieldCheck, Star, Trash2, UserRound, Users } from 'lucide-react-native';
 import { useAction, useAuthActions, useMutation, useQuery } from '../lib/convex-auth';
-import { useTranslation, LANGUAGES, isRtlLanguage, isRestartRequired, markLanguagePickerShown, tryReloadApp, type Language } from '../lib/i18n';
-import { loadPrefs, savePrefs, applyReminders, NotifPrefs } from '../lib/notifications';
+import { useTranslation, LANGUAGES, isRestartRequired, markLanguagePickerShown, tryReloadApp } from '../lib/i18n';
+import { loadPrefs, savePrefs, NotifPrefs } from '../lib/notifications';
 import { api } from '../lib/api';
 import { APP_VERSION } from '../config';
 import { colors, subscribeTheme } from '../theme';
@@ -14,13 +14,23 @@ import { LanguagePicker } from '../components/LanguagePicker';
 import { ProfileEditor } from '../components/ProfileEditor';
 import { Popup } from '../components/Popup';
 import { restartTutorial } from '../lib/tutorial';
+import { clearCrashLog, getCrashLog, subscribeCrashLog } from '../lib/crash-log';
 import { useCookingAdvanced } from '../lib/app-prefs';
+
+/**
+ * 3.2.2: Einstellungen abonnieren das Absturz-Protokoll — so erscheint ein
+ * neuer Fehler sofort in der Liste, ohne dass etwas neu geladen werden muss.
+ */
+function useCrashLog() {
+  return useSyncExternalStore(subscribeCrashLog, getCrashLog, getCrashLog);
+}
 
 export function SettingsScreen() {
   const { signOut } = useAuthActions();
-  const { t, lang, setLang } = useTranslation();
+  const { t, lang } = useTranslation();
   const user = useQuery(api.users.currentUser);
   const [showFeedback, setShowFeedback] = useState(false);
+  const errors = useCrashLog();
   const [langOpen, setLangOpen] = useState(false);
   /** 2.1.2: every confirmation is a popup now (reset, restart, device language). */
   const [popup, setPopup] = useState<{ title: string; body: string; restart?: boolean } | null>(null);
@@ -95,7 +105,7 @@ export function SettingsScreen() {
         message: json.length > 120000 ? `${json.slice(0, 120000)}\n…(truncated)` : json,
       });
     } catch (e) {
-      Alert.alert('Export failed', e instanceof Error ? e.message : 'Please try again.');
+      Alert.alert(t('s.xExportFailed'), e instanceof Error ? e.message : 'Please try again.');
     }
   };
 
@@ -114,7 +124,7 @@ export function SettingsScreen() {
                 await deleteMyAccount({});
                 await signOut();
               } catch (e) {
-                Alert.alert('Could not delete the account', e instanceof Error ? e.message : 'Please try again.');
+                Alert.alert(t('s.xAccountDeleteFailed'), e instanceof Error ? e.message : 'Please try again.');
               }
             })();
           },
@@ -124,7 +134,7 @@ export function SettingsScreen() {
   };
 
   const doSignOut = () => {
-    Alert.alert('Sign out', 'Are you sure you want to sign out of Spoonful?', [
+    Alert.alert(t('s.xSignOutTitle'), 'Are you sure you want to sign out of Spoonful?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign out', style: 'destructive', onPress: () => signOut() },
     ]);
@@ -133,7 +143,7 @@ export function SettingsScreen() {
   const sendFeedback = async () => {
     const text = feedbackText.trim();
     if (!text) {
-      Alert.alert('Add a message', 'Please write a short message so we can help.');
+      Alert.alert(t('s.xAddMessage'), 'Please write a short message so we can help.');
       return;
     }
     setFeedbackBusy(true);
@@ -147,7 +157,7 @@ export function SettingsScreen() {
       setSent(true);
       setFeedbackText('');
     } catch (e) {
-      Alert.alert('Could not send', e instanceof Error ? e.message : 'Please try again.');
+      Alert.alert(t('s.xCouldNotSend'), e instanceof Error ? e.message : 'Please try again.');
     } finally {
       setFeedbackBusy(false);
     }
@@ -286,18 +296,18 @@ export function SettingsScreen() {
             style={({ pressed }) => [{ marginTop: 18, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10, opacity: pressed ? 0.8 : 1 }]}
           >
             <Star size={18} color="#eab308" fill="#eab308" />
-            <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>Report a problem / Feedback</Text>
+            <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>{t('s.xFeedbackTitle')}</Text>
           </Pressable>
         ) : sent ? (
           <GlassCard pad={16} radius={20} style={{ marginTop: 18 }}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.success }}>Thank you!</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.success }}>{t('s.xFeedbackThanks')}</Text>
             <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>
               Your feedback was sent straight to the Spoonful team. We read every message.
             </Text>
           </GlassCard>
         ) : (
           <GlassCard pad={16} radius={20} style={{ marginTop: 18 }}>
-            <SectionLabel>How was Spoonful?</SectionLabel>
+            <SectionLabel>{t('s.xFeedbackAsk')}</SectionLabel>
             <View style={{ flexDirection: 'row', gap: 6 }}>
               {[1, 2, 3, 4, 5].map((n) => (
                 <Pressable key={n} onPress={() => setStars(n)} hitSlop={6}>
@@ -308,7 +318,7 @@ export function SettingsScreen() {
             <TextInput
               value={feedbackText}
               onChangeText={setFeedbackText}
-              placeholder="Tell us what happened or what we should improve…"
+              placeholder={t('s.xPhFeedback')}
               placeholderTextColor={colors.textSecondary}
               multiline
               style={{ minHeight: 90, textAlignVertical: 'top', borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, color: colors.textPrimary, padding: 12, fontSize: 14, marginTop: 12 }}
@@ -343,6 +353,39 @@ export function SettingsScreen() {
             </View>
             <ChevronRight size={18} color={colors.textSecondary} />
           </Pressable>
+        </GlassCard>
+
+        {/* 3.2.2: Absturz-Protokoll — damit „stürzt dauernd ab" nachvollziehbar wird */}
+        <SectionLabel>{t('s.errTitle')}</SectionLabel>
+        <GlassCard pad={14} style={{ marginTop: 6 }}>
+          {errors.length === 0 ? (
+            <Text style={{ fontSize: 13, color: colors.textSecondary }}>{t('s.errEmpty')}</Text>
+          ) : (
+            <View style={{ gap: 8 }}>
+              <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.textPrimary }}>
+                {t('s.errCount', { n: errors.length })}
+              </Text>
+              {errors.slice(0, 5).map((entry) => (
+                <View key={`${entry.at}-${entry.scope}`} style={{ borderRadius: 10, backgroundColor: colors.surfaceMuted, padding: 10 }}>
+                  <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.textSecondary }}>
+                    {`${new Date(entry.at).toLocaleString()} · ${entry.scope}`}
+                  </Text>
+                  <Text numberOfLines={3} style={{ fontSize: 12.5, color: colors.textPrimary, marginTop: 2 }}>
+                    {entry.message}
+                  </Text>
+                </View>
+              ))}
+              <Pressable
+                onPress={() => void clearCrashLog()}
+                accessibilityRole="button"
+                accessibilityLabel={t('s.errClear')}
+                style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', opacity: pressed ? 0.8 : 1 }]}
+              >
+                <Trash2 size={15} color={colors.rose} />
+                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.rose }}>{t('s.errClear')}</Text>
+              </Pressable>
+            </View>
+          )}
         </GlassCard>
 
         <Text style={{ color: colors.textSecondary, fontSize: 12, textAlign: 'center', marginTop: 26 }}>© 2026 Spoonful · v{APP_VERSION}</Text>

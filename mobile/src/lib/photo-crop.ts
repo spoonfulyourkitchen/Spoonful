@@ -30,6 +30,33 @@ export const clampCrop = (c: PhotoCrop): PhotoCrop => {
 
 const STORE_KEY = 'spoonful:photo-crops';
 
+/**
+ * 3.2.1: Rechnet „Rahmen über dem ganzen Bild" in den gespeicherten Ausschnitt um.
+ *
+ * Der Rahmen darf frei über dem Bild liegen. Damit die gewählte Stelle später
+ * auch wirklich angezeigt wird, wird der Zoom so weit angehoben, dass der
+ * Fokuspunkt nicht vom `clampCrop` beschnitten wird (früher verschwand die
+ * Auswahl dadurch wieder in der Mitte).
+ */
+export function cropFromFrame(input: {
+  /** Rahmen in Anzeige-Pixeln (relativ zur Bühne). */
+  frame: { x: number; y: number; w: number; h: number };
+  /** Bild-Anzeige: Maßstab + Ursprung in der Bühne. */
+  view: { s: number; ox: number; oy: number };
+  imageW: number;
+  imageH: number;
+}): PhotoCrop {
+  const { frame, view, imageW, imageH } = input;
+  if (!frame.w || !view.s || !imageW || !imageH) return { ...DEFAULT_CROP };
+  const cx = (frame.x + frame.w / 2 - view.ox) / view.s;
+  const cy = (frame.y + frame.h / 2 - view.oy) / view.s;
+  const fx = Math.max(0, Math.min(1, cx / imageW));
+  const fy = Math.max(0, Math.min(1, cy / imageH));
+  const widthZoom = (imageW * view.s) / frame.w;
+  const edge = Math.max(0.34, 1 - 2 * Math.abs(fx - 0.5), 1 - 2 * Math.abs(fy - 0.5));
+  return clampCrop({ fx, fy, zoom: Math.max(1, widthZoom, 1 / edge) });
+}
+
 /** Kurzer, stabiler Schlüssel für eine (evtl. sehr lange) Bild-URL. */
 export function cropKey(uri?: string | null): string {
   if (!uri) return '';

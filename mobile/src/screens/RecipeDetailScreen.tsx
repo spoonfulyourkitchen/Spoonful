@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Share, Text, TextInput, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,7 +32,6 @@ export function RecipeDetailScreen({ route }: any) {
   const saveRecipe = useMutation(api.savedRecipes.save);
   const removeSaved = useMutation(api.savedRecipes.remove);
   const addToShopping = useMutation(api.shoppingList.addMany);
-  const shoppingLive = useQuery(api.shoppingList.list) as any[] | undefined;
   const logMeal = useMutation(api.calorieEntries.log);
   const shareRecipe = useMutation(api.sharing.create);
   const removeShare = useMutation(api.sharing.removeShare);
@@ -61,24 +60,6 @@ export function RecipeDetailScreen({ route }: any) {
 
   const savedDoc = savedList?.find((s: any) => s.recipeKey === recipeKey);
   const isSaved = !!savedDoc && detailSource !== 'mine';
-
-  /**
-   * 2.0.0 (39): kept for the "have at home" heuristic of the shopping list.
-   * The separate "missing" button was removed on request - the icon row only
-   * adds all ingredients now.
-   */
-  const pantryNames = useMemo(
-    () =>
-      (shoppingLive ?? [])
-        .filter((i: any) => i.have || i.checked)
-        .map((i: any) => String(i.name ?? '').toLowerCase().trim())
-        .filter((n: string) => n.length > 2),
-    [shoppingLive],
-  );
-  const missingIngredients = useMemo(() => {
-    const all = (recipe?.ingredients ?? []).map((x: string) => String(x).trim()).filter(Boolean);
-    return all.filter((line) => !pantryNames.some((p) => line.toLowerCase().includes(p)));
-  }, [recipe, pantryNames]);
 
   /* Tutorial targets (tour): back arrow, bookmark and the ingredients card. */
   const backTarget = useTutorialTarget('tut-detail-back', { onPress: () => goBack() });
@@ -157,7 +138,7 @@ export function RecipeDetailScreen({ route }: any) {
         flash('Saved to your collection');
       }
     } catch (e) {
-      Alert.alert('Could not update', e instanceof Error ? e.message : 'Please try again.');
+      Alert.alert(t('s.xCouldNotUpdate'), e instanceof Error ? e.message : 'Please try again.');
     } finally {
       setBusy(false);
     }
@@ -167,7 +148,7 @@ export function RecipeDetailScreen({ route }: any) {
     if (!recipe || busy) return;
     const names = recipeLines(recipe.ingredients);
     if (names.length === 0) {
-      Alert.alert('Nothing to add', 'This recipe has no listed ingredients.');
+      Alert.alert(t('s.xNothingToAdd'), 'This recipe has no listed ingredients.');
       return;
     }
     setBusy(true);
@@ -175,7 +156,7 @@ export function RecipeDetailScreen({ route }: any) {
       await addToShopping({ items: names.map((name) => ({ name, recipeKey, recipeTitle: recipe.title })) });
       flash('Ingredients added to your shopping list');
     } catch (e) {
-      Alert.alert('Could not add', e instanceof Error ? e.message : 'Please try again.');
+      Alert.alert(t('s.xCouldNotAdd'), e instanceof Error ? e.message : 'Please try again.');
     } finally {
       setBusy(false);
     }
@@ -195,7 +176,7 @@ export function RecipeDetailScreen({ route }: any) {
       });
       flash('Logged to your tracker');
     } catch (e) {
-      Alert.alert('Could not log', e instanceof Error ? e.message : 'Please try again.');
+      Alert.alert(t('s.xCouldNotLog'), e instanceof Error ? e.message : 'Please try again.');
     } finally {
       setBusy(false);
     }
@@ -224,7 +205,7 @@ export function RecipeDetailScreen({ route }: any) {
         flash('Translation is not available for this language yet');
       }
     } catch (e) {
-      Alert.alert('Could not translate', e instanceof Error ? e.message : 'Please try again.');
+      Alert.alert(t('s.xCouldNotTranslate'), e instanceof Error ? e.message : 'Please try again.');
     } finally {
       setTranslating(false);
     }
@@ -252,7 +233,7 @@ export function RecipeDetailScreen({ route }: any) {
       })
       .catch(() => {});
     return () => { alive = false; };
-  }, [shareStatus, shareRetryKey]);
+  }, [shareStatus, shareRetryKey, COOLDOWN_MS]);
 
   const submitShare = async () => {
     setBusy(true);
@@ -260,7 +241,7 @@ export function RecipeDetailScreen({ route }: any) {
       await shareRecipe({ recipeId });
       flash('Sent for review — an admin will approve it before it goes live.');
     } catch (e) {
-      Alert.alert('Could not share', e instanceof Error ? e.message : 'Please try again.');
+      Alert.alert(t('s.xCouldNotShare'), e instanceof Error ? e.message : 'Please try again.');
     } finally {
       setBusy(false);
     }
@@ -282,10 +263,10 @@ export function RecipeDetailScreen({ route }: any) {
       const waitMs = (retryAt ?? 0) - Date.now();
       if (waitMs > 0) {
         const days = Math.max(1, Math.ceil(waitMs / 86400000));
-        Alert.alert('Please wait before trying again', `${reasonLabel}.${shareDoc.rejectionNote ? `\n\n${shareDoc.rejectionNote}` : ''}\n\nYou can submit this recipe again in about ${days} day${days > 1 ? 's' : ''}, so we can keep the community tidy.`, [{ text: 'OK' }]);
+        Alert.alert(t('s.xPleaseWait'), `${reasonLabel}.${shareDoc.rejectionNote ? `\n\n${shareDoc.rejectionNote}` : ''}\n\nYou can submit this recipe again in about ${days} day${days > 1 ? 's' : ''}, so we can keep the community tidy.`, [{ text: 'OK' }]);
         return;
       }
-      Alert.alert('Not approved yet', `${reasonLabel}.${shareDoc.rejectionNote ? `\n\n${shareDoc.rejectionNote}` : ''}`, [
+      Alert.alert(t('s.xNotApproved'), `${reasonLabel}.${shareDoc.rejectionNote ? `\n\n${shareDoc.rejectionNote}` : ''}`, [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Send again', onPress: () => void submitShare() },
       ]);
@@ -296,7 +277,7 @@ export function RecipeDetailScreen({ route }: any) {
 
   const withdrawShare = async () => {
     if (!shareDoc || busy) return;
-    Alert.alert('Remove from Community?', 'This unpublishes the approved recipe so nobody can find it in Community anymore.', [
+    Alert.alert(t('s.xRemoveFromCommunity'), 'This unpublishes the approved recipe so nobody can find it in Community anymore.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Remove from community',
@@ -308,7 +289,7 @@ export function RecipeDetailScreen({ route }: any) {
               await removeShare({ id: shareDoc._id });
               flash('Removed from the community.');
             } catch (e) {
-              Alert.alert('Could not remove', e instanceof Error ? e.message : 'Please try again.');
+              Alert.alert(t('s.xCouldNotRemove'), e instanceof Error ? e.message : 'Please try again.');
             } finally {
               setBusy(false);
             }
@@ -337,14 +318,13 @@ export function RecipeDetailScreen({ route }: any) {
   if (!recipe) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }}>
-        <Text style={{ color: colors.textSecondary }}>Recipe not found</Text>
+        <Text style={{ color: colors.textSecondary }}>{t('s.xRecipeNotFound')}</Text>
       </View>
     );
   }
 
   const diff = difficultyColor(recipe.difficulty);
   const hasNutrition = recipe.calories != null || recipe.protein != null || recipe.carbs != null || recipe.fat != null;
-  const retryInDays = retryAt && retryAt > Date.now() ? Math.max(1, Math.ceil((retryAt - Date.now()) / 86400000)) : null;
   const showingTr = showTranslation && !!translated;
   const view = showingTr
     ? {
@@ -475,7 +455,7 @@ export function RecipeDetailScreen({ route }: any) {
                 <Text style={{ fontSize: 15, color: colors.textPrimary, flex: 1 }}>{ing}</Text>
               </View>
             ))}
-            {!recipeLines(view.ingredients).length ? <Text style={{ color: colors.textSecondary }}>No ingredients listed.</Text> : null}
+            {!recipeLines(view.ingredients).length ? <Text style={{ color: colors.textSecondary }}>{t('s.xNoIngredients')}</Text> : null}
             </GlassCard>
           </TutorialTarget>
 
@@ -489,7 +469,7 @@ export function RecipeDetailScreen({ route }: any) {
               <Text style={{ fontSize: 15, lineHeight: 22, color: colors.textPrimary, flex: 1 }}>{step}</Text>
             </View>
           ))}
-          {!recipeLines(view.steps).length ? <Text style={{ color: colors.textSecondary }}>No steps listed.</Text> : null}
+          {!recipeLines(view.steps).length ? <Text style={{ color: colors.textSecondary }}>{t('s.xNoSteps')}</Text> : null}
 
           {detailSource === 'mine' ? (
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
@@ -577,7 +557,7 @@ export function RecipeDetailScreen({ route }: any) {
             </Pressable>
           ) : null}
           {detailSource !== 'mine' ? (
-            <Pressable onPress={logThisMeal} disabled={busy} style={({ pressed }) => [actionBtnSecondary, pressed && { opacity: 0.82 }]} accessibilityLabel="Log meal">
+            <Pressable onPress={logThisMeal} disabled={busy} style={({ pressed }) => [actionBtnSecondary, pressed && { opacity: 0.82 }]} accessibilityLabel={t('s.xLogMeal')}>
               <Zap size={20} color={colors.textPrimary} strokeWidth={2} />
             </Pressable>
           ) : (

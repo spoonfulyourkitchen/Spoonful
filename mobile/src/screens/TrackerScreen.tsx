@@ -17,7 +17,7 @@ function startOfDay(ts: number) {
   return d.getTime();
 }
 function parseNum(v: string): number | undefined {
-  const n = Number(v.replace(',', '.'));
+  const n = Number(String(v ?? '').replace(',', '.'));
   return Number.isFinite(n) && n >= 0 ? Math.round(n) : undefined;
 }
 function roundN(v: number) {
@@ -95,6 +95,10 @@ export function TrackerScreen() {
       setHeightT(String(profile.height));
       setWeightT(String(profile.weight));
     }
+    // 3.2.1: die Profilwerte sind hier nur Startwerte. Wenn sie in den
+    // Abhängigkeiten stünden, würden eigene Eingaben beim nächsten Profil-Update
+    // wieder überschrieben - deshalb bewusst nur beim Öffnen laden.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showProfile, hydrated]);
 
   useEffect(() => {
@@ -283,13 +287,13 @@ export function TrackerScreen() {
             <Text style={{ fontSize: 11, color: colors.textSecondary, marginBottom: 10 }}>{t('s.trackFormula')}</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <View style={{ flex: 1 }}>
-                <TextField label={t('s.trackAge')} value={ageT} onChangeText={(v) => { setAgeT(v); const n = Number(v); if (Number.isFinite(n) && n > 0 && n < 150) updateProfile({ age: Math.round(n) }); }} keyboardType="number-pad" />
+                <TextField label={t('s.trackAge')} value={ageT} onChangeText={(v) => { setAgeT(v); const n = parseNum(v); if (n !== undefined && n > 0 && n < 150) updateProfile({ age: n }); }} keyboardType="number-pad" />
               </View>
               <View style={{ flex: 1 }}>
-                <TextField label={t('s.trackHeight')} value={heightT} onChangeText={(v) => { setHeightT(v); const n = Number(v); if (Number.isFinite(n) && n > 0 && n < 250) updateProfile({ height: Math.round(n) }); }} keyboardType="number-pad" />
+                <TextField label={t('s.trackHeight')} value={heightT} onChangeText={(v) => { setHeightT(v); const n = parseNum(v); if (n !== undefined && n > 0 && n < 250) updateProfile({ height: n }); }} keyboardType="number-pad" />
               </View>
               <View style={{ flex: 1 }}>
-                <TextField label={t('s.trackWeightKg')} value={weightT} onChangeText={(v) => { setWeightT(v); const n = Number(v.replace(',', '.')); if (Number.isFinite(n) && n > 0 && n < 300) updateProfile({ weight: Math.round(n * 10) / 10 }); }} keyboardType="decimal-pad" />
+                <TextField label={t('s.trackWeightKg')} value={weightT} onChangeText={(v) => { setWeightT(v); const n = parseNum(v); if (n !== undefined && n > 0 && n < 300) updateProfile({ weight: n }); }} keyboardType="decimal-pad" />
               </View>
             </View>
 

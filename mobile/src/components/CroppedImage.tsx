@@ -5,9 +5,10 @@
  * (Fokuspunkt + Zoom, siehe lib/photo-crop.ts) wird der gewählte Bereich
  * gezeigt - in jeder Rahmengröße, weil mit Prozenten gerechnet wird.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Image, LayoutChangeEvent, StyleProp, View, ViewStyle } from 'react-native';
 
+import { imageSource, isThumbUrl } from '../lib/image-url';
 import { clampCrop, getCrop, isCropDefault, type PhotoCrop } from '../lib/photo-crop';
 
 export function CroppedImage({
@@ -17,6 +18,7 @@ export function CroppedImage({
   imageStyle,
   resizeMode = 'cover',
   onError,
+  thumbWidth,
 }: {
   uri?: string | null;
   /** eigene Bildquelle (z. B. mit Headern); sonst wird `uri` benutzt */
@@ -25,9 +27,16 @@ export function CroppedImage({
   imageStyle?: object;
   resizeMode?: 'cover' | 'contain' | 'stretch' | 'center';
   onError?: () => void;
+  /**
+   * 3.2.2: gewünschte Anzeigebreite in Punkten. Damit wird eine kleine
+   * Bildvariante geladen (Speicher/Akku). Lädt sie nicht, kommt automatisch
+   * das Original — es kann also nichts verschwinden.
+   */
+  thumbWidth?: number;
 }) {
   const [crop, setCropState] = useState<PhotoCrop | null>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  const [tryOriginal, setTryOriginal] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -45,9 +54,27 @@ export function CroppedImage({
     };
   }, [uri]);
 
+  useEffect(() => {
+    setTryOriginal(false);
+  }, [uri, thumbWidth]);
+
+  const pictureSource = useMemo(
+    () => source ?? imageSource(uri, thumbWidth, tryOriginal),
+    [source, uri, thumbWidth, tryOriginal],
+  );
+
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
     if (width !== size.w || height !== size.h) setSize({ w: width, h: height });
+  };
+
+  const handleError = () => {
+    // Erst das Original versuchen, dann dem Aufrufer melden.
+    if (thumbWidth && !tryOriginal && !source) {
+      setTryOriginal(true);
+      return;
+    }
+    onError?.();
   };
 
   const active = crop && !isCropDefault(crop) && size.w > 0 && size.h > 0;
@@ -57,9 +84,9 @@ export function CroppedImage({
     <View style={[{ overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }, style]} onLayout={onLayout}>
       {uri ? (
         <Image
-          source={source ?? { uri }}
+          source={pictureSource}
           resizeMode={resizeMode}
-          onError={onError}
+          onError={handleError}
           style={[
             { width: '100%', height: '100%' },
             c
@@ -80,4 +107,9 @@ export function CroppedImage({
   );
 }
 
+/** Kleine Hilfe für Aufrufer/Tests: lädt diese Anzeige schon ein Thumbnail? */
+export const croppedImageUsesThumb = (uri?: string | null, thumbWidth?: number) =>
+  !!thumbWidth && isThumbUrl(imageSource(uri, thumbWidth)?.uri);
+
 export default CroppedImage;
+

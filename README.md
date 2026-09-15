@@ -59,3 +59,24 @@ Android 7.0 or newer. Around 75 MB of storage. An internet connection is recomme
 ### Support
 Questions, ideas or a problem with a recipe? Write to spoonfulsupport@gmail.com — every message is read.
 
+## Prüfen vor jeder Version (1 Minute)
+```bash
+cd mobile
+npx tsc --noEmit              # Typen
+npx jest                      # 55 automatische Tests
+npx eslint src App.tsx --quiet # Fehler (Warnungen sind erlaubt)
+```
+Dazu im Repo-Root:
+```bash
+node tools/check-version.mjs                    # Version überall gleich? + Notizen vorhanden
+node tools/video-check.mjs "<Video-Link>"       # liefert das Video einen Rezept-Text?
+node tools/monstr-check.mjs                     # liefern die Preis-Quellen?
+```
+
+## Stabilität
+* `STABILITY-100.md` — die 100-Punkte-Liste (was erledigt ist, was noch offen ist).
+* `RELEASE_NOTES-v3.2.2.md` — was die letzte Stabilitäts-Runde geändert hat.
+* Abstürze nachlesen: App → Einstellungen → **Letzte Fehler**.
+
+
+

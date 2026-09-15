@@ -3,6 +3,7 @@ import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 import { Flag, Send, X } from 'lucide-react-native';
 import { useMutation } from '../lib/convex-auth';
 import { api } from '../lib/api';
+import { useTranslation } from '../lib/i18n';
 import { colors, readableText } from '../theme';
 
 const REASONS = ['Wrong photo', 'Photo is not this dish', 'False information', 'Offensive content', 'Something else'];
@@ -16,6 +17,7 @@ export function ReportPhotoButton({ recipeKey, recipeTitle, imageUrl, onDone }: 
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useTranslation();
 
   const needsMessage = reason === REASONS[REASONS.length - 1];
 
@@ -39,7 +41,7 @@ export function ReportPhotoButton({ recipeKey, recipeTitle, imageUrl, onDone }: 
 
   return (
     <>
-      <Pressable onPress={() => setOpen(true)} hitSlop={6} style={({ pressed }) => [{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.9)', borderWidth: 1, borderColor: colors.cardBorder }, pressed && { opacity: 0.75 }]} accessibilityLabel="Report photo">
+      <Pressable onPress={() => setOpen(true)} hitSlop={6} style={({ pressed }) => [{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.9)', borderWidth: 1, borderColor: colors.cardBorder }, pressed && { opacity: 0.75 }]} accessibilityLabel={t('s.xReportPhoto')}>
         <Flag size={16} color={colors.textSecondary} strokeWidth={2} />
       </Pressable>
 
@@ -49,20 +51,20 @@ export function ReportPhotoButton({ recipeKey, recipeTitle, imageUrl, onDone }: 
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Flag size={18} color={colors.rose} strokeWidth={2.2} />
-                <Text style={{ fontSize: 18, fontWeight: '800', color: colors.textPrimary }}>Report this photo</Text>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: colors.textPrimary }}>{t('s.xReportThisPhoto')}</Text>
               </View>
               <Pressable onPress={() => !busy && setOpen(false)} hitSlop={8}>
                 <X size={18} color={colors.textSecondary} />
               </Pressable>
             </View>
-            <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 14 }}>Help us keep {recipeTitle} accurate for everyone.</Text>
+            <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 14 }}>{t('s.xReportHelp', { title: recipeTitle })}</Text>
             {sent ? (
               <View style={{ alignItems: 'center', paddingVertical: 18 }}>
                 <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: colors.successBg, alignItems: 'center', justifyContent: 'center' }}>
                   <Send size={22} color={colors.success} />
                 </View>
-                <Text style={{ marginTop: 10, fontSize: 15, fontWeight: '700', color: colors.textPrimary }}>Report sent</Text>
-                <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>Thanks — we read every report.</Text>
+                <Text style={{ marginTop: 10, fontSize: 15, fontWeight: '700', color: colors.textPrimary }}>{t('s.xReportSent')}</Text>
+                <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>{t('s.xReportThanks')}</Text>
               </View>
             ) : (
               <>
@@ -81,9 +83,9 @@ export function ReportPhotoButton({ recipeKey, recipeTitle, imageUrl, onDone }: 
                 {reason ? (
                   <>
                     <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textSecondary, marginBottom: 6, marginTop: 4 }}>
-                      {needsMessage ? 'Tell us more (required)' : 'Anything to add? (optional)'}
+                      {needsMessage ? t('s.xTellMore') : t('s.xAddOptional')}
                     </Text>
-                    <TextInput value={message} onChangeText={setMessage} placeholder="What did you notice?" placeholderTextColor={colors.textSecondary} multiline maxLength={1000} style={{ minHeight: 70, maxHeight: 120, textAlignVertical: 'top', borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, color: colors.textPrimary, padding: 10, fontSize: 14 }} />
+                    <TextInput value={message} onChangeText={setMessage} placeholder={t('s.xPhReportWhat')} placeholderTextColor={colors.textSecondary} multiline maxLength={1000} style={{ minHeight: 70, maxHeight: 120, textAlignVertical: 'top', borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, color: colors.textPrimary, padding: 10, fontSize: 14 }} />
                     {error ? <Text style={{ color: colors.rose, fontSize: 12, marginTop: 6 }}>{error}</Text> : null}
                     <Pressable onPress={() => void submit()} disabled={busy || !reason || (needsMessage && !message.trim())} style={({ pressed }) => [{ marginTop: 14, borderRadius: 14, paddingVertical: 13, alignItems: 'center', backgroundColor: colors.rose }, (busy || !reason || (needsMessage && !message.trim())) && { opacity: 0.5 }, pressed && { opacity: 0.8 }]}>
                       <Text style={{ color: readableText(colors.rose), fontWeight: '700', fontSize: 15 }}>{busy ? 'Sending…' : 'Send report'}</Text>

@@ -122,8 +122,6 @@ function cleanIngredientForShop(line: string): string {
   return name ? name.charAt(0).toUpperCase() + name.slice(1) : line;
 }
 
-type PhaseInfo = { phase: string; color: string; tip: string; look: string };
-
 /** Farben + Beschriftung je Coach-Phase (Texte kommen aus coach-tips.ts). */
 const PHASE_COLORS: Record<CoachPhase, string> = {
   start: colors.cyan,
@@ -202,7 +200,7 @@ export function CookingScreen({ route }: any) {
   const [servings, setServings] = useState(BASE_SERVINGS);
   const [doneSteps, setDoneSteps] = useState<Set<number>>(new Set());
   const [checkedIng, setCheckedIng] = useState<Set<number>>(new Set());
-  const [suggested, setSuggested] = useState<number | null>(null);
+  const [, setSuggested] = useState<number | null>(null);
   // 2.0.0: several kitchen timers at once, ringing in the background.
   const timers = useKitchenTimers();
   const runningCount = timers.filter((t) => t.running).length;
@@ -459,6 +457,12 @@ export function CookingScreen({ route }: any) {
    * app - step, progress, servings and which ingredients were ticked off.
    */
   const sessionKey = `spoonful:cooking:${recipeKey}`;
+  /**
+   * 3.2.2: Wenn eine Sitzung fortgesetzt wurde, sagen wir es kurz (Punkt 84).
+   * Vorher sprang der Kochmodus wortlos mitten in die Schritte — das wirkte
+   * wie ein Fehler.
+   */
+  const [resumedAt, setResumedAt] = useState<number | null>(null);
   useEffect(() => {
     let alive = true;
     AsyncStorage.getItem(sessionKey)
@@ -466,7 +470,11 @@ export function CookingScreen({ route }: any) {
         if (!alive || !raw) return;
         const s = JSON.parse(raw);
         if (!s || typeof s !== 'object') return;
-        if (typeof s.index === 'number') setIndex(Math.max(0, Math.min(total - 1, s.index)));
+        if (typeof s.index === 'number') {
+          const next = Math.max(0, Math.min(total - 1, s.index));
+          setIndex(next);
+          if (next > 0) setResumedAt(next + 1);
+        }
         if (s.phase === 'prep' || s.phase === 'cook' || s.phase === 'done') setPhase(s.phase);
         if (Array.isArray(s.doneSteps)) setDoneSteps(new Set(s.doneSteps.filter((n: unknown) => typeof n === 'number')));
         if (Array.isArray(s.checkedIng)) setCheckedIng(new Set(s.checkedIng.filter((n: unknown) => typeof n === 'number')));
@@ -537,16 +545,16 @@ export function CookingScreen({ route }: any) {
 
   const sendToShopping = async () => {
     const names = ingredients.map(cleanIngredientForShop).filter(Boolean);
-    if (!names.length) { Alert.alert('Nothing to add', 'This recipe has no listed ingredients.'); return; }
+    if (!names.length) { Alert.alert(t('s.xNothingToAdd'), 'This recipe has no listed ingredients.'); return; }
     if (connNow === 'offline') {
       for (const n of names) await addPendingOp('shopping.add', { name: n });
-      Alert.alert('Saved offline', `${names.length} ingredients queued for your shopping list.`);
+      Alert.alert(t('s.xSavedOffline'), `${names.length} ingredients queued for your shopping list.`);
       return;
     }
     try {
       const res = await addManyShop({ items: names.map((n) => ({ name: n, recipeTitle: title })) });
-      Alert.alert('Added to shopping list', `Added ${(res as any)?.added ?? names.length} ingredients from "${title}".`);
-    } catch { Alert.alert('Could not add', 'Try again in a moment.'); }
+      Alert.alert(t('s.xAddedShopping'), `Added ${(res as any)?.added ?? names.length} ingredients from "${title}".`);
+    } catch { Alert.alert(t('s.xCouldNotAdd'), 'Try again in a moment.'); }
   };
 
   const finishAndLog = async () => {
@@ -557,7 +565,7 @@ export function CookingScreen({ route }: any) {
     const restart = () => { setPhase('prep'); setIndex(0); setDoneSteps(new Set()); setCheckedIng(new Set()); void clearTimers(); setSuggested(null); };
     if (connNow === 'offline') {
       if (cals != null) await addPendingOp('tracker.log', { title, calories: cals, protein: prot ?? null, carbs: carbs ?? null, fat: fat ?? null });
-      Alert.alert('You made it!', `${title} is ready to serve.${cals != null ? ' It was saved offline and will sync to your tracker.' : ''} Enjoy!`, [
+      Alert.alert(t('s.xYouMadeIt'), `${title} is ready to serve.${cals != null ? ' It was saved offline and will sync to your tracker.' : ''} Enjoy!`, [
         { text: 'Done', onPress: () => goBack() },
         { text: 'Cook again', style: 'cancel', onPress: restart },
       ]);
@@ -568,7 +576,7 @@ export function CookingScreen({ route }: any) {
         await logMeal({ title, calories: cals, protein: prot ?? undefined, carbs: carbs ?? undefined, fat: fat ?? undefined, servings });
       } catch { /* best-effort */ }
     }
-    Alert.alert('You made it!', `${title} is ready and ${cals != null ? `was added to your tracker (${cals} kcal).` : 'ready to serve.'} Enjoy!`, [
+    Alert.alert(t('s.xYouMadeIt'), `${title} is ready and ${cals != null ? `was added to your tracker (${cals} kcal).` : 'ready to serve.'} Enjoy!`, [
       { text: 'Done', onPress: () => goBack() },
       { text: 'Cook again', style: 'cancel', onPress: restart },
     ]);
@@ -595,6 +603,10 @@ export function CookingScreen({ route }: any) {
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: colors.accent }}>{t('s.cookHeader')}</Text>
           <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: 16, fontWeight: '700', color: colors.textPrimary }}>{title}</Text>
+          {/* 3.2.2: kurzer Hinweis, dass eine alte Sitzung weiterläuft (Punkt 84) */}
+          {resumedAt ? (
+            <Text style={{ fontSize: 11, color: colors.textSecondary }}>{t('s.cookResume', { n: resumedAt })}</Text>
+          ) : null}
         </View>
         {canTranslate ? (
           <Pressable
@@ -696,8 +708,8 @@ export function CookingScreen({ route }: any) {
             <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: colors.successBg, alignItems: 'center', justifyContent: 'center' }}>
               <Check size={34} color={colors.success} strokeWidth={3} />
             </View>
-            <Text style={{ fontFamily: fonts.display, fontSize: 28, fontWeight: '800', color: colors.textPrimary, marginTop: 18, textAlign: 'center' }}>You made it!</Text>
-            <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: 'center', marginTop: 8, lineHeight: 22 }}>{title} is ready to serve.</Text>
+            <Text style={{ fontFamily: fonts.display, fontSize: 28, fontWeight: '800', color: colors.textPrimary, marginTop: 18, textAlign: 'center' }}>{t('s.xYouMadeIt')}</Text>
+            <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: 'center', marginTop: 8, lineHeight: 22 }}>{t('s.xReadyToServe', { title })}</Text>
             {hasNutrition ? (
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 20 }}>
                 {scaledNutrition.calories !== null ? <NutChip label="kcal" value={String(scaledNutrition.calories)} /> : null}
@@ -1090,7 +1102,7 @@ export function CookingScreen({ route }: any) {
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
               <Pressable onPress={goPrev} disabled={index === 0} style={({ pressed }) => [{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, paddingVertical: 14, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder, opacity: index === 0 ? 0.5 : pressed ? 0.8 : 1 }]}>
                 <ChevronLeft size={18} color={colors.textPrimary} />
-                <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>Back</Text>
+                <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>{t('s.xBack')}</Text>
               </Pressable>
               <Pressable onPress={goNext} style={({ pressed }) => [{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, paddingVertical: 14, backgroundColor: colors.darkButton, opacity: pressed ? 0.85 : 1 }]}>
                 {doneSteps.has(index) ? <Check size={18} color={colors.darkButtonText} /> : <CircleCheck size={18} color={colors.darkButtonText} />}

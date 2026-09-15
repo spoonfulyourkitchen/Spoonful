@@ -1,3 +1,4 @@
+import { translate } from '../lib/i18n';
 import React from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Check, Moon, Sun } from 'lucide-react-native';
@@ -19,8 +20,8 @@ export function ThemeScreen() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 32 }}>
         <PageHeader
           eyebrow="Personalize"
-          title="Choose a theme"
-          subtitle="Pick a look that matches your mood. Your choice is saved and stays across sessions."
+          title={translate('s.xChooseTheme')}
+          subtitle={translate('s.xChooseThemeSub')}
         />
 
         <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>

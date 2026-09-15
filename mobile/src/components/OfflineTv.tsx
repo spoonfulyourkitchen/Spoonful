@@ -10,12 +10,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
  * Shows a warm orange TV with "OFFLINE" on the screen — no 404 digits.
  */
 export function OfflineTv({
-  title = 'No connection',
-  message = 'You are offline. This part of Spoonful needs the internet.',
+  title,
+  message,
   onRetry,
 }: {
-  title?: string;
-  message?: string;
+  title: string;
+  message: string;
   onRetry?: () => void;
 }) {
   const insets = useSafeAreaInsets();
@@ -41,9 +41,9 @@ export function OfflineTv({
           <View style={{ width: 186, height: 104, borderRadius: 12, borderWidth: 2, borderColor: '#1d0e01', backgroundColor: '#2a2118', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
             <View style={{ position: 'absolute', top: -30, left: -30, right: -30, height: 48, backgroundColor: 'rgba(255,255,255,0.09)', transform: [{ rotate: '-8deg' }] }} />
             <Text style={{ fontSize: 19, fontWeight: '800', letterSpacing: 4, color: '#fff9f0', textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 4 }}>
-              OFFLINE
+              {translate('s.xOfflineTitle')}
             </Text>
-            <Text style={{ position: 'absolute', bottom: 5, fontSize: 7, letterSpacing: 1.5, color: '#e8c27a' }}>NO SIGNAL</Text>
+            <Text style={{ position: 'absolute', bottom: 5, fontSize: 7, letterSpacing: 1.5, color: '#e8c27a' }}>{translate('s.xNoSignal')}</Text>
           </View>
         </View>
 
@@ -74,7 +74,7 @@ export function OfflineTv({
           style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 22, borderRadius: 999, backgroundColor: colors.darkButton, paddingHorizontal: 24, paddingVertical: 13, opacity: pressed ? 0.85 : 1 }]}
         >
           <WifiOff size={16} color={colors.darkButtonText} />
-          <Text style={{ color: colors.darkButtonText, fontWeight: '700', fontSize: 15 }}>{translate('s.retry')} connection</Text>
+          <Text style={{ color: colors.darkButtonText, fontWeight: '700', fontSize: 15 }}>{translate('s.retry')}</Text>
         </Pressable>
       ) : null}
     </View>

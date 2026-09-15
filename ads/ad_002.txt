@@ -13,7 +13,7 @@ PROBLEM (3s):
 
 SOLUTION (4s):
 "Quick recipes from what you already have.
-Open Spoonful, type 3 ingredients, dinner in 20 minutes."
+Open Spoonful, type 3 ingredients, dinner in 20 minutes.
 
 KEY FEATURE (2s):
 1,100+ recipes + quick search

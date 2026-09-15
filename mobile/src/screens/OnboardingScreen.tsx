@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Check, ChefHat, Flame, HeartPulse, Leaf, SkipForward } from 'lucide-react-native';
+import { Check, Leaf, SkipForward } from 'lucide-react-native';
 import { api } from '../lib/api';
 import { useMutation, useQuery } from '../lib/convex-auth';
 import { useTranslation } from '../lib/i18n';
