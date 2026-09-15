@@ -14,16 +14,30 @@
  *
  * Ohne Token läuft nichts — der Service-Role-Key reicht für Deploys NICHT aus.
  */
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 
 const REF = 'gmfkleugoxafmvprqatk';
-const TOKEN = process.env.SUPABASE_ACCESS_TOKEN ?? '';
 const DO_SECRETS = process.argv.includes('--secrets');
 const DO_DEPLOY = process.argv.includes('--deploy') || !DO_SECRETS;
 const API = `https://api.supabase.com/v1/projects/${REF}`;
 
+/** Token aus der Umgebung oder aus `.env.local` (git-ignoriert). */
+function accessToken() {
+  if (process.env.SUPABASE_ACCESS_TOKEN) return process.env.SUPABASE_ACCESS_TOKEN.trim();
+  try {
+    const env = readFileSync(new URL('../.env.local', import.meta.url), 'utf8');
+    return (/^SUPABASE_ACCESS_TOKEN=(sbp_\S+)/m.exec(env)?.[1] ?? '').trim();
+  } catch {
+    return '';
+  }
+}
+
+const TOKEN = accessToken();
+
 if (!TOKEN.startsWith('sbp_')) {
-  console.log('Kein Personal Access Token gefunden (SUPABASE_ACCESS_TOKEN=sbp_…).');
+  console.log('Kein Personal Access Token gefunden.');
+  console.log('Entweder SUPABASE_ACCESS_TOKEN setzen oder in .env.local eintragen:');
+  console.log('  SUPABASE_ACCESS_TOKEN=sbp_…');
   process.exit(1);
 }
 
@@ -63,24 +77,42 @@ if (DO_SECRETS) {
 
 if (DO_DEPLOY) {
   const dir = new URL('../supabase/functions/ai/', import.meta.url);
-  const files = readdirSync(dir)
-    .filter((name) => name.endsWith('.ts'))
-    .map((name) => ({ name, content: readFileSync(new URL(name, dir), 'utf8') }));
-  console.log(`Funktion deployen (${files.map((f) => f.name).join(', ')})…`);
+  const indexSrc = readFileSync(new URL('index.ts', dir), 'utf8');
+  const peakSrc = readFileSync(new URL('peak.ts', dir), 'utf8');
 
-  const listRes = await fetch(`${API}/functions`, { headers: head });
-  const listJson = await listRes.json().catch(() => []);
-  const existing = Array.isArray(listJson) ? listJson.find((entry) => entry?.slug === 'ai') : null;
+  /**
+   * Die Management-API nimmt den Quelltext als **Text** (`body`), nicht als
+   * Dateiliste. Deshalb wird `peak.ts` beim Deploy in `index.ts` eingefügt —
+   * die Datei im Repo bleibt zum Testen trotzdem eigenständig.
+   */
+  const bundle = () => {
+    const peakInline = peakSrc.replace(/^export\s+(?=(const|function|type|interface|async)\b)/gm, '');
+    const importLine = /^import .*from '\.\/peak\.ts';\r?\n/m;
+    if (!importLine.test(indexSrc)) throw new Error('Import-Zeile für peak.ts nicht gefunden');
+    const out = indexSrc.replace(
+      importLine,
+      `/* ── peak.ts (beim Deploy eingefügt) ── */\n${peakInline}/* ── /peak.ts ── */\n`,
+    );
+    if (/from '\.\//.test(out)) throw new Error('Es gibt noch einen lokalen Import');
+    return out;
+  };
 
-  const body = JSON.stringify({
-    slug: 'ai',
-    name: 'ai',
-    verify_jwt: false,
-    entrypoint_path: 'index.ts',
-    files,
+  const source = bundle();
+  console.log(`Funktion deployen (${source.length} Zeichen Quelltext, peak.ts eingefügt)…`);
+
+  const res = await fetch(`${API}/functions/ai`, {
+    method: 'PATCH',
+    headers: head,
+    body: JSON.stringify({ name: 'ai', verify_jwt: false, body: source }),
   });
-  const res = existing
-    ? await fetch(`${API}/functions/ai`, { method: 'PATCH', headers: head, body })
-    : await fetch(`${API}/functions`, { method: 'POST', headers: head, body });
-  console.log(`Funktion: HTTP ${res.status} ${(await res.text()).slice(0, 400)}`);
+  const text = await res.text();
+  console.log(`Funktion: HTTP ${res.status} ${text.slice(0, 300)}`);
+
+  /* Kontrolle: liegt der neue Code wirklich auf dem Server? */
+  const check = await fetch(`${API}/functions/ai/body`, { headers: head });
+  const deployed = await check.text();
+  const markers = ['MODEL_CHAIN', 'paidCallsToday', 'deepseek/deepseek-v4.1-flash', 'peakSummary'];
+  for (const marker of markers) {
+    console.log(`  ${deployed.includes(marker) ? 'OK   ' : 'FEHLT'} ${marker}`);
+  }
 }

@@ -214,24 +214,50 @@ Deno.serve(async (req: Request) => {
     ],
   };
 
-  /* 1) Gratis-Modelle über alle Keys durchprobieren. */
+  /* 1) Gratis-Modelle über die Keys durchprobieren.
+        Wichtig: nicht alle 20 Keys × alle Modelle! Sonst dauert ein Aufruf
+        Minuten. Deshalb: höchstens 4 Modelle, je Modell höchstens 2 Keys und
+        insgesamt eine feste Zeitgrenze. */
   const pool = liveKeys(keys);
-  const models = await freeModels();
+  const models = (await freeModels()).slice(0, 4);
   const errors: string[] = [];
   const skipped: string[] = [];
+  let deadline = Date.now() + 40_000;
+  const KEYS_PER_MODEL = 2;
 
   const tryModel = async (model: string, paid: boolean): Promise<Response | null> => {
+    let tried = 0;
     for (const key of pool) {
+      if (tried >= KEYS_PER_MODEL) break;
+      if (Date.now() > deadline) {
+        errors.push(`${model}: Zeitgrenze erreicht`);
+        break;
+      }
+      tried += 1;
       const first = await attempt(key, model, body, true);
       if (first.ok) {
         if (paid) notePaidCall();
-        return json({ content: first.content, model, paid });
+        /* `paid: true` heißt: kein Gratis-Modell hat geantwortet. */
+        return json({
+          content: first.content,
+          model,
+          paid,
+          paidCallsToday: paidCalls.count,
+          freeModelsTried: models.length,
+          ...(skipped.length ? { skipped } : {}),
+        });
       }
       if (first.status === 400 && /response_format|json/i.test(String(first.detail ?? ''))) {
         const second = await attempt(key, model, body, false);
         if (second.ok) {
           if (paid) notePaidCall();
-          return json({ content: second.content, model, paid });
+          return json({
+            content: second.content,
+            model,
+            paid,
+            paidCallsToday: paidCalls.count,
+            freeModelsTried: models.length,
+          });
         }
         errors.push(`${model}: ${second.status} ${String(second.detail ?? '').slice(0, 80)}`);
         break; /* Modell kann kein JSON → nächstes Modell */
@@ -249,7 +275,9 @@ Deno.serve(async (req: Request) => {
   }
 
   /* 2) Letzter Notfall: billige Kette, nur außerhalb der DeepSeek-Stoßzeit
-        und nur innerhalb des Tageslimits. */
+        und nur innerhalb des Tageslimits. Dafür bekommt sie eine eigene,
+        frische Zeitgrenze — sonst wäre sie nach den Gratis-Versuchen tot. */
+  deadline = Date.now() + 30_000;
   if (PAID_ALLOWED) {
     for (const model of MODEL_CHAIN) {
       if (!modelAllowedNow(model)) {

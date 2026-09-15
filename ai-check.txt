@@ -1,0 +1,6 @@
+Projekt: https://gmfkleugoxafmvprqatk.supabase.co
+Testnutzer anlegen: HTTP 200 (f15e7b22-d735-4516-9a4d-c0a4c75546e6)
+Anmelden: HTTP 200, JWT: ok
+Funktion ai: HTTP 200
+{"content":"{\"ok\":true}","model":"meta-llama/llama-3.1-8b-instruct","paid":true}
+Testnutzer löschen: HTTP 200
