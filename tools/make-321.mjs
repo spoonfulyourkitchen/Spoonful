@@ -1,4 +1,4 @@
-/**
+ /**
  * Baut den Stand „3.2.1“ aus dem aktuellen Arbeitsverzeichnis nach:
  * alle **3.2.2-Änderungen** werden entfernt (Funktionen), damit ein
  * Vergleichs-APK entsteht.
