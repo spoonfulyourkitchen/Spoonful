@@ -21,8 +21,32 @@ import { isDeepSeekPeak, peakSummary } from './peak.ts';
  * Secrets setzen: OPENROUTER_API_KEY, OPENROUTER_API_KEY_2 … (bis _24).
  */
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
-const MODELS_ENDPOINT = 'https://openrouter.ai/api/v1/models';
 const PAID_MODEL = Deno.env.get('OPENROUTER_PAID_MODEL') ?? 'openai/gpt-4o-mini';
+
+/**
+ * Die **drei besten Gratis-Modelle** (vorher wurde live eine lange Liste
+ * geladen und durchprobiert — das hat jeden Aufruf langsam gemacht).
+ *
+ * Reihenfolge nach Erfahrung aus dem Rezept-Bot:
+ *  1. ling-3.0-flash-vl  — sehr schnell, gutes Deutsch
+ *  2. gemma-4-31b-it     — starke Anweisungstreue (JSON)
+ *  3. nemotron-3-super-120b — stärkstes Modell der Gratis-Gruppe
+ *
+ * Über das Secret OPENROUTER_FREE_MODELS (Kommaliste) änderbar, ohne Deploy.
+ */
+const BEST_FREE_MODELS: string[] = [
+  'inclusionai/ling-3.0-flash-vl:free',
+  'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
+];
+
+function freeModelList(): string[] {
+  const custom = (Deno.env.get('OPENROUTER_FREE_MODELS') ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return custom.length ? custom.slice(0, 3) : BEST_FREE_MODELS;
+}
 
 /**
  * Bezahlte Kette: **nur als letzter Notfall** (erst wenn alle Gratis-Modelle
@@ -117,30 +141,9 @@ function liveKeys(keys: string[]): string[] {
   return open.length ? open : keys;
 }
 
-/** Gratis-Modelle live von OpenRouter holen (10 Minuten gecacht). */
-let freeCache: { at: number; models: string[] } = { at: 0, models: [] };
-async function freeModels(): Promise<string[]> {
-  if (Date.now() - freeCache.at < 10 * 60 * 1000 && freeCache.models.length) return freeCache.models;
-  try {
-    const res = await fetch(MODELS_ENDPOINT);
-    const data = await res.json();
-    const rows: any[] = Array.isArray(data?.data) ? data.data : [];
-    const free = rows
-      .filter((m) => {
-        const p = m?.pricing ?? {};
-        return Number(p.prompt ?? 1) === 0 && Number(p.completion ?? 1) === 0;
-      })
-      .map((m) => String(m?.id ?? ''))
-      .filter(Boolean);
-    /* Gute Allrounder zuerst (JSON-fähig, große Kontexte). */
-    const score = (id: string) =>
-      /gpt-oss/i.test(id) ? 0 : /qwen.*(instruct|235b|72b)/i.test(id) ? 1 : /llama.*(70b|instruct)/i.test(id) ? 2 : /mistral|gemma|deepseek/i.test(id) ? 3 : 4;
-    free.sort((a, b) => score(a) - score(b));
-    freeCache = { at: Date.now(), models: free.slice(0, 12) };
-    return freeCache.models;
-  } catch {
-    return freeCache.models;
-  }
+/** Gratis-Modelle für diesen Aufruf (feste kurze Liste — kein Live-Abruf mehr). */
+function freeModels(): string[] {
+  return freeModelList();
 }
 
 type Attempt = { ok: boolean; status: number; content?: string; detail?: string };
@@ -214,16 +217,14 @@ Deno.serve(async (req: Request) => {
     ],
   };
 
-  /* 1) Gratis-Modelle über die Keys durchprobieren.
-        Wichtig: nicht alle 20 Keys × alle Modelle! Sonst dauert ein Aufruf
-        Minuten. Deshalb: höchstens 4 Modelle, je Modell höchstens 2 Keys und
-        insgesamt eine feste Zeitgrenze. */
+  /* 1) Die drei besten Gratis-Modelle der Reihe nach (je 1 Versuch).
+        Bewusst kurz gehalten: jeder zusätzliche Versuch kostet nur Zeit. */
   const pool = liveKeys(keys);
-  const models = (await freeModels()).slice(0, 4);
+  const models = freeModels();
   const errors: string[] = [];
   const skipped: string[] = [];
-  let deadline = Date.now() + 40_000;
-  const KEYS_PER_MODEL = 2;
+  let deadline = Date.now() + 20_000;
+  const KEYS_PER_MODEL = 1;
 
   const tryModel = async (model: string, paid: boolean): Promise<Response | null> => {
     let tried = 0;

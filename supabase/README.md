@@ -31,9 +31,17 @@ nur Anfragen von angemeldeten Nutzern (JWT-Rolle muss `authenticated` sein, der
 
 ## KI-Modelle: Reihenfolge und Kosten (Stand September 2026)
 
-Zuerst laufen immer die **Gratis-Modelle** (live von OpenRouter geladen, nur
-`pricing == 0`). Erst wenn keines davon antwortet, kommt die billige Kette —
-**nur außerhalb der DeepSeek-Stoßzeit** und **nur innerhalb des Tageslimits**:
+**Zuerst laufen genau drei Gratis-Modelle** (fest gewählt, kein Live-Abruf mehr —
+das hat jeden Aufruf ausgebremst), je **ein** Versuch:
+
+| # | Gratis-Modell | Warum |
+|---|---|---|
+| 1 | `inclusionai/ling-3.0-flash-vl:free` | sehr schnell, gutes Deutsch |
+| 2 | `google/gemma-4-31b-it:free` | starke Anweisungstreue (JSON) |
+| 3 | `nvidia/nemotron-3-super-120b-a12b:free` | stärkstes Modell der Gratis-Gruppe |
+
+Erst wenn alle drei nicht antworten, kommt die billige Kette — **nur außerhalb
+der DeepSeek-Stoßzeit** und **nur innerhalb des Tageslimits**:
 
 | # | Modell | Preis (in/out je 1M Tokens) | Hinweis |
 |---|---|---|---|
@@ -42,10 +50,14 @@ Zuerst laufen immer die **Gratis-Modelle** (live von OpenRouter geladen, nur
 | 3 | `deepseek/deepseek-v4.1-flash` | 0,15 $ / 0,60 $ | **nur Off-Peak** (dann halber Preis) |
 | 4 | `openai/gpt-4o-mini` | 0,15 $ / 0,60 $ | letzter Ausweg |
 
+Zeitbudget: 20 Sekunden für die Gratis-Runde, danach 30 Sekunden für die Kette —
+ein Aufruf kann also nie mehr minutenlang laufen.
+
 Steuerung über Function-Secrets:
 
 | Secret | Standard | Wirkung |
 |---|---|---|
+| `OPENROUTER_FREE_MODELS` | die drei oben | eigene Kommaliste (max. 3) statt der Standard-Gratis-Modelle |
 | `OPENROUTER_ALLOW_PAID` | `1` | `0` = **nur Gratis-Modelle** (keine Kosten) |
 | `OPENROUTER_PAID_DAILY_LIMIT` | `100` | max. bezahlte Anfragen pro Tag (0 = kein Limit) |
 | `OPENROUTER_PAID_MODEL` | `openai/gpt-4o-mini` | letzter Notfall, falls nicht in der Kette |

@@ -23,6 +23,17 @@ console.log(`  slug=${data?.slug} status=${data?.status} version=${data?.version
 const bodyRes = await fetch(`https://api.supabase.com/v1/projects/${REF}/functions/ai/body`, { headers: head });
 const body = await bodyRes.text();
 console.log(`Quelltext: HTTP ${bodyRes.status}, ${body.length} Zeichen`);
-for (const marker of ['MODEL_CHAIN', 'paidCallsToday', 'deepseek/deepseek-v4.1-flash', 'peakSummary']) {
+for (const marker of [
+  'MODEL_CHAIN',
+  'paidCallsToday',
+  'deepseek/deepseek-v4.1-flash',
+  'peakSummary',
+  'BEST_FREE_MODELS',
+  'ling-3.0-flash-vl:free',
+  'gemma-4-31b-it:free',
+  'nemotron-3-super-120b-a12b:free',
+  'KEYS_PER_MODEL = 1',
+]) {
   console.log(`  ${body.includes(marker) ? 'OK   ' : 'FEHLT'} ${marker}`);
 }
+console.log(`  ${body.includes('MODELS_ENDPOINT') ? 'FEHLT (alter Live-Abruf noch drin)' : 'OK    kein Live-Abruf der Modell-Liste mehr'}`);
