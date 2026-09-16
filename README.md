@@ -63,14 +63,15 @@ Questions, ideas or a problem with a recipe? Write to spoonfulsupport@gmail.com 
 ```bash
 cd mobile
 npx tsc --noEmit              # Typen
-npx jest                      # 55 automatische Tests
+npx jest                      # 46 automatische Tests
 npx eslint src App.tsx --quiet # Fehler (Warnungen sind erlaubt)
 ```
 Dazu im Repo-Root:
 ```bash
 node tools/check-version.mjs                    # Version überall gleich? + Notizen vorhanden
 node tools/video-check.mjs "<Video-Link>"       # liefert das Video einen Rezept-Text?
-node tools/monstr-check.mjs                     # liefern die Preis-Quellen?
+node tools/ai-live-check.mjs                     # antwortet die KI-Funktion (inkl. Tageslimit)?
+node tools/db-run.mjs --sql "select 1"           # SQL direkt aufs Projekt (DDL/Notfälle)
 ```
 
 ## Stabilität
