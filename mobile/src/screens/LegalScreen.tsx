@@ -4,6 +4,16 @@ import { ArrowLeft } from 'lucide-react-native';
 import { colors, fonts, readableText } from '../theme';
 import { goBack } from '../navigation/rootRef';
 import { GlassCard } from '../components/ui';
+import { APP_VERSION } from '../config';
+
+/**
+ * 3.2.3: Die Rechtstexte müssen bei jedem Release aktuell sein.
+ * - Die App-Version wird nicht mehr fest eingetragen, sondern beim Rendern
+ *   automatisch mit `APP_VERSION` ersetzt.
+ * - „Stand" ist der aktuelle Monat/Jahr, damit nie ein veraltetes Datum
+ *   in der App steht.
+ */
+const LEGAL_UPDATED = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(new Date());
 
 export const LEGAL_PAGES = [
   { page: 'impressum', label: 'Impressum' },
@@ -66,11 +76,30 @@ const SECTIONS: Record<LegalPageId, { h: string; body: string }[]> = {
   ],
 };
 
+/**
+ * 3.2.3: Beim Rendern wird der alte Platzhalter „2.0.0" durch die echte,
+ * aktuelle App-Version ersetzt — so nennen die Rechtstexte immer die Version,
+ * die der Nutzer installiert hat.
+ */
+function withCurrentVersion(source: Record<LegalPageId, { h: string; body: string }[]>) {
+  const fix = (text: string) => text.replace(/2\.0\.0/g, APP_VERSION);
+  return Object.fromEntries(
+    Object.entries(source).map(([key, rows]) => [
+      key,
+      rows.map((row) => ({ h: fix(row.h), body: fix(row.body) })),
+    ]),
+  ) as Record<LegalPageId, { h: string; body: string }[]>;
+}
+
+const SECTIONS_CURRENT = withCurrentVersion(SECTIONS);
+
 export function LegalScreen({ route }: any) {
   const initial: LegalPageId = route?.params?.page ?? 'impressum';
   const [active, setActive] = React.useState<LegalPageId>(initial);
-  const sections = SECTIONS[active];
-
+  /* 3.2.3: Version + Stand kommen live aus der App-Config (wird bei jedem
+     Release automatisch aktuell). */
+  const legalDate = LEGAL_UPDATED;
+  const sections = SECTIONS_CURRENT[active];
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <View style={{ paddingHorizontal: 16, paddingTop: 18, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -100,7 +129,7 @@ export function LegalScreen({ route }: any) {
             </View>
           ))}
           <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 20 }}>
-            Stand: September 2026 · gilt für App-Version 2.0.0
+            Stand: {legalDate} · gilt für App-Version {APP_VERSION}
           </Text>
         </GlassCard>
       </ScrollView>

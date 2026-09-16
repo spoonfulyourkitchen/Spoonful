@@ -5,7 +5,10 @@ import {
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts } from '../theme';
-import { useTranslation } from '../lib/i18n';
+import { useTranslation, LANGUAGES } from '../lib/i18n';
+import { useQuery } from '../lib/convex-auth';
+import { api } from '../lib/api';
+import { APP_VERSION } from '../config';
 import { navigate } from '../navigation/rootRef';
 import { SpoonfulLogo as Logo } from '../components/Logo';
 import { WashBackground } from '../components/GlassBackground';
@@ -22,6 +25,14 @@ import { GlassCard } from '../components/ui';
 export function LandingScreen() {
   const insets = useSafeAreaInsets();
   const { t, rtl } = useTranslation();
+  /**
+   * 3.2.3: Keine erfundenen Marketing-Zahlen mehr — die Rezeptzahl kommt live
+   * aus der Bibliothek, die Sprachzahl aus der Sprachliste der App und die
+   * Version aus `APP_VERSION`.
+   */
+  const count = useQuery(api.recipes.libraryCount) as { total?: number } | undefined;
+  const total = count?.total ?? 0;
+  const langCount = LANGUAGES.length;
   const row = { flexDirection: (rtl ? 'row-reverse' : 'row') as 'row' | 'row-reverse' };
   const align = { textAlign: (rtl ? 'right' : 'left') as 'right' | 'left' };
 
@@ -94,9 +105,12 @@ export function LandingScreen() {
 
           {/* stats + social proof */}
           <View style={[{ gap: 8, marginTop: 16, flexWrap: 'wrap' }, row]}>
-            <StatPill icon={<Library size={13} color={colors.accent} />} label={t('home.statRecipes')} />
-            <StatPill icon={<Globe size={13} color={colors.accent} />} label={t('home.statCountries')} />
-            <StatPill icon={<Sparkles size={13} color={colors.accent} />} label={t('home.statLangs')} />
+            <StatPill
+              icon={<Library size={13} color={colors.accent} />}
+              label={total > 0 ? t('s.statRecipesLive', { n: total.toLocaleString() }) : t('home.statRecipes')}
+            />
+            <StatPill icon={<Globe size={13} color={colors.accent} />} label={t('s.statLangsLive', { n: langCount })} />
+            <StatPill icon={<Sparkles size={13} color={colors.accent} />} label={`v${APP_VERSION}`} />
           </View>
           <View style={[{ alignItems: 'center', gap: 6, marginTop: 14 }, row]}>
             {[1, 2, 3, 4, 5].map((i) => (

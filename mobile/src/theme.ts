@@ -350,6 +350,15 @@ function notifyThemeChanged() {
 export function getThemeId(): string {
   return currentTheme.id;
 }
+
+/**
+ * 3.2.3: Das Haupt-Theme („Warm Cream") zeigt keine Glasmorphismus-Optik mehr:
+ * Hintergrund und Karten sind dann flächig/clean statt durchscheinend.
+ */
+export function usesSolidStyle(): boolean {
+  return getThemeId() === 'warm-cream';
+}
+
 export function isDarkTheme(): boolean {
   return currentTheme.dark;
 }

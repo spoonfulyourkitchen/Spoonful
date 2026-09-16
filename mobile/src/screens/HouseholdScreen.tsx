@@ -9,7 +9,19 @@
  * Oben rechts der QR-Code: scannen = beitreten, darunter der Beitritts-Code.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Share, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  Share,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Bell, Check, ChefHat, MoreHorizontal, Plus, QrCode, Search, Share2,
@@ -598,85 +610,89 @@ export function HouseholdScreen() {
 
       {/* Rezept-Auswahl für den Wochenplan */}
       <Modal visible={pickDay != null} transparent animationType="fade" onRequestClose={() => setPickDay(null)}>
-        <View style={{ flex: 1, backgroundColor: rgbaHelper('#000000', 0.55), justifyContent: 'flex-end' }}>
-          <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 24, maxHeight: '82%' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={{ flex: 1, fontFamily: fonts.display, fontSize: 17, fontWeight: '800', color: colors.textPrimary }}>{t('s.hhPickRecipe')}</Text>
-              <Pressable onPress={() => setPickDay(null)} hitSlop={8}>
-                <X size={18} color={colors.textSecondary} />
-              </Pressable>
-            </View>
-
-            <View style={{ flexDirection: 'row', gap: 6, marginTop: 12 }}>
-              {([
-                { key: 'lib', label: t('s.hhPlanFromLib') },
-                { key: 'mine', label: t('s.hhPlanFromMine') },
-                { key: 'saved', label: t('s.hhPlanFromSaved') },
-              ] as const).map((tab) => (
-                <Pressable
-                  key={tab.key}
-                  onPress={() => setPickTab(tab.key)}
-                  style={({ pressed }) => [{ flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 11, backgroundColor: pickTab === tab.key ? colors.darkButton : colors.surfaceMuted, opacity: pressed ? 0.8 : 1 }]}
-                >
-                  <Text numberOfLines={1} style={{ fontSize: 12.5, fontWeight: '700', color: pickTab === tab.key ? colors.darkButtonText : colors.textSecondary }}>
-                    {tab.label}
-                  </Text>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <View style={{ flex: 1, backgroundColor: rgbaHelper('#000000', 0.55), justifyContent: 'flex-end' }}>
+            <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 24, maxHeight: '82%' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={{ flex: 1, fontFamily: fonts.display, fontSize: 17, fontWeight: '800', color: colors.textPrimary }}>{t('s.hhPickRecipe')}</Text>
+                <Pressable onPress={() => setPickDay(null)} hitSlop={8}>
+                  <X size={18} color={colors.textSecondary} />
                 </Pressable>
-              ))}
-            </View>
-
-            {pickTab === 'lib' ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, borderRadius: 12, backgroundColor: colors.surfaceMuted, paddingHorizontal: 12 }}>
-                <Search size={15} color={colors.textSecondary} />
-                <TextInput
-                  value={pickQuery}
-                  onChangeText={setPickQuery}
-                  placeholder={t('s.hhPickRecipe')}
-                  placeholderTextColor={colors.textSecondary}
-                  style={{ flex: 1, paddingVertical: 10, fontSize: 14, color: colors.textPrimary }}
-                />
               </View>
-            ) : null}
 
-            <ScrollView style={{ marginTop: 8 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-              {pickerItems.slice(0, 40).map((r, i) => (
-                <View key={String(r?.recipeKey ?? r?._id ?? r?.id ?? i)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.cardBorder }}>
-                  <Utensils size={15} color={colors.textSecondary} />
-                  <Text numberOfLines={1} style={{ flex: 1, fontSize: 13.5, color: colors.textPrimary }}>{String(r?.title ?? '')}</Text>
-                  <MiniBtn label={t('s.hhPlanToShop')} onPress={() => addRecipeToPlan(r, true)} />
-                  <Pressable onPress={() => addRecipeToPlan(r, false)} style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accentSoft }}>
-                    <Plus size={16} color={colors.accent} />
+              <View style={{ flexDirection: 'row', gap: 6, marginTop: 12 }}>
+                {([
+                  { key: 'lib', label: t('s.hhPlanFromLib') },
+                  { key: 'mine', label: t('s.hhPlanFromMine') },
+                  { key: 'saved', label: t('s.hhPlanFromSaved') },
+                ] as const).map((tab) => (
+                  <Pressable
+                    key={tab.key}
+                    onPress={() => setPickTab(tab.key)}
+                    style={({ pressed }) => [{ flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 11, backgroundColor: pickTab === tab.key ? colors.darkButton : colors.surfaceMuted, opacity: pressed ? 0.8 : 1 }]}
+                  >
+                    <Text numberOfLines={1} style={{ fontSize: 12.5, fontWeight: '700', color: pickTab === tab.key ? colors.darkButtonText : colors.textSecondary }}>
+                      {tab.label}
+                    </Text>
                   </Pressable>
+                ))}
+              </View>
+
+              {pickTab === 'lib' ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, borderRadius: 12, backgroundColor: colors.surfaceMuted, paddingHorizontal: 12 }}>
+                  <Search size={15} color={colors.textSecondary} />
+                  <TextInput
+                    value={pickQuery}
+                    onChangeText={setPickQuery}
+                    placeholder={t('s.hhPickRecipe')}
+                    placeholderTextColor={colors.textSecondary}
+                    style={{ flex: 1, paddingVertical: 10, fontSize: 14, color: colors.textPrimary }}
+                  />
                 </View>
-              ))}
-              {!pickerItems.length ? <Text style={{ fontSize: 12.5, color: colors.textSecondary, paddingVertical: 10 }}>{t('s.hhPlanEmpty')}</Text> : null}
-            </ScrollView>
+              ) : null}
+
+              <ScrollView style={{ marginTop: 8 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                {pickerItems.slice(0, 40).map((r, i) => (
+                  <View key={String(r?.recipeKey ?? r?._id ?? r?.id ?? i)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.cardBorder }}>
+                    <Utensils size={15} color={colors.textSecondary} />
+                    <Text numberOfLines={1} style={{ flex: 1, fontSize: 13.5, color: colors.textPrimary }}>{String(r?.title ?? '')}</Text>
+                    <MiniBtn label={t('s.hhPlanToShop')} onPress={() => addRecipeToPlan(r, true)} />
+                    <Pressable onPress={() => addRecipeToPlan(r, false)} style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accentSoft }}>
+                      <Plus size={16} color={colors.accent} />
+                    </Pressable>
+                  </View>
+                ))}
+                {!pickerItems.length ? <Text style={{ fontSize: 12.5, color: colors.textSecondary, paddingVertical: 10 }}>{t('s.hhPlanEmpty')}</Text> : null}
+              </ScrollView>
+            </View>
           </View>
-        </View>
-      </Modal>
+      
+        </KeyboardAvoidingView></Modal>
 
       {/* QR-Code: scannen = beitreten */}
       <Modal visible={qrOpen} transparent animationType="fade" onRequestClose={() => setQrOpen(false)}>
-        <View style={{ flex: 1, backgroundColor: rgbaHelper('#000000', 0.55), alignItems: 'center', justifyContent: 'center', padding: 18 }}>
-          <View style={{ width: '100%', maxWidth: 420, borderRadius: 24, backgroundColor: colors.card, padding: 18, alignItems: 'center' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%', marginBottom: 12 }}>
-              <Text style={{ flex: 1, fontFamily: fonts.display, fontSize: 17, fontWeight: '800', color: colors.textPrimary }}>{t('s.hhQr')}</Text>
-              <Pressable onPress={() => setQrOpen(false)} hitSlop={8}>
-                <X size={18} color={colors.textSecondary} />
-              </Pressable>
-            </View>
-            {qrValue ? <QrCodeView value={qrValue} size={260} /> : <ActivityIndicator color={colors.accent} />}
-            <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 10, textAlign: 'center' }}>{t('s.hhQrBody')}</Text>
-            <Text style={{ fontSize: 15, fontWeight: '800', color: colors.accent, marginTop: 10 }}>
-              {t('s.hhCode')}: {code ?? '—'}
-            </Text>
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16, alignSelf: 'stretch' }}>
-              <AppButton label={t('s.hhShareHh')} variant="ghost" onPress={() => void shareCode()} style={{ flex: 1 }} />
-              <AppButton label={t('common.close')} variant="dark" onPress={() => setQrOpen(false)} style={{ flex: 1 }} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <View style={{ flex: 1, backgroundColor: rgbaHelper('#000000', 0.55), alignItems: 'center', justifyContent: 'center', padding: 18 }}>
+            <View style={{ width: '100%', maxWidth: 420, borderRadius: 24, backgroundColor: colors.card, padding: 18, alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%', marginBottom: 12 }}>
+                <Text style={{ flex: 1, fontFamily: fonts.display, fontSize: 17, fontWeight: '800', color: colors.textPrimary }}>{t('s.hhQr')}</Text>
+                <Pressable onPress={() => setQrOpen(false)} hitSlop={8}>
+                  <X size={18} color={colors.textSecondary} />
+                </Pressable>
+              </View>
+              {qrValue ? <QrCodeView value={qrValue} size={260} /> : <ActivityIndicator color={colors.accent} />}
+              <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 10, textAlign: 'center' }}>{t('s.hhQrBody')}</Text>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: colors.accent, marginTop: 10 }}>
+                {t('s.hhCode')}: {code ?? '—'}
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 16, alignSelf: 'stretch' }}>
+                <AppButton label={t('s.hhShareHh')} variant="ghost" onPress={() => void shareCode()} style={{ flex: 1 }} />
+                <AppButton label={t('common.close')} variant="dark" onPress={() => setQrOpen(false)} style={{ flex: 1 }} />
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
+      
+        </KeyboardAvoidingView></Modal>
 
       {/* QR-Code scannen, um beizutreten */}
       <BarcodeScannerModal visible={scanOpen} onClose={() => setScanOpen(false)} onCode={onScannedCode} accept="any" />
@@ -686,7 +702,11 @@ export function HouseholdScreen() {
 
 const inputStyle = {
   borderRadius: 12,
-  backgroundColor: colors.surfaceMuted,
+  /* 3.2.3: feste Theme-Farben + Rahmen — vorher wirkten die Felder im dunklen
+     Theme hell/weiß, weil die Fläche nur eine schwache Tönung war. */
+  backgroundColor: colors.card,
+  borderWidth: 1,
+  borderColor: colors.cardBorder,
   paddingHorizontal: 12,
   paddingVertical: 11,
   fontSize: 14,

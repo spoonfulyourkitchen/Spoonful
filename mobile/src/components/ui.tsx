@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Search } from 'lucide-react-native';
 
-import { colors, fonts, glassShadow, readableText } from '../theme';
+import { colors, fonts, glassShadow, readableText, usesSolidStyle } from '../theme';
 
 /* ============================================================================
    Spoonful design-system primitives (light glassmorphism).
@@ -48,15 +48,20 @@ export function GlassCard({
   visible?: boolean;
 }) {
   if (!visible) return null;
+  /**
+   * 3.2.3: Im Haupt-Theme gibt es keinen Glasmorphismus mehr — Karten sind
+   * flächig in der Theme-Farbe mit sichtbarem Rahmen.
+   */
+  const solid = usesSolidStyle();
   const bg =
-    variant === 'solid' ? colors.card
+    solid || variant === 'solid' ? colors.card
       : variant === 'glassDark' ? (colors.dark ? colors.card : 'rgba(30,41,59,0.9)')
         : colors.dark ? colors.card
           : 'rgba(255,255,255,0.55)';
   const highlight =
-    colors.dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.9)';
+    solid ? 'transparent' : colors.dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.9)';
   const border =
-    colors.dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.9)';
+    solid ? colors.cardBorder : colors.dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.9)';
   return (
     <View
       style={[

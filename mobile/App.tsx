@@ -10,6 +10,7 @@ import { I18nProvider } from './src/lib/i18n';
 import { requestNotifications, applyReminders } from './src/lib/notifications';
 import { colors, fonts, getThemeId, subscribeTheme, applyTheme, loadStoredThemeId } from './src/theme';
 import { hydrateOfflineCaches } from './src/lib/offline';
+import { hydrateShoppingLocal } from './src/lib/shopping-local';
 import { useRecoveryPending } from './src/lib/recovery';
 import { navigationRef } from './src/navigation/rootRef';
 import type { RootStackParamList } from './src/navigation/types';
@@ -163,6 +164,7 @@ function RootNavigator() {
   useEffect(() => {
     let alive = true;
     void hydrateOfflineCaches(['mine', 'saved', 'tracker', 'shopping']);
+    void hydrateShoppingLocal();
     void hydrateCrashLog();
     AsyncStorage.getItem(SESSION_KEY).then((v) => {
       if (alive) {

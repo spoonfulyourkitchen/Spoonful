@@ -1,5 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, Dimensions, FlatList, Modal, PanResponder, Pressable, RefreshControl, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Dimensions,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  PanResponder,
+  Platform,
+  Pressable,
+  RefreshControl,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { Bookmark, BookmarkCheck, Clock3, Flame, Heart, MessageSquare, Play, Search, SlidersHorizontal, Star, UsersRound, X } from 'lucide-react-native';
 import { useMutation, useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';
@@ -274,47 +290,35 @@ export function CommunityScreen() {
 
         {/* 3.2.0: Filter-Popup */}
         <Modal visible={filtersOpen} transparent animationType="fade" onRequestClose={() => setFiltersOpen(false)}>
-          <View style={{ flex: 1, backgroundColor: colors.overlayStrong, justifyContent: 'flex-end' }}>
-            <Pressable style={{ flex: 1 }} onPress={() => setFiltersOpen(false)} />
-            <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 28 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <SlidersHorizontal size={17} color={colors.accent} />
-                <Text style={{ flex: 1, fontSize: 17, fontWeight: '800', color: colors.textPrimary }}>{t('s.commFilters')}</Text>
-                <Pressable onPress={() => setFiltersOpen(false)} hitSlop={10}>
-                  <X size={19} color={colors.textSecondary} />
-                </Pressable>
-              </View>
-              <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.textSecondary, marginTop: 14, marginBottom: 6, textTransform: 'uppercase' }}>{t('s.commSort')}</Text>
-              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                <Chip label={t('s.commSortNew')} active={sort === 'recent'} onPress={() => setSort('recent')} />
-                <Chip label={t('s.commSortTop')} active={sort === 'popular'} onPress={() => setSort('popular')} />
-              </View>
-              <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.textSecondary, marginTop: 16, marginBottom: 6, textTransform: 'uppercase' }}>{t('s.commDifficulty')}</Text>
-              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                {DIFFS.map((d) => (
-                  <Chip key={d} label={dLabel(d)} active={diff === d} onPress={() => setDiff(d)} tone={d === 'hard' ? 'rose' : d === 'medium' ? 'accent' : 'green'} />
-                ))}
-              </View>
-              <AppButton label={t('common.close')} variant="dark" style={{ marginTop: 20 }} onPress={() => setFiltersOpen(false)} />
-            </View>
-          </View>
-        </Modal>
-      </View>
-{items.length > 0 ? (
-              <GlassCard pad={14} radius={18} style={{ marginBottom: 2 }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+            <View style={{ flex: 1, backgroundColor: colors.overlayStrong, justifyContent: 'flex-end' }}>
+              <Pressable style={{ flex: 1 }} onPress={() => setFiltersOpen(false)} />
+              <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 28 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-                    <UsersRound size={17} color={colors.accent} strokeWidth={2.2} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textPrimary }}>{t('s.commTable')}</Text>
-                    <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>
-                      {filtered.length} of {items.length} recipes · {t('s.commAllKitchens')}
-                    </Text>
-                  </View>
+                  <SlidersHorizontal size={17} color={colors.accent} />
+                  <Text style={{ flex: 1, fontSize: 17, fontWeight: '800', color: colors.textPrimary }}>{t('s.commFilters')}</Text>
+                  <Pressable onPress={() => setFiltersOpen(false)} hitSlop={10}>
+                    <X size={19} color={colors.textSecondary} />
+                  </Pressable>
                 </View>
-              </GlassCard>
-            ) : null}</>}
+                <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.textSecondary, marginTop: 14, marginBottom: 6, textTransform: 'uppercase' }}>{t('s.commSort')}</Text>
+                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                  <Chip label={t('s.commSortNew')} active={sort === 'recent'} onPress={() => setSort('recent')} />
+                  <Chip label={t('s.commSortTop')} active={sort === 'popular'} onPress={() => setSort('popular')} />
+                </View>
+                <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.textSecondary, marginTop: 16, marginBottom: 6, textTransform: 'uppercase' }}>{t('s.commDifficulty')}</Text>
+                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                  {DIFFS.map((d) => (
+                    <Chip key={d} label={dLabel(d)} active={diff === d} onPress={() => setDiff(d)} tone={d === 'hard' ? 'rose' : d === 'medium' ? 'accent' : 'green'} />
+                  ))}
+                </View>
+                <AppButton label={t('common.close')} variant="dark" style={{ marginTop: 20 }} onPress={() => setFiltersOpen(false)} />
+              </View>
+            </View>
+        
+        </KeyboardAvoidingView></Modal>
+      </View>
+      </>}
           ListEmptyComponent={
             <EmptyState
               icon={<UsersRound size={24} color={colors.accent} strokeWidth={2} />}

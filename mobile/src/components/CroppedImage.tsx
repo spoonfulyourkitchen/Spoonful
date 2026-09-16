@@ -37,11 +37,18 @@ export function CroppedImage({
   const [crop, setCropState] = useState<PhotoCrop | null>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   const [tryOriginal, setTryOriginal] = useState(false);
+  /**
+   * 3.2.3: Bildgröße holen — damit der Ausschnitt wirklich dort sitzt, wo der
+   * Rahmen war. Vorher wurde mit der Rahmen-Größe gerechnet, dadurch zeigte
+   * ein breites Foto immer die Mitte statt der gewählten Stelle.
+   */
+  const [imgSize, setImgSize] = useState<{ w: number; h: number } | null>(null);
 
   useEffect(() => {
     let alive = true;
     if (!uri) {
       setCropState(null);
+      setImgSize(null);
       return () => {
         alive = false;
       };
@@ -49,6 +56,17 @@ export function CroppedImage({
     getCrop(uri).then((c) => {
       if (alive) setCropState(c);
     });
+    try {
+      Image.getSize(
+        uri,
+        (w, h) => {
+          if (alive && w > 0 && h > 0) setImgSize({ w, h });
+        },
+        () => undefined,
+      );
+    } catch {
+      /* dann eben ohne Ausschnitt-Rechnung */
+    }
     return () => {
       alive = false;
     };
@@ -80,28 +98,34 @@ export function CroppedImage({
   const active = crop && !isCropDefault(crop) && size.w > 0 && size.h > 0;
   const c = active ? clampCrop(crop as PhotoCrop) : null;
 
+  /* Cover-Maßstab × Zoom, dann den Fokuspunkt genau in die Mitte legen. */
+  const view = (() => {
+    if (!c || !imgSize) return null;
+    const base = Math.max(size.w / imgSize.w, size.h / imgSize.h);
+    const scale = base * c.zoom;
+    const drawW = imgSize.w * scale;
+    const drawH = imgSize.h * scale;
+    return { width: drawW, height: drawH, left: size.w / 2 - c.fx * drawW, top: size.h / 2 - c.fy * drawH };
+  })();
+
   return (
     <View style={[{ overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }, style]} onLayout={onLayout}>
       {uri ? (
-        <Image
-          source={pictureSource}
-          resizeMode={resizeMode}
-          onError={handleError}
-          style={[
-            { width: '100%', height: '100%' },
-            c
-              ? {
-                  width: size.w * c.zoom,
-                  height: size.h * c.zoom,
-                  transform: [
-                    { translateX: (0.5 - c.fx) * size.w * c.zoom },
-                    { translateY: (0.5 - c.fy) * size.h * c.zoom },
-                  ],
-                }
-              : null,
-            imageStyle,
-          ]}
-        />
+        view ? (
+          <Image
+            source={pictureSource}
+            resizeMode="stretch"
+            onError={handleError}
+            style={{ position: 'absolute', left: view.left, top: view.top, width: view.width, height: view.height }}
+          />
+        ) : (
+          <Image
+            source={pictureSource}
+            resizeMode={resizeMode}
+            onError={handleError}
+            style={[{ width: '100%', height: '100%' }, imageStyle]}
+          />
+        )
       ) : null}
     </View>
   );

@@ -186,6 +186,46 @@ function jwtRole(token: string): string {
   }
 }
 
+/**
+ * 3.2.3: Tageslimit prüfen und verbrauchen.
+ *
+ * Die Zählung liegt in der Datenbank (`public.ai_usage_consume`), damit sie
+ * geräteübergreifend gilt und nicht durch einen Neustart der App zurückgesetzt
+ * werden kann. Mods/Admins bekommen `unlimited: true`.
+ */
+const AI_DAILY_LIMIT = Math.max(0, Number(Deno.env.get('AI_DAILY_LIMIT') ?? '3') || 3);
+
+type QuotaResult = { allowed: boolean; used: number; limit: number; remaining: number; unlimited?: boolean } | null;
+
+async function consumeQuota(token: string): Promise<QuotaResult> {
+  const url = `${Deno.env.get('SUPABASE_URL') ?? ''}/rest/v1/rpc/ai_usage_consume`;
+  const anon = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+  if (!url.startsWith('http') || !anon) return null; /* kein Limit möglich → nicht blockieren */
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        apikey: anon,
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ p_limit: AI_DAILY_LIMIT }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json().catch(() => null);
+    if (!data || typeof data !== 'object') return null;
+    return {
+      allowed: data.allowed !== false,
+      used: Number(data.used ?? 0),
+      limit: Number(data.limit ?? AI_DAILY_LIMIT),
+      remaining: Number(data.remaining ?? 0),
+      unlimited: !!data.unlimited,
+    };
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405);
@@ -201,6 +241,28 @@ Deno.serve(async (req: Request) => {
     payload = await req.json();
   } catch {
     return json({ error: 'invalid JSON body' }, 400);
+  }
+
+  /**
+   * 3.2.3: Tageslimit — 3 Nutzungen pro Nutzer und Tag, alle drei Chef-
+   * Funktionen zusammen. Mods/Admins sind ausgenommen (das entscheidet die
+   * Datenbankfunktion anhand von `public.users.role`).
+   *
+   * Der Zugriff passiert mit dem JWT des Nutzers, damit `auth.uid()` in der
+   * Datenbankfunktion gesetzt ist.
+   */
+  const usage = await consumeQuota(token);
+  if (usage && usage.allowed === false) {
+    return json(
+      {
+        error: 'daily_limit_reached',
+        message: 'Daily AI limit reached',
+        used: usage.used,
+        limit: usage.limit,
+        remaining: 0,
+      },
+      429,
+    );
   }
 
   const system = String(payload?.system ?? '');
@@ -245,6 +307,7 @@ Deno.serve(async (req: Request) => {
           paid,
           paidCallsToday: paidCalls.count,
           freeModelsTried: models.length,
+          ...(usage ? { usage } : {}),
           ...(skipped.length ? { skipped } : {}),
         });
       }
@@ -258,6 +321,7 @@ Deno.serve(async (req: Request) => {
             paid,
             paidCallsToday: paidCalls.count,
             freeModelsTried: models.length,
+            ...(usage ? { usage } : {}),
           });
         }
         errors.push(`${model}: ${second.status} ${String(second.detail ?? '').slice(0, 80)}`);

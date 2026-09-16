@@ -1,5 +1,6 @@
 import React from 'react';
 import { Image, View } from 'react-native';
+import { colors } from '../theme';
 
 /**
  * Spoonful app logo.
@@ -14,11 +15,28 @@ import { Image, View } from 'react-native';
 const LOGO = require('../assets/logo.png');
 
 export function SpoonfulLogo({ size = 84, radius }: { size?: number; radius?: number }) {
+  /**
+   * 3.2.3: Der Logo-Hintergrund kommt vom Theme (accentSoft + Theme-Rahmen),
+   * damit das Symbol auf dunklen Themes nicht als heller Kasten wirkt.
+   */
+  const inner = Math.round(size * 0.86);
   return (
-    <View style={{ width: size, height: size }}>
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: radius ?? Math.round(size * 0.26),
+        overflow: 'hidden',
+        backgroundColor: colors.accentSoft,
+        borderWidth: 1,
+        borderColor: colors.cardBorder,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
       <Image
         source={LOGO}
-        style={{ width: size, height: size, borderRadius: radius ?? 0 }}
+        style={{ width: inner, height: inner }}
         resizeMode="contain"
         accessible
         accessibilityLabel="Spoonful"

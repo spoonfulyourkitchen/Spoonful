@@ -12,6 +12,64 @@ import { withTimeout } from './safe';
 /** 3.2.2: Obergrenze für einen KI-Aufruf. */
 const AI_TIMEOUT_MS = 60000;
 
+/* ── 3.2.3: Tageslimit-Anzeige ───────────────────────────────────────────────
+ * Alle drei Chef-Funktionen (Zutaten, Beschreiben, Video) teilen sich ein
+ * Tageslimit. Der Server zählt in der Datenbank; die App liest den Stand nur
+ * zum Anzeigen und aktualisiert ihn nach jedem Aufruf.
+ * ------------------------------------------------------------------------- */
+export type AiUsage = { used: number; limit: number; remaining: number; unlimited: boolean };
+
+let aiUsage: AiUsage | null = null;
+const aiUsageListeners = new Set<() => void>();
+
+function publishUsage(next: AiUsage | null) {
+  if (!next) return;
+  if (
+    aiUsage &&
+    aiUsage.used === next.used &&
+    aiUsage.limit === next.limit &&
+    aiUsage.remaining === next.remaining &&
+    aiUsage.unlimited === next.unlimited
+  ) {
+    return;
+  }
+  aiUsage = next;
+  aiUsageListeners.forEach((fn) => fn());
+}
+
+export function subscribeAiUsage(listener: () => void): () => void {
+  aiUsageListeners.add(listener);
+  return () => aiUsageListeners.delete(listener);
+}
+
+export function getAiUsage(): AiUsage | null {
+  return aiUsage;
+}
+
+function usageFrom(raw: any): AiUsage | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const limit = Number(raw.limit ?? 3);
+  const used = Number(raw.used ?? 0);
+  return {
+    used,
+    limit,
+    remaining: Number(raw.remaining ?? Math.max(0, limit - used)),
+    unlimited: !!raw.unlimited,
+  };
+}
+
+/** Stand vom Server holen (z. B. beim Start und nach jeder Nutzung). */
+export async function refreshAiUsage(): Promise<AiUsage | null> {
+  try {
+    const { data } = await supabase.rpc('ai_usage_today', { p_limit: 3 });
+    const next = usageFrom(data);
+    if (next) publishUsage(next);
+    return next;
+  } catch {
+    return aiUsage;
+  }
+}
+
 function jsonFromText(text: string): any {
   const cleaned = text
     .replace(/```json|```/g, '')
@@ -25,19 +83,26 @@ function jsonFromText(text: string): any {
 /** Turns an edge-function failure into a message a human can act on. */
 async function functionError(error: any): Promise<string> {
   const status = Number(error?.context?.status ?? error?.status ?? 0);
+  let detail = '';
+  try {
+    const body = await error?.context?.text?.();
+    if (body) detail = String(body);
+  } catch {
+    /* body already consumed */
+  }
   if (status === 404) {
     return 'AI is not available yet: deploy the Supabase function "ai" (supabase/functions/ai) and set OPENROUTER_API_KEY as its secret.';
   }
   if (status === 401 || status === 403) return 'AI access was denied. Please sign in again.';
-  if (status === 429) return 'The AI is busy right now. Please try again in a moment.';
-  let detail = '';
-  try {
-    const body = await error?.context?.text?.();
-    if (body) detail = String(body).slice(0, 200);
-  } catch {
-    /* body already consumed */
+  if (status === 429) {
+    /* 3.2.3: 429 heißt jetzt auch „Tageslimit erreicht" — das muss der Nutzer
+       anders lesen als „Server ist gerade beschäftigt". */
+    if (/daily_limit_reached/i.test(detail)) {
+      return 'You have used all 3 AI requests for today. Come back tomorrow.';
+    }
+    return 'The AI is busy right now. Please try again in a moment.';
   }
-  return `AI request failed${status ? ` (${status})` : ''}${detail ? `: ${detail}` : ''}`;
+  return `AI request failed${status ? ` (${status})` : ''}${detail ? `: ${detail.slice(0, 200)}` : ''}`;
 }
 
 async function chatJSON(system: string, user: string, temperature = 0.7): Promise<any> {
@@ -55,6 +120,9 @@ async function chatJSON(system: string, user: string, temperature = 0.7): Promis
     'Die KI hat zu lange gebraucht.',
   );
   if (error) throw new Error(await functionError(error));
+  /* 3.2.3: Der Server schickt den neuen Zählerstand mit — damit ist die
+     Anzeige im Kopf sofort aktuell, ohne zusätzliche Anfrage. */
+  publishUsage(usageFrom((data as any)?.usage));
   const content = (data as any)?.content;
   if (!content) throw new Error('AI returned no content.');
   return jsonFromText(String(content));

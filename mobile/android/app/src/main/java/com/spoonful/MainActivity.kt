@@ -1,6 +1,11 @@
 package com.spoonful
 
 import android.content.Intent
+import android.os.Build
+import android.os.Bundle
+import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsController
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
@@ -13,6 +18,39 @@ class MainActivity : ReactActivity() {
    * rendering of the component.
    */
   override fun getMainComponentName(): String = "Spoonful"
+
+  /**
+   * 3.2.3: Die System-Navigationsleiste (Gesten/3-Tasten) verschwindet, solange
+   * die App offen ist — wie bei vielen anderen Apps. Sie kommt durch eine
+   * Wischgeste kurz zurück ("sticky immersive") und versteckt sich danach
+   * wieder. Die Statusleiste bleibt sichtbar.
+   */
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    applyImmersiveMode()
+  }
+
+  private fun applyImmersiveMode() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      window.setDecorFitsSystemWindows(false)
+      val controller = window.insetsController ?: return
+      controller.hide(WindowInsets.Type.navigationBars())
+      controller.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+    } else {
+      @Suppress("DEPRECATION")
+      window.decorView.systemUiVisibility = (
+        View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+          or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+          or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        )
+    }
+  }
+
+  /** Nach Fokuswechsel (z. B. zurück aus einer anderen App) erneut verstecken. */
+  override fun onWindowFocusChanged(hasFocus: Boolean) {
+    super.onWindowFocusChanged(hasFocus)
+    if (hasFocus) applyImmersiveMode()
+  }
 
   /**
    * 3.2.1: Das ist der Grund, warum das Teilen-Ziel bisher nur beim ersten Start
@@ -32,3 +70,4 @@ class MainActivity : ReactActivity() {
   override fun createReactActivityDelegate(): ReactActivityDelegate =
       DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)
 }
+

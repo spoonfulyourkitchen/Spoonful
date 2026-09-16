@@ -44,7 +44,8 @@ export function TrackerExtras() {
   }, []);
 
   /* 3.2.0: Abschnitte aufklappbar (weniger Scrollen) */
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({ food: true, water: false, weight: false });
+  /** 3.2.3: Das Essens-Feld startet geschlossen (Nutzer wünschte es so). */
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({ food: false, water: false, weight: false });
   const toggleSection = (key: string) => setOpenSections((s) => ({ ...s, [key]: !s[key] }));
 
   const [bodyWeight, setBodyWeight] = useState(75);

@@ -467,6 +467,27 @@ const isUsable = (found: { ingredients: string[]; steps: string[] }) =>
   (found.ingredients.length >= 1 && found.steps.length >= 2);
 
 /**
+ * 3.2.3: Zutaten aus dem Video und von der KI zusammenführen — die Video-Angaben
+ * gewinnen, die KI füllt nur auf, was dort fehlt.
+ */
+export function mergeIngredients(video: string[], ai: string[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9äöüß ]/g, ' ').replace(/\s+/g, ' ').trim();
+  const add = (raw: string) => {
+    const value = raw.trim();
+    const key = norm(value);
+    if (!key || seen.has(key)) return;
+    if (out.some((existing) => norm(existing).includes(key) || key.includes(norm(existing)))) return;
+    seen.add(key);
+    out.push(value);
+  };
+  video.forEach(add);
+  ai.forEach(add);
+  return out.slice(0, 40);
+}
+
+/**
  * Rezept aus einem Video-Link ziehen.
  *
  * `null` gibt es nur noch, wenn wirklich kein Text zu holen war (Link falsch,
@@ -523,6 +544,29 @@ export async function recipeFromVideo(
   if (!text.trim()) return null;
 
   const local = parseRecipeFromText(text);
+
+  /**
+   * 3.2.3: Viele Videos (Reels/Shorts) nennen nur die Zutaten. Dann ergänzt die
+   * KI die fehlenden Zubereitungsschritte, statt den Video-Text 1:1 als Rezept
+   * auszugeben. Die Zutaten aus dem Video bleiben dabei erhalten.
+   */
+  const tooFewSteps = local.ingredients.length >= 2 && local.steps.length < 3;
+  if (tooFewSteps && allowAi && text.trim().length >= 200) {
+    const structured = await aiRecipeFromText({ title, text }).catch(() => null);
+    if (structured && structured.steps.length >= 2) {
+      const ingredients = mergeIngredients(local.ingredients, structured.ingredients);
+      return {
+        title: structured.title || title || ingredients[0] || structured.steps[0].slice(0, 60),
+        ingredients,
+        steps: structured.steps,
+        source,
+        language,
+        textSource: 'ai',
+        needsReview: ingredients.length < 3,
+      };
+    }
+  }
+
   if (isUsable(local)) {
     return {
       title: title || local.ingredients[0] || local.steps[0].slice(0, 60),

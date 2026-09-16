@@ -1,12 +1,12 @@
 /**
- * 3.2.0: Einkaufsliste — komplett neu und bewusst einfach.
+ * 3.2.0: Einkaufsliste â€” komplett neu und bewusst einfach.
  *
- *   * oben eingeben (oder über "Add to shopping list" bei einem Rezept füllen)
+ *   * oben eingeben (oder Ã¼ber "Add to shopping list" bei einem Rezept fÃ¼llen)
  *   * Liste nach Rezept gruppiert; neben jeder Gruppe steht "Zum Haushalt"
- *   * pro Haushalt höchstens ZWEI Listen; danach kommt ein Hinweis
+ *   * pro Haushalt hÃ¶chstens ZWEI Listen; danach kommt ein Hinweis
  *   * keine Filter-Chips, keine Extras, kein Rezept-Import-Knopf
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { Check, ChevronDown, ChevronUp, Plus, ShoppingCart, Trash2, UsersRound } from 'lucide-react-native';
 
@@ -18,13 +18,29 @@ import { EmptyState, PageHeader } from '../components/ui';
 import { useCachedList, OfflineBadge } from '../lib/offline';
 import { useTranslation } from '../lib/i18n';
 import { shareHouseholdList, type HhShoppingItem } from '../lib/household';
+import {
+  addLocalItem,
+  clearLocalChecked,
+  getShoppingLocal,
+  hydrateShoppingLocal,
+  markLocalSynced,
+  mergeServerItems,
+  removeLocalItem,
+  subscribeShoppingLocal,
+  toggleLocalItem,
+  type LocalShoppingItem,
+} from '../lib/shopping-local';
 
-type Item = { _id: string; name: string; checked: boolean; recipeTitle?: string | null };
+/** Server-Zeilen-Id aus einer Antwort ziehen (Form ist je nach Route anders). */
+function serverIdOf(result: any): string {
+  const row = Array.isArray(result) ? result[0] : result;
+  return String(row?._id ?? row?.id ?? '');
+}
 
 export function ShoppingScreen() {
   const { t } = useTranslation();
   const itemsLive = useQuery(api.shoppingList.list);
-  const { data: items, offline } = useCachedList('shopping', itemsLive);
+  const { data: itemsData, offline } = useCachedList('shopping', itemsLive);
   const household = useQuery(api.household.mine) as any;
 
   const addItem = useMutation(api.shoppingList.add);
@@ -32,18 +48,32 @@ export function ShoppingScreen() {
   const removeItem = useMutation(api.shoppingList.remove);
   const clearChecked = useMutation(api.shoppingList.clearChecked);
 
+  /**
+   * 3.2.3: Anzeige kommt aus dem lokalen Speicher â€” dadurch ist jede Aktion
+   * sofort sichtbar und die Liste funktioniert offline.
+   */
+  const list = React.useSyncExternalStore(subscribeShoppingLocal, getShoppingLocal, getShoppingLocal);
+
+  useEffect(() => {
+    void hydrateShoppingLocal();
+  }, []);
+
+  /* Server-Stand einmal einmischen: bekannte Posten behalten ihren Haken. */
+  useEffect(() => {
+    if (Array.isArray(itemsData)) mergeServerItems(itemsData as any[]);
+  }, [itemsData]);
+
   const [name, setName] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
   const [doneOpen, setDoneOpen] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
-  const list = useMemo(() => ((items ?? []) as Item[]).filter((i) => !!i && !!i._id), [items]);
   const openItems = useMemo(() => list.filter((i) => !i.checked), [list]);
   const doneItems = useMemo(() => list.filter((i) => i.checked), [list]);
 
-  /** Nach Rezept gruppiert - genau so, wie "Add to shopping list" befüllt. */
+  /** Nach Rezept gruppiert - genau so, wie "Add to shopping list" befÃ¼llt. */
   const groups = useMemo(() => {
-    const map = new Map<string, Item[]>();
+    const map = new Map<string, LocalShoppingItem[]>();
     for (const it of openItems) {
       const key = String(it.recipeTitle ?? '').trim();
       if (!map.has(key)) map.set(key, []);
@@ -61,31 +91,36 @@ export function ShoppingScreen() {
     const value = name.trim();
     if (!value) return;
     setName('');
-    try {
-      void addItem({ name: value });
-    } catch {
-      flash(t('common.error'));
-    }
+    const local = addLocalItem(value);
+    if (offline) return; /* offline bleibt lokal und wird spÃ¤ter zusammengefÃ¼hrt */
+    void Promise.resolve(addItem({ name: value }))
+      .then((res: any) => {
+        const id = serverIdOf(res);
+        if (id) markLocalSynced(local.id, id);
+      })
+      .catch(() => undefined);
   };
 
-  const toggle = (item: Item) => {
-    try {
-      void toggleItem({ id: item._id });
-    } catch {
-      flash(t('common.error'));
-    }
+  const toggle = (item: LocalShoppingItem) => {
+    toggleLocalItem(item.id);
+    if (offline || !item.synced) return;
+    void Promise.resolve(toggleItem({ id: item.id })).catch(() => undefined);
   };
 
-  const remove = (item: Item) => {
-    try {
-      void removeItem({ id: item._id });
-    } catch {
-      flash(t('common.error'));
-    }
+  const remove = (item: LocalShoppingItem) => {
+    removeLocalItem(item.id);
+    if (offline || !item.synced) return;
+    void Promise.resolve(removeItem({ id: item.id })).catch(() => undefined);
+  };
+
+  const clearDone = () => {
+    clearLocalChecked();
+    if (offline) return;
+    void Promise.resolve(clearChecked({})).catch(() => undefined);
   };
 
   /** "Zum Haushalt": Posten in eine Haushalts-Liste schieben (max. 2). */
-  const shareGroup = async (title: string, groupItems: Item[]) => {
+  const shareGroup = async (title: string, groupItems: LocalShoppingItem[]) => {
     if (!household) {
       flash(t('s.shopNeedHousehold'));
       return;
@@ -93,15 +128,17 @@ export function ShoppingScreen() {
     const label = title || t('s.shopOwn');
     setBusyKey(label);
     try {
-      const payload: HhShoppingItem[] = groupItems.map((i) => ({ name: i.name, checked: false }));
+      const payload: HhShoppingItem[] = groupItems.map((i) => ({ name: i.name, checked: !!i.checked, recipeTitle: i.recipeTitle ?? null }));
       const res = await shareHouseholdList(label, payload);
       if (!res.ok) {
         flash(/limit/i.test(String(res.error)) ? t('s.shopLimit') : t('s.shopShareFail'));
         return;
       }
       for (const item of groupItems) {
+        removeLocalItem(item.id);
+        if (!item.synced) continue;
         try {
-          await removeItem({ id: item._id });
+          await removeItem({ id: item.id });
         } catch {
           /* egal, im Haushalt sind sie schon */
         }
@@ -120,7 +157,7 @@ export function ShoppingScreen() {
             <PageHeader
               eyebrow={t('shopping.whatYouNeed')}
               title={t('shopping.title')}
-              subtitle={`${openItems.length} ${t('s.shopOpen')} · ${doneItems.length} ${t('common.done')}`}
+              subtitle={`${openItems.length} ${t('s.shopOpen')} Â· ${doneItems.length} ${t('common.done')}`}
             />
           </View>
           {offline ? <OfflineBadge /> : null}
@@ -160,18 +197,21 @@ export function ShoppingScreen() {
               <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, fontWeight: '800', color: colors.textPrimary }}>
                 {group.title || t('s.shopOwn')}
               </Text>
-              <Pressable
-                onPress={() => void shareGroup(group.title, group.items)}
-                disabled={busyKey === (group.title || t('s.shopOwn'))}
-                style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6, backgroundColor: colors.accentSoft, opacity: pressed ? 0.75 : 1 }]}
-              >
-                <UsersRound size={12} color={colors.accent} />
-                <Text style={{ fontSize: 11.5, fontWeight: '800', color: colors.accent }}>{t('s.shopToHousehold')}</Text>
-              </Pressable>
+              {/* 3.2.3: Ohne Netz gibt es keinen Haushalts-Sync â€” Knopf ausblenden. */}
+              {!offline ? (
+                <Pressable
+                  onPress={() => void shareGroup(group.title, group.items)}
+                  disabled={busyKey === (group.title || t('s.shopOwn'))}
+                  style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6, backgroundColor: colors.accentSoft, opacity: pressed ? 0.75 : 1 }]}
+                >
+                  <UsersRound size={12} color={colors.accent} />
+                  <Text style={{ fontSize: 11.5, fontWeight: '800', color: colors.accent }}>{t('s.shopToHousehold')}</Text>
+                </Pressable>
+              ) : null}
             </View>
             <View style={{ marginTop: 6 }}>
               {group.items.map((item) => (
-                <Row key={item._id} item={item} onToggle={() => toggle(item)} onRemove={() => remove(item)} />
+                <Row key={item.id} item={item} onToggle={() => toggle(item)} onRemove={() => remove(item)} />
               ))}
             </View>
           </View>
@@ -182,17 +222,17 @@ export function ShoppingScreen() {
             <Pressable onPress={() => setDoneOpen((v) => !v)} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 12, opacity: pressed ? 0.8 : 1 }]}>
               <Check size={15} color={colors.success} />
               <Text style={{ flex: 1, fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>
-                {t('common.done')} · {doneItems.length}
+                {t('common.done')} Â· {doneItems.length}
               </Text>
               {doneOpen ? <ChevronUp size={16} color={colors.textSecondary} /> : <ChevronDown size={16} color={colors.textSecondary} />}
             </Pressable>
             {doneOpen ? (
               <View style={{ paddingHorizontal: 12, paddingBottom: 12 }}>
                 {doneItems.map((item) => (
-                  <Row key={item._id} item={item} onToggle={() => toggle(item)} onRemove={() => remove(item)} />
+                  <Row key={item.id} item={item} onToggle={() => toggle(item)} onRemove={() => remove(item)} />
                 ))}
                 <Pressable
-                  onPress={() => void clearChecked({})}
+                  onPress={clearDone}
                   style={({ pressed }) => [{ marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, paddingVertical: 10, backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.75 : 1 }]}
                 >
                   <Trash2 size={14} color={colors.textSecondary} />
@@ -207,8 +247,8 @@ export function ShoppingScreen() {
   );
 }
 
-/** Eine Zeile: tippen = abhaken, lange drücken = löschen. */
-function Row({ item, onToggle, onRemove }: { item: Item; onToggle: () => void; onRemove: () => void }) {
+/** Eine Zeile: tippen = abhaken, lange drÃ¼cken = lÃ¶schen. */
+function Row({ item, onToggle, onRemove }: { item: LocalShoppingItem; onToggle: () => void; onRemove: () => void }) {
   return (
     <Pressable onPress={onToggle} onLongPress={onRemove} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, opacity: pressed ? 0.7 : 1 }]}>
       <View

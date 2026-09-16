@@ -295,56 +295,7 @@ export const TOUR_STEPS: TutorialStep[] = [
       ru: 'Рецепты других: читать, готовить, оценивать и публиковать свои. Нажмите вкладку.',
     },
   },
-  {
-    id: 'nav-monstr',
-    targetId: 'tut-tab-Monstr',
-    expect: 'tap',
-    before: openTab('Monstr'),
-    padding: 6,
-    newIn: 4,
-    title: {
-      en: 'Monstr', de: 'Monstr', ar: 'مونستر', fr: 'Monstr', es: 'Monstr',
-      it: 'Monstr', tr: 'Monstr', pt: 'Monstr', nl: 'Monstr', ru: 'Монстр',
-    },
-    text: {
-      en: 'Can deals from three price sources, black and neon only. Tap the tab.',
-      de: 'Dosen-Angebote aus drei Preisquellen, nur schwarz und neon. Tippe den Tab.',
-      ar: 'عروض العلب من ثلاثة مصادر أسعار، أسود ونيون فقط. انقر التبويب.',
-      fr: 'Offres de canettes de trois sources, noir et neon seulement. Touche l onglet.',
-      es: 'Ofertas de latas de tres fuentes, solo negro y neon. Toca la pestana.',
-      it: 'Offerte di lattine da tre fonti, solo nero e neon. Tocca la scheda.',
-      tr: 'Uc fiyat kaynagindan kutu firsatlari, sadece siyah ve neon. Sekmeye dokun.',
-      pt: 'Ofertas de latas de tres fontes, so preto e neon. Toca no separador.',
-      nl: 'Blikjes-deals uit drie prijsbronnen, alleen zwart en neon. Tik op de tab.',
-      ru: 'Акции на банки из трёх источников цен, только чёрный и неон. Нажмите вкладку.',
-    },
-  },
-  {
-    id: 'monstr-load',
-    targetId: 'tut-mon-load',
-    expect: 'tap',
-    allowContinue: true,
-    before: openTab('Monstr'),
-    padding: 6,
-    newIn: 4,
-    title: {
-      en: 'Get prices', de: 'Preise holen', ar: 'اجلب الأسعار', fr: 'Obtenir les prix', es: 'Obtener precios',
-      it: 'Ottieni prezzi', tr: 'Fiyatlari al', pt: 'Obter precos', nl: 'Prijzen ophalen', ru: 'Узнать цены',
-    },
-    text: {
-      en: 'Tap it once: three sources are asked in parallel, the cheapest litre price wins.',
-      de: 'Einmal tippen: drei Quellen werden gleichzeitig gefragt, der günstigste Literpreis gewinnt.',
-      ar: 'اضغط مرة: تُسأل المصادر الثلاثة معاً، ويفوز أرخص سعر للتر.',
-      fr: 'Touche une fois : trois sources sont interrogees en parallele, le meilleur prix au litre gagne.',
-      es: 'Pulsa una vez: se consultan tres fuentes a la vez y gana el mejor precio por litro.',
-      it: 'Tocca una volta: tre fonti vengono interrogate insieme, vince il miglior prezzo al litro.',
-      tr: 'Bir kez dokun: uc kaynak ayni anda sorgulanir, en iyi litre fiyati kazanir.',
-      pt: 'Toca uma vez: tres fontes sao consultadas em paralelo e vence o melhor preco por litro.',
-      nl: 'Tik een keer: drie bronnen worden tegelijk bevraagd, de beste literprijs wint.',
-      ru: 'Нажмите один раз: три источника опрашиваются одновременно, побеждает лучшая цена за литр.',
-    },
-  },
-  {
+      {
     id: 'done',
     expect: 'observe',
     title: {
@@ -373,9 +324,8 @@ configureTutorial({ version: TOUR_VERSION, steps: TOUR_STEPS });
  * Targets used by this tour (all of them are registered by the screens):
  *
  *  tut-tab-Library, tut-tab-Assistant, tut-tab-Saved, tut-tab-Shopping,
- *  tut-tab-Tracker, tut-tab-Community, tut-tab-Household, tut-tab-Monstr
+ *  tut-tab-Tracker, tut-tab-Community, tut-tab-Household
  *                                                        (navigation/RootTabs)
- *  tut-mon-load                                         (screens/MonstrScreen)
  *  tut-library-search, tut-library-card                 (LibraryScreen)
  *  tut-detail-save, tut-detail-back, tut-detail-ingredients (RecipeDetailScreen)
  *  tut-shopping-add, tut-shopping-extras                (ShoppingScreen)

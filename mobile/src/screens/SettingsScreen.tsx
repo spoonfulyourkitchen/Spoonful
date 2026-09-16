@@ -1,5 +1,18 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { Alert, Linking, Modal, Pressable, ScrollView, Share, Switch, Text, TextInput, View } from 'react-native';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Linking,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  Share,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { ChevronRight, Check, Download, FileText, Globe, LogOut, Mail, Palette, Play, ShieldCheck, Star, Trash2, UserRound, Users } from 'lucide-react-native';
 import { useAction, useAuthActions, useMutation, useQuery } from '../lib/convex-auth';
 import { useTranslation, LANGUAGES, isRestartRequired, markLanguagePickerShown, tryReloadApp } from '../lib/i18n';
@@ -393,36 +406,38 @@ export function SettingsScreen() {
 
       {/* 2.0.0: join a household with the invite code */}
       <Modal visible={joinOpen} transparent animationType="slide" onRequestClose={() => setJoinOpen(false)}>
-        <View style={{ flex: 1, backgroundColor: colors.overlayStrong, justifyContent: 'flex-end' }}>
-          <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 28 }}>
-            <Text style={{ fontSize: 18, fontWeight: '800', color: colors.textPrimary }}>{t('hh.join')}</Text>
-            <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 6 }}>{t('hh.joinHint')}</Text>
-            <TextInput
-              value={joinCode}
-              onChangeText={(v) => setJoinCode(v.toUpperCase())}
-              autoCapitalize="characters"
-              placeholder={t('hh.code')}
-              placeholderTextColor={colors.textSecondary}
-              style={{ marginTop: 10, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 13, paddingVertical: 12, color: colors.textPrimary, letterSpacing: 2, fontWeight: '700' }}
-            />
-            <Pressable
-              onPress={() => {
-                if (!joinCode.trim()) return;
-                void hhRun(() => joinHousehold({ code: joinCode.trim() })).then(() => {
-                  setJoinOpen(false);
-                  setJoinCode('');
-                });
-              }}
-              style={({ pressed }) => [{ marginTop: 12, borderRadius: 13, paddingVertical: 13, alignItems: 'center', backgroundColor: colors.darkButton, opacity: pressed ? 0.85 : 1 }]}
-            >
-              <Text style={{ color: colors.darkButtonText, fontWeight: '800' }}>{t('hh.join')}</Text>
-            </Pressable>
-            <Pressable onPress={() => setJoinOpen(false)} style={{ marginTop: 10, alignItems: 'center' }}>
-              <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>{t('common.cancel')}</Text>
-            </Pressable>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <View style={{ flex: 1, backgroundColor: colors.overlayStrong, justifyContent: 'flex-end' }}>
+            <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 28 }}>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: colors.textPrimary }}>{t('hh.join')}</Text>
+              <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 6 }}>{t('hh.joinHint')}</Text>
+              <TextInput
+                value={joinCode}
+                onChangeText={(v) => setJoinCode(v.toUpperCase())}
+                autoCapitalize="characters"
+                placeholder={t('hh.code')}
+                placeholderTextColor={colors.textSecondary}
+                style={{ marginTop: 10, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 13, paddingVertical: 12, color: colors.textPrimary, letterSpacing: 2, fontWeight: '700' }}
+              />
+              <Pressable
+                onPress={() => {
+                  if (!joinCode.trim()) return;
+                  void hhRun(() => joinHousehold({ code: joinCode.trim() })).then(() => {
+                    setJoinOpen(false);
+                    setJoinCode('');
+                  });
+                }}
+                style={({ pressed }) => [{ marginTop: 12, borderRadius: 13, paddingVertical: 13, alignItems: 'center', backgroundColor: colors.darkButton, opacity: pressed ? 0.85 : 1 }]}
+              >
+                <Text style={{ color: colors.darkButtonText, fontWeight: '800' }}>{t('hh.join')}</Text>
+              </Pressable>
+              <Pressable onPress={() => setJoinOpen(false)} style={{ marginTop: 10, alignItems: 'center' }}>
+                <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>{t('common.cancel')}</Text>
+              </Pressable>
+            </View>
           </View>
-        </View>
-      </Modal>
+      
+        </KeyboardAvoidingView></Modal>
       {/* 2.1.2: language picker + popups (reset done, restart for RTL) */}
       <LanguagePicker
         visible={langOpen}

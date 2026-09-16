@@ -269,8 +269,6 @@ export function TrackerScreen() {
           </View>
         </GlassCard>
 
-        <MacroEnergyCard kcal={kcalGoal} p={proteinGoal} c={carbsGoal} f={fatGoal} tp={todayProtein} tc={todayCarbs} tf={todayFat} />
-
         {/* 2.1.1: opens as a popup instead of appearing further down the page. */}
         <Modal visible={showProfile} transparent animationType="slide" onRequestClose={() => setShowProfile(false)} statusBarTranslucent>
           <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlayStrong }}>
@@ -516,35 +514,6 @@ function MacroChip({ label, value, color, bg }: { label: string; value: string; 
       </View>
       <Text style={{ fontSize: 12, fontWeight: '800', color }}>{value}</Text>
     </View>
-  );
-}
-
-function MacroEnergyCard({ kcal, p, c, f, tp, tc, tf }: { kcal: number; p: number; c: number; f: number; tp: number; tc: number; tf: number }) {
-  const { t } = useTranslation();
-  const kcalSafe = kcal > 0 ? kcal : 1;
-  const pct = (g: number) => Math.max(0, Math.min(100, Math.round(((g * 4) / kcalSafe) * 100)));
-  const rows = [
-    { label: 'Protein', target: p, eaten: tp, pct: pct(p), color: colors.success },
-    { label: 'Carbs', target: c, eaten: tc, pct: pct(c), color: colors.cyan },
-    { label: 'Fat', target: f, eaten: tf, pct: pct(f), color: colors.amber },
-  ];
-  return (
-    <GlassCard pad={14} radius={20} style={{ marginTop: 12 }}>
-      <Text style={{ fontSize: 13, fontWeight: '800', color: colors.textPrimary }}>{t('s.trackMacro')}</Text>
-      <View style={{ flexDirection: 'row', marginTop: 10, gap: 8 }}>
-        {rows.map((r) => (
-          <View key={r.label} style={{ flex: 1, alignItems: 'center' }}>
-            <View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 5, borderColor: r.color, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted }}>
-              <Text style={{ fontSize: 12, fontWeight: '800', color: r.color }}>{r.pct}%</Text>
-            </View>
-            <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 6 }}>{r.label}</Text>
-            <Text style={{ fontSize: 10, color: colors.textMuted }}>
-              {r.eaten}/{r.target} g
-            </Text>
-          </View>
-        ))}
-      </View>
-    </GlassCard>
   );
 }
 

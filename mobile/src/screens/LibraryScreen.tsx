@@ -1,5 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Clock3, Filter, Search, Shuffle, SlidersHorizontal, X } from 'lucide-react-native';
 import { useQuery } from '../lib/convex-auth';
@@ -21,7 +34,7 @@ import { useCachedList } from '../lib/offline';
 import { useTranslation } from '../lib/i18n';
 import { seasonalTerms, pantryTerms } from '../lib/seasonal';
 
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 50;
 const SEARCH_DEBOUNCE_MS = 300;
 
 /** Sort options - the label goes through i18n at render time (2.0.0). */
@@ -641,210 +654,212 @@ export function LibraryScreen() {
 
       {/* Filters sheet */}
       <Modal visible={filtersOpen} transparent animationType="slide" onRequestClose={() => setFiltersOpen(false)}>
-        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlayStrong }}>
-          <Pressable style={{ flex: 1 }} onPress={() => setFiltersOpen(false)} />
-          <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 26, borderTopRightRadius: 26, maxHeight: '84%', paddingBottom: 26 }}>
-            <View style={{ alignItems: 'center', paddingTop: 10 }}>
-              <View style={{ width: 44, height: 4, borderRadius: 2, backgroundColor: colors.cardBorder }} />
-            </View>
-            <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: fonts.display, fontSize: 21, fontWeight: '700', color: colors.textPrimary }}>{t('library.filters')}</Text>
-                  {/* 2.0.0: the result count updates live while filters are changed */}
-                  <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 2 }}>
-                    {loadedOnce ? `${total} ${t('library.recipes')}` : t('common.loading')}
-                  </Text>
-                </View>
-                <Pressable onPress={() => setFiltersOpen(false)} hitSlop={8}>
-                  <X size={20} color={colors.textSecondary} />
-                </Pressable>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlayStrong }}>
+            <Pressable style={{ flex: 1 }} onPress={() => setFiltersOpen(false)} />
+            <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 26, borderTopRightRadius: 26, maxHeight: '84%', paddingBottom: 26 }}>
+              <View style={{ alignItems: 'center', paddingTop: 10 }}>
+                <View style={{ width: 44, height: 4, borderRadius: 2, backgroundColor: colors.cardBorder }} />
               </View>
-
-              <FilterSection title={t('library.filters')}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  {SORTS.map((s) => (
-                    <Chip key={s.value} label={s.labelKey ? t(s.labelKey) : s.label} active={sort === s.value} onPress={() => setSort(s.value)} />
-                  ))}
-                  {terms.length ? (
-                    <Chip label={t('feat.matchPercent')} active={sort === 'match'} onPress={() => setSort('match')} />
-                  ) : null}
-                  <Pressable
-                    onPress={() => void surpriseMe()}
-                    style={({ pressed }) => [
-                      {
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 6,
-                        borderRadius: 999,
-                        borderWidth: 1,
-                        borderColor: colors.cardBorder,
-                        backgroundColor: pressed ? colors.surfaceMuted : colors.card,
-                        paddingHorizontal: 13,
-                        paddingVertical: 7,
-                      },
-                    ]}
-                  >
-                    <Shuffle size={14} color={colors.accent} />
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: colors.accent }}>{t('s.xSurpriseMe')}</Text>
+              <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: fonts.display, fontSize: 21, fontWeight: '700', color: colors.textPrimary }}>{t('library.filters')}</Text>
+                    {/* 2.0.0: the result count updates live while filters are changed */}
+                    <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 2 }}>
+                      {loadedOnce ? `${total} ${t('library.recipes')}` : t('common.loading')}
+                    </Text>
+                  </View>
+                  <Pressable onPress={() => setFiltersOpen(false)} hitSlop={8}>
+                    <X size={20} color={colors.textSecondary} />
                   </Pressable>
                 </View>
 
-                {/* discovery: in season now / what can I cook / group by time */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                  <Chip
-                    label={t('feat.inSeason')}
-                    active={seasonal}
-                    onPress={() => {
-                      setSeasonal((v) => !v);
-                      setPantry([]);
-                    }}
-                  />
-                  <Chip
-                    label={t('feat.whatCanICook')}
-                    active={pantryOpen}
-                    onPress={() => {
-                      setPantryOpen((v) => !v);
-                      setSeasonal(false);
-                      if (pantryOpen) setPantry([]);
-                    }}
-                  />
-                  <Chip label={t('feat.groupByTime')} active={groupByTime} onPress={() => setGroupByTime((v) => !v)} />
-                </View>
-
-                {pantryOpen ? (
-                  <>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}>
-                      <TextInput
-                        value={pantryInput}
-                        onChangeText={setPantryInput}
-                        placeholder={t('feat.pantryPlaceholder')}
-                        placeholderTextColor={colors.textSecondary}
-                        style={{
-                          flex: 1,
-                          borderRadius: 14,
+                <FilterSection title={t('library.filters')}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    {SORTS.map((s) => (
+                      <Chip key={s.value} label={s.labelKey ? t(s.labelKey) : s.label} active={sort === s.value} onPress={() => setSort(s.value)} />
+                    ))}
+                    {terms.length ? (
+                      <Chip label={t('feat.matchPercent')} active={sort === 'match'} onPress={() => setSort('match')} />
+                    ) : null}
+                    <Pressable
+                      onPress={() => void surpriseMe()}
+                      style={({ pressed }) => [
+                        {
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 6,
+                          borderRadius: 999,
                           borderWidth: 1,
                           borderColor: colors.cardBorder,
-                          backgroundColor: colors.card,
+                          backgroundColor: pressed ? colors.surfaceMuted : colors.card,
                           paddingHorizontal: 13,
-                          paddingVertical: 11,
-                          color: colors.textPrimary,
-                        }}
-                      />
-                      <Pressable
-                        onPress={() => setPantry(pantryTerms(pantryInput))}
-                        style={({ pressed }) => [
-                          { borderRadius: 14, backgroundColor: colors.darkButton, paddingHorizontal: 14, paddingVertical: 12, opacity: pressed ? 0.85 : 1 },
-                        ]}
-                      >
-                        <Text style={{ color: colors.darkButtonText, fontWeight: '700', fontSize: 13 }}>{t('feat.findRecipes')}</Text>
-                      </Pressable>
-                    </View>
-                    <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 6 }}>{t('feat.whatCanICookHint')}</Text>
-                  </>
-                ) : null}
+                          paddingVertical: 7,
+                        },
+                      ]}
+                    >
+                      <Shuffle size={14} color={colors.accent} />
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.accent }}>{t('s.xSurpriseMe')}</Text>
+                    </Pressable>
+                  </View>
 
-                {/* my saved filters: tap = apply, long press = delete */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                  <Chip label={t('feat.savePreset')} active={false} onPress={savePreset} />
-                  {presetsLoaded && presets.map((p) => (
+                  {/* discovery: in season now / what can I cook / group by time */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                     <Chip
-                      key={String(p.id)}
-                      label={p.label}
-                      active={false}
-                      onPress={() => applyPreset(p)}
-                      onLongPress={() =>
-                        Alert.alert(t('feat.deletePreset'), p.label, [
-                          { text: t('common.cancel'), style: 'cancel' },
-                          {
-                            text: t('common.delete'),
-                            style: 'destructive',
-                            onPress: () => persistPresets(presets.filter((x) => x.id !== p.id)),
-                          },
-                        ])
-                      }
+                      label={t('feat.inSeason')}
+                      active={seasonal}
+                      onPress={() => {
+                        setSeasonal((v) => !v);
+                        setPantry([]);
+                      }}
                     />
-                  ))}
-                </View>
-              </FilterSection>
+                    <Chip
+                      label={t('feat.whatCanICook')}
+                      active={pantryOpen}
+                      onPress={() => {
+                        setPantryOpen((v) => !v);
+                        setSeasonal(false);
+                        if (pantryOpen) setPantry([]);
+                      }}
+                    />
+                    <Chip label={t('feat.groupByTime')} active={groupByTime} onPress={() => setGroupByTime((v) => !v)} />
+                  </View>
 
-              <FilterSection title={t('library.cuisine')}>
-                <TutorialTarget id="tut-library-chip">
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
-                    {cuisineOptions.map((c) => (
+                  {pantryOpen ? (
+                    <>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                        <TextInput
+                          value={pantryInput}
+                          onChangeText={setPantryInput}
+                          placeholder={t('feat.pantryPlaceholder')}
+                          placeholderTextColor={colors.textSecondary}
+                          style={{
+                            flex: 1,
+                            borderRadius: 14,
+                            borderWidth: 1,
+                            borderColor: colors.cardBorder,
+                            backgroundColor: colors.card,
+                            paddingHorizontal: 13,
+                            paddingVertical: 11,
+                            color: colors.textPrimary,
+                          }}
+                        />
+                        <Pressable
+                          onPress={() => setPantry(pantryTerms(pantryInput))}
+                          style={({ pressed }) => [
+                            { borderRadius: 14, backgroundColor: colors.darkButton, paddingHorizontal: 14, paddingVertical: 12, opacity: pressed ? 0.85 : 1 },
+                          ]}
+                        >
+                          <Text style={{ color: colors.darkButtonText, fontWeight: '700', fontSize: 13 }}>{t('feat.findRecipes')}</Text>
+                        </Pressable>
+                      </View>
+                      <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 6 }}>{t('feat.whatCanICookHint')}</Text>
+                    </>
+                  ) : null}
+
+                  {/* my saved filters: tap = apply, long press = delete */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                    <Chip label={t('feat.savePreset')} active={false} onPress={savePreset} />
+                    {presetsLoaded && presets.map((p) => (
                       <Chip
-                        key={c.value}
-                        label={c.label}
-                        active={cuisine === c.value}
-                        onPress={() => {
-                          setCuisine(c.value === cuisine ? 'all' : c.value);
-                          tutorialAction('tut-library-chip');
-                        }}
+                        key={String(p.id)}
+                        label={p.label}
+                        active={false}
+                        onPress={() => applyPreset(p)}
+                        onLongPress={() =>
+                          Alert.alert(t('feat.deletePreset'), p.label, [
+                            { text: t('common.cancel'), style: 'cancel' },
+                            {
+                              text: t('common.delete'),
+                              style: 'destructive',
+                              onPress: () => persistPresets(presets.filter((x) => x.id !== p.id)),
+                            },
+                          ])
+                        }
                       />
                     ))}
+                  </View>
+                </FilterSection>
+
+                <FilterSection title={t('library.cuisine')}>
+                  <TutorialTarget id="tut-library-chip">
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+                      {cuisineOptions.map((c) => (
+                        <Chip
+                          key={c.value}
+                          label={c.label}
+                          active={cuisine === c.value}
+                          onPress={() => {
+                            setCuisine(c.value === cuisine ? 'all' : c.value);
+                            tutorialAction('tut-library-chip');
+                          }}
+                        />
+                      ))}
+                    </ScrollView>
+                  </TutorialTarget>
+                </FilterSection>
+
+                <FilterSection title={t('library.type')}>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+                    {mealTypeOptions.map((m) => (
+                      <Chip key={m.value} label={m.label} active={mealType === m.value} onPress={() => setMealType(m.value === mealType ? 'all' : m.value)} />
+                    ))}
                   </ScrollView>
-                </TutorialTarget>
-              </FilterSection>
+                </FilterSection>
 
-              <FilterSection title={t('library.type')}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
-                  {mealTypeOptions.map((m) => (
-                    <Chip key={m.value} label={m.label} active={mealType === m.value} onPress={() => setMealType(m.value === mealType ? 'all' : m.value)} />
-                  ))}
-                </ScrollView>
-              </FilterSection>
+                <FilterSection title={t('s.xTotalTime')}>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {timeOptions.map((o) => (
+                      <Chip key={o.value} label={o.label} active={timeRange === o.value} onPress={() => setTimeRange(o.value === timeRange ? 'all' : o.value)} />
+                    ))}
+                  </View>
+                </FilterSection>
 
-              <FilterSection title={t('s.xTotalTime')}>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                  {timeOptions.map((o) => (
-                    <Chip key={o.value} label={o.label} active={timeRange === o.value} onPress={() => setTimeRange(o.value === timeRange ? 'all' : o.value)} />
-                  ))}
+                <FilterSection title={t('library.calories')}>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {calorieOptions.map((o) => (
+                      <Chip key={o.value} label={o.label} active={calories === o.value} onPress={() => setCalories(o.value === calories ? 'all' : o.value)} />
+                    ))}
+                  </View>
+                </FilterSection>
+
+                <FilterSection title={t('library.difficulty')}>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {difficultyOptions.map((o) => (
+                      <Chip key={o.value} label={o.label} active={difficulty === o.value} onPress={() => setDifficulty(o.value === difficulty ? 'all' : o.value)} />
+                    ))}
+                  </View>
+                </FilterSection>
+
+                <FilterSection title={t('library.dietary')}>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {dietTags.map((d) => (
+                      <Chip key={d} label={formatDiet(d)} active={diets.includes(d)} onPress={() => toggleDiet(d)} />
+                    ))}
+                  </View>
+                </FilterSection>
+
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                  <Pressable onPress={clearAll} style={{ flex: 1, borderRadius: 14, paddingVertical: 13, alignItems: 'center', borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card }}>
+                    <Text style={{ fontWeight: '700', color: colors.rose }}>{t('library.clearFilters')}</Text>
+                  </Pressable>
+                  <Pressable
+                    ref={applyTarget.ref as any}
+                    collapsable={false}
+                    onPress={applyTarget.onPress}
+                    style={{ flex: 2, borderRadius: 14, paddingVertical: 13, alignItems: 'center', backgroundColor: colors.darkButton }}
+                  >
+                    <Text style={{ fontWeight: '700', color: colors.darkButtonText }}>
+                      {total > 0 ? `${t('library.apply')} · ${total}` : t('library.apply')}
+                    </Text>
+                  </Pressable>
                 </View>
-              </FilterSection>
-
-              <FilterSection title={t('library.calories')}>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                  {calorieOptions.map((o) => (
-                    <Chip key={o.value} label={o.label} active={calories === o.value} onPress={() => setCalories(o.value === calories ? 'all' : o.value)} />
-                  ))}
-                </View>
-              </FilterSection>
-
-              <FilterSection title={t('library.difficulty')}>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                  {difficultyOptions.map((o) => (
-                    <Chip key={o.value} label={o.label} active={difficulty === o.value} onPress={() => setDifficulty(o.value === difficulty ? 'all' : o.value)} />
-                  ))}
-                </View>
-              </FilterSection>
-
-              <FilterSection title={t('library.dietary')}>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                  {dietTags.map((d) => (
-                    <Chip key={d} label={formatDiet(d)} active={diets.includes(d)} onPress={() => toggleDiet(d)} />
-                  ))}
-                </View>
-              </FilterSection>
-
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-                <Pressable onPress={clearAll} style={{ flex: 1, borderRadius: 14, paddingVertical: 13, alignItems: 'center', borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card }}>
-                  <Text style={{ fontWeight: '700', color: colors.rose }}>{t('library.clearFilters')}</Text>
-                </Pressable>
-                <Pressable
-                  ref={applyTarget.ref as any}
-                  collapsable={false}
-                  onPress={applyTarget.onPress}
-                  style={{ flex: 2, borderRadius: 14, paddingVertical: 13, alignItems: 'center', backgroundColor: colors.darkButton }}
-                >
-                  <Text style={{ fontWeight: '700', color: colors.darkButtonText }}>
-                    {total > 0 ? `${t('library.apply')} · ${total}` : t('library.apply')}
-                  </Text>
-                </Pressable>
-              </View>
-            </ScrollView>
+              </ScrollView>
+            </View>
           </View>
-        </View>
-      </Modal>
+      
+        </KeyboardAvoidingView></Modal>
     </Page>
   );
 }

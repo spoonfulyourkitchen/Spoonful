@@ -75,7 +75,7 @@ node tools/monstr-check.mjs                     # liefern die Preis-Quellen?
 
 ## Stabilität
 * `STABILITY-100.md` — die 100-Punkte-Liste (was erledigt ist, was noch offen ist).
-* `RELEASE_NOTES-v3.2.2.md` — was die letzte Stabilitäts-Runde geändert hat.
+* `RELEASE_NOTES-v3.2.3.md` — Feinschliff, lokale Einkaufsliste, KI-Tageslimit.
 * Abstürze nachlesen: App → Einstellungen → **Letzte Fehler**.
 
 

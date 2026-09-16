@@ -1,5 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Share, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  Share,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -488,41 +500,43 @@ export function RecipeDetailScreen({ route }: any) {
 
       {/* 2.0.0 (102): suggest a better translation */}
       <Modal visible={fixOpen} transparent animationType="slide" onRequestClose={() => setFixOpen(false)}>
-        <View style={{ flex: 1, backgroundColor: colors.overlayStrong, justifyContent: 'flex-end' }}>
-          <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 28 }}>
-            <Text style={{ fontSize: 17, fontWeight: '800', color: colors.textPrimary }}>{t('shr.fix')}</Text>
-            <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 6 }}>{t('shr.fixHint')}</Text>
-            <TextInput
-              value={fixText}
-              onChangeText={setFixText}
-              multiline
-              placeholder="…"
-              placeholderTextColor={colors.textSecondary}
-              style={{ minHeight: 80, textAlignVertical: 'top', marginTop: 10, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 12, color: colors.textPrimary }}
-            />
-            <AppButton
-              label={t('common.send')}
-              variant="dark"
-              style={{ marginTop: 12 }}
-              onPress={() => {
-                if (fixText.trim().length < 2) return;
-                void reportCorrection({
-                  recipeKey,
-                  language: lang ?? 'en',
-                  source: (view?.steps ?? []).slice(0, 40).join(' '),
-                  suggestion: fixText.trim(),
-                });
-                setFixText('');
-                setFixOpen(false);
-                flash(t('shr.thanks'));
-              }}
-            />
-            <Pressable onPress={() => setFixOpen(false)} style={{ marginTop: 10, alignItems: 'center' }}>
-              <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>{t('common.cancel')}</Text>
-            </Pressable>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <View style={{ flex: 1, backgroundColor: colors.overlayStrong, justifyContent: 'flex-end' }}>
+            <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 28 }}>
+              <Text style={{ fontSize: 17, fontWeight: '800', color: colors.textPrimary }}>{t('shr.fix')}</Text>
+              <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 6 }}>{t('shr.fixHint')}</Text>
+              <TextInput
+                value={fixText}
+                onChangeText={setFixText}
+                multiline
+                placeholder="…"
+                placeholderTextColor={colors.textSecondary}
+                style={{ minHeight: 80, textAlignVertical: 'top', marginTop: 10, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 12, color: colors.textPrimary }}
+              />
+              <AppButton
+                label={t('common.send')}
+                variant="dark"
+                style={{ marginTop: 12 }}
+                onPress={() => {
+                  if (fixText.trim().length < 2) return;
+                  void reportCorrection({
+                    recipeKey,
+                    language: lang ?? 'en',
+                    source: (view?.steps ?? []).slice(0, 40).join(' '),
+                    suggestion: fixText.trim(),
+                  });
+                  setFixText('');
+                  setFixOpen(false);
+                  flash(t('shr.thanks'));
+                }}
+              />
+              <Pressable onPress={() => setFixOpen(false)} style={{ marginTop: 10, alignItems: 'center' }}>
+                <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>{t('common.cancel')}</Text>
+              </Pressable>
+            </View>
           </View>
-        </View>
-      </Modal>
+      
+        </KeyboardAvoidingView></Modal>
 
       {toast ? (
         <View style={{ position: 'absolute', top: insets.top + 16, left: 30, right: 30, borderRadius: 16, backgroundColor: colors.darkButton, paddingVertical: 12, alignItems: 'center', zIndex: 50 }}>

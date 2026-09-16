@@ -1,5 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Modal, PanResponder, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import {
+  Alert,
+  Animated,
+  KeyboardAvoidingView,
+  Modal,
+  PanResponder,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { Minus, Play, Plus, Send, Sparkles, Trash2, Video, X } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAction, useMutation, useQuery } from '../lib/convex-auth';
@@ -329,7 +342,7 @@ export function AssistantScreen() {
         {/* page 0 — ingredients (default) */}
         <View style={{ width: AW, paddingHorizontal: 18 }}>
         {pageDots(pageRef.current)}
-        <Text style={pageHint}>{'Swipe left to describe it in your own words ←'}</Text>
+        <Text style={pageHint}>{t('s.chefSwipe1')}</Text>
         <GlassCard pad={16} radius={22}>
           <Text style={fieldLabel}>{t('s.chefIngredientsAvail')}</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
@@ -357,7 +370,7 @@ export function AssistantScreen() {
         {/* page 1 — describe anything */}
         <View style={{ width: AW, paddingHorizontal: 18 }}>
         {pageDots(pageRef.current)}
-        <Text style={pageHint}>{'Swipe right to go back to your ingredients →'}</Text>
+        <Text style={pageHint}>{t('s.chefSwipe2')}</Text>
         <GlassCard pad={16} radius={22}>
           <Text style={fieldLabel}>{t('s.chefDescribe')}</Text>
           <TextInput
@@ -379,6 +392,7 @@ export function AssistantScreen() {
                 <Text style={{ fontSize: 13, fontWeight: '800', color: colors.textPrimary }}>{t('s.videoTitle')}</Text>
               </View>
               <Text style={pageHint}>{t('s.videoSub')}</Text>
+              <Text style={pageHint}>{t('s.chefSwipe3')}</Text>
               <TextField value={videoUrl} onChangeText={setVideoUrl} placeholder={t('s.videoUrlPh')} autoCapitalize="none" keyboardType="url" />
               <AppButton label={t('s.videoGet')} variant="dark" busy={videoBusy} onPress={() => void grabVideoRecipe()} />
               {videoFailed ? <Text style={[pageHint, { marginTop: 10 }]}>{t('s.videoNoRecipe')}</Text> : null}
@@ -554,27 +568,29 @@ export function AssistantScreen() {
 
       {result && preview ? (
         <Modal visible transparent animationType="fade" onRequestClose={() => setPreview(false)}>
-          <View style={{ flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'center', padding: 18 }}>
-            <View style={{ borderRadius: 26, backgroundColor: colors.card, overflow: 'hidden' }}>
-              <RecipeImage uri={result.imageUrl} style={{ width: '100%', height: 210 }} />
-              <Pressable onPress={() => setPreview(false)} hitSlop={8} style={{ position: 'absolute', top: 14, right: 14, width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(15,23,42,0.5)', alignItems: 'center', justifyContent: 'center' }}>
-                <X size={18} color="#fff" />
-              </Pressable>
-              <View style={{ padding: 18 }}>
-                <Text style={{ fontSize: 22, fontWeight: '800', color: colors.textPrimary, fontFamily: 'serif' }}>{result.title}</Text>
-                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>
-                  {result.cuisine || 'Home cooking'} · {result.calories ?? '?'} kcal · {result.prepTime ?? 0} min prep
-                </Text>
-                <View style={{ marginTop: 16, gap: 10 }}>
-                  <AppButton label={t('s.chefViewRecipe')} variant="dark" icon={<Sparkles size={17} color={colors.darkButtonText} />} onPress={() => { setPreview(false); openResult(); }} />
-                  <Pressable onPress={() => void saveToMine()} disabled={saved} style={({ pressed }) => [{ borderRadius: 14, paddingVertical: 12, alignItems: 'center', backgroundColor: saved ? colors.success : colors.darkButton, opacity: pressed ? 0.85 : 1 }]}>
-                    <Text style={{ color: saved ? readableText(colors.success) : colors.darkButtonText, fontWeight: '700', fontSize: 14 }}>{saved ? `${t('assistant.saved')} ✓` : t('assistant.saveToRecipes')}</Text>
-                  </Pressable>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+            <View style={{ flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'center', padding: 18 }}>
+              <View style={{ borderRadius: 26, backgroundColor: colors.card, overflow: 'hidden' }}>
+                <RecipeImage uri={result.imageUrl} style={{ width: '100%', height: 210 }} />
+                <Pressable onPress={() => setPreview(false)} hitSlop={8} style={{ position: 'absolute', top: 14, right: 14, width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(15,23,42,0.5)', alignItems: 'center', justifyContent: 'center' }}>
+                  <X size={18} color="#fff" />
+                </Pressable>
+                <View style={{ padding: 18 }}>
+                  <Text style={{ fontSize: 22, fontWeight: '800', color: colors.textPrimary, fontFamily: 'serif' }}>{result.title}</Text>
+                  <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>
+                    {result.cuisine || 'Home cooking'} · {result.calories ?? '?'} kcal · {result.prepTime ?? 0} min prep
+                  </Text>
+                  <View style={{ marginTop: 16, gap: 10 }}>
+                    <AppButton label={t('s.chefViewRecipe')} variant="dark" icon={<Sparkles size={17} color={colors.darkButtonText} />} onPress={() => { setPreview(false); openResult(); }} />
+                    <Pressable onPress={() => void saveToMine()} disabled={saved} style={({ pressed }) => [{ borderRadius: 14, paddingVertical: 12, alignItems: 'center', backgroundColor: saved ? colors.success : colors.darkButton, opacity: pressed ? 0.85 : 1 }]}>
+                      <Text style={{ color: saved ? readableText(colors.success) : colors.darkButtonText, fontWeight: '700', fontSize: 14 }}>{saved ? `${t('assistant.saved')} ✓` : t('assistant.saveToRecipes')}</Text>
+                    </Pressable>
+                  </View>
                 </View>
               </View>
             </View>
-          </View>
-        </Modal>
+        
+        </KeyboardAvoidingView></Modal>
       ) : null}
     </Page>
   );

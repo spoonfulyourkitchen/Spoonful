@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleProp, View, ViewStyle } from 'react-native';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
-import { colors } from '../theme';
+import { colors, usesSolidStyle } from '../theme';
 
 /**
  * 3.2.1: the gradient layer is memoised.
@@ -79,17 +79,24 @@ export function WashBackground({
   const sky = colors.dark ? '#155e75' : '#bae6fd';
   const amber = colors.dark ? '#b45309' : '#fde68a';
   const soft = colors.dark ? '#7c3aed' : '#f3e8ff';
+  /**
+   * 3.2.3: Das Haupt-Theme ist bewusst clean — keine Farbschleier im
+   * Hintergrund, nur die reine Theme-Fläche.
+   */
+  const plain = usesSolidStyle();
 
   return (
     <View style={[{ flex: 1, backgroundColor: colors.bg, overflow: 'hidden' }, style]}>
-      <WashLayers
-        mint={mint}
-        sky={sky}
-        amber={amber}
-        soft={soft}
-        washOpacity={washOpacity}
-        amberOpacity={amberOpacity}
-      />
+      {plain ? null : (
+        <WashLayers
+          mint={mint}
+          sky={sky}
+          amber={amber}
+          soft={soft}
+          washOpacity={washOpacity}
+          amberOpacity={amberOpacity}
+        />
+      )}
       {children}
     </View>
   );

@@ -24,6 +24,8 @@ export const api = {
     remove: R('recipes.remove', 'mutation'),
     reportImage: R('recipes.reportImage', 'mutation'),
     libraryMeta: R('recipes.libraryMeta', 'query'),
+    /** 3.2.3: echte Rezeptzahl der Bibliothek (für Landing/Dashboard). */
+    libraryCount: R('recipes.libraryCount', 'query'),
     libraryPage: R('recipes.libraryPage', 'query'),
     random: R('recipes.random', 'query'),
   },
@@ -266,6 +268,25 @@ ops['recipes.reportImage'] = {
     return mapReport(data);
   },
 };
+/**
+ * 3.2.3: Die Landing-/Dashboard-Zahlen sind jetzt echt: die Bibliothek wird
+ * direkt gezählt (Head-Request, keine Rezeptdaten übertragen).
+ */
+ops['recipes.libraryCount'] = {
+  async query() {
+    try {
+      const { count, error } = await supabase
+        .from('catalog_recipes')
+        .select('id', { count: 'exact', head: true });
+      if (error) throw rowError(error);
+      return { total: count ?? 0 };
+    } catch {
+      /* offline oder ohne Rechte: einfach keine Zahl anzeigen */
+      return { total: 0 };
+    }
+  },
+};
+
 ops['recipes.libraryMeta'] = {
   async query() {
     const { data, error } = await supabase.rpc('catalog_meta');

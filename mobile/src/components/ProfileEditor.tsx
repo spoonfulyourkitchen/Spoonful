@@ -6,7 +6,17 @@
  * Alle Texte kommen über i18n-Keys.
  */
 import React, { useEffect, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { Check, X } from 'lucide-react-native';
 
 import { colors, fonts } from '../theme';
@@ -65,55 +75,57 @@ export function ProfileEditor({ visible, onClose }: { visible: boolean; onClose:
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <View style={{ flex: 1, backgroundColor: colors.overlayStrong, justifyContent: 'flex-end' }}>
-        <Pressable style={{ flex: 1 }} onPress={onClose} />
-        <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 26, borderTopRightRadius: 26, maxHeight: '90%' }}>
-          <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <Text style={{ flex: 1, fontFamily: fonts.display, fontSize: 20, fontWeight: '800', color: colors.textPrimary }}>
-                {t('s.profileTitle')}
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <View style={{ flex: 1, backgroundColor: colors.overlayStrong, justifyContent: 'flex-end' }}>
+          <Pressable style={{ flex: 1 }} onPress={onClose} />
+          <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 26, borderTopRightRadius: 26, maxHeight: '90%' }}>
+            <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <Text style={{ flex: 1, fontFamily: fonts.display, fontSize: 20, fontWeight: '800', color: colors.textPrimary }}>
+                  {t('s.profileTitle')}
+                </Text>
+                <Pressable onPress={onClose} hitSlop={10}>
+                  <X size={20} color={colors.textSecondary} />
+                </Pressable>
+              </View>
+              <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 14 }}>{t('s.profileSub')}</Text>
+
+              <Field label={t('s.profileName')} value={name} onChangeText={setName} />
+              <Field label={t('s.profileRegion')} value={region} onChangeText={setRegion} />
+              <Field label={t('s.profileAllergies')} value={allergies} onChangeText={setAllergies} />
+              <Field label={t('s.profileWater')} value={water} onChangeText={setWater} keyboardType="number-pad" />
+
+              <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.textSecondary, marginTop: 4, marginBottom: 6 }}>
+                {t('s.profileGoal')}
               </Text>
-              <Pressable onPress={onClose} hitSlop={10}>
-                <X size={20} color={colors.textSecondary} />
-              </Pressable>
-            </View>
-            <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 14 }}>{t('s.profileSub')}</Text>
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                {GOALS.map((g) => (
+                  <Chip key={g} label={t(`s.profileGoal_${g}`)} active={goal === g} onPress={() => setGoal(goal === g ? '' : g)} />
+                ))}
+              </View>
 
-            <Field label={t('s.profileName')} value={name} onChangeText={setName} />
-            <Field label={t('s.profileRegion')} value={region} onChangeText={setRegion} />
-            <Field label={t('s.profileAllergies')} value={allergies} onChangeText={setAllergies} />
-            <Field label={t('s.profileWater')} value={water} onChangeText={setWater} keyboardType="number-pad" />
+              <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.textSecondary, marginTop: 14, marginBottom: 6 }}>
+                {t('s.profileExperience')}
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                {EXPERIENCE.map((e) => (
+                  <Chip key={e} label={t(`s.profileExp_${e}`)} active={experience === e} onPress={() => setExperience(experience === e ? '' : e)} />
+                ))}
+              </View>
 
-            <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.textSecondary, marginTop: 4, marginBottom: 6 }}>
-              {t('s.profileGoal')}
-            </Text>
-            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-              {GOALS.map((g) => (
-                <Chip key={g} label={t(`s.profileGoal_${g}`)} active={goal === g} onPress={() => setGoal(goal === g ? '' : g)} />
-              ))}
-            </View>
-
-            <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.textSecondary, marginTop: 14, marginBottom: 6 }}>
-              {t('s.profileExperience')}
-            </Text>
-            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-              {EXPERIENCE.map((e) => (
-                <Chip key={e} label={t(`s.profileExp_${e}`)} active={experience === e} onPress={() => setExperience(experience === e ? '' : e)} />
-              ))}
-            </View>
-
-            <AppButton
-              label={t('s.profileSave')}
-              variant="dark"
-              busy={busy}
-              icon={<Check size={17} color={colors.darkButtonText} />}
-              style={{ marginTop: 20 }}
-              onPress={() => void save()}
-            />
-          </ScrollView>
+              <AppButton
+                label={t('s.profileSave')}
+                variant="dark"
+                busy={busy}
+                icon={<Check size={17} color={colors.darkButtonText} />}
+                style={{ marginTop: 20 }}
+                onPress={() => void save()}
+              />
+            </ScrollView>
+          </View>
         </View>
-      </View>
-    </Modal>
+    
+        </KeyboardAvoidingView></Modal>
   );
 }
 

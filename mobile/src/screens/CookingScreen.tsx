@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
   Modal,
   PanResponder,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -1118,36 +1120,38 @@ export function CookingScreen({ route }: any) {
 
       {/* zweites Gericht wählen (Nr. 12) */}
       <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
-        <View style={{ flex: 1, backgroundColor: rgbaHelper('#000000', 0.5), justifyContent: 'flex-end' }}>
-          <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 26, maxHeight: '72%' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <Text style={{ fontFamily: fonts.display, fontSize: 18, fontWeight: '800', color: colors.textPrimary }}>{t('s.cookSecondPick')}</Text>
-              <Pressable onPress={() => setPickerOpen(false)} hitSlop={8}>
-                <X size={18} color={colors.textSecondary} />
-              </Pressable>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <View style={{ flex: 1, backgroundColor: rgbaHelper('#000000', 0.5), justifyContent: 'flex-end' }}>
+            <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 26, maxHeight: '72%' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <Text style={{ fontFamily: fonts.display, fontSize: 18, fontWeight: '800', color: colors.textPrimary }}>{t('s.cookSecondPick')}</Text>
+                <Pressable onPress={() => setPickerOpen(false)} hitSlop={8}>
+                  <X size={18} color={colors.textSecondary} />
+                </Pressable>
+              </View>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {(savedRecipes ?? []).slice(0, 50).map((r, i) => {
+                  const count = recipeLines(r?.steps).length;
+                  return (
+                    <Pressable
+                      key={String(r?.recipeKey ?? r?._id ?? i)}
+                      onPress={() => startSecond(r)}
+                      style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.cardBorder, opacity: pressed ? 0.7 : 1 }]}
+                    >
+                      <Utensils size={15} color={colors.textSecondary} />
+                      <Text numberOfLines={1} style={{ flex: 1, fontSize: 13.5, color: colors.textPrimary }}>{String(r?.title ?? '')}</Text>
+                      <Text style={{ fontSize: 11.5, color: colors.textSecondary }}>{count}</Text>
+                    </Pressable>
+                  );
+                })}
+                {(savedRecipes ?? []).length === 0 ? (
+                  <Text style={{ fontSize: 12.5, color: colors.textSecondary, paddingVertical: 8 }}>{t('s.cookSecondAdd')}</Text>
+                ) : null}
+              </ScrollView>
             </View>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {(savedRecipes ?? []).slice(0, 50).map((r, i) => {
-                const count = recipeLines(r?.steps).length;
-                return (
-                  <Pressable
-                    key={String(r?.recipeKey ?? r?._id ?? i)}
-                    onPress={() => startSecond(r)}
-                    style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.cardBorder, opacity: pressed ? 0.7 : 1 }]}
-                  >
-                    <Utensils size={15} color={colors.textSecondary} />
-                    <Text numberOfLines={1} style={{ flex: 1, fontSize: 13.5, color: colors.textPrimary }}>{String(r?.title ?? '')}</Text>
-                    <Text style={{ fontSize: 11.5, color: colors.textSecondary }}>{count}</Text>
-                  </Pressable>
-                );
-              })}
-              {(savedRecipes ?? []).length === 0 ? (
-                <Text style={{ fontSize: 12.5, color: colors.textSecondary, paddingVertical: 8 }}>{t('s.cookSecondAdd')}</Text>
-              ) : null}
-            </ScrollView>
           </View>
-        </View>
-      </Modal>
+      
+        </KeyboardAvoidingView></Modal>
     </View>
   );
 }

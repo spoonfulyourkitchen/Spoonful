@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AlertTriangle, Bookmark, ChefHat, Flame, Home, Library, LogOut, Menu,
   MessageCircle, Palette, Search, Settings, Shield, ShoppingCart, Sparkles,
-  UsersRound, X, Zap,
+  UsersRound, X,
 } from 'lucide-react-native';
 import { useQuery, useAuthActions } from '../lib/convex-auth';
 import { api } from '../lib/api';
@@ -13,6 +13,7 @@ import { colors, fonts, glassShadow, subscribeTheme } from '../theme';
 import { SpoonfulLogo as Logo } from '../components/Logo';
 import { WashBackground } from '../components/GlassBackground';
 import { useAiTask, clearAiTask } from '../lib/aiTask';
+import { subscribeAiUsage, getAiUsage, refreshAiUsage } from '../lib/ai';
 import { navigate } from './rootRef';
 import { useTranslation } from '../lib/i18n';
 
@@ -94,6 +95,36 @@ export function AiStatusIndicator() {
   return null;
 }
 
+/* 3.2.3: Tageslimit-Anzeige (3 KI-Nutzungen pro Tag, alle Chef-Funktionen
+   zusammen). Mods/Admins haben kein Limit und sehen keinen Zähler. */
+function AiQuotaBadge() {
+  const { t } = useTranslation();
+  const usage = React.useSyncExternalStore(subscribeAiUsage, getAiUsage, getAiUsage);
+  useEffect(() => {
+    void refreshAiUsage();
+  }, []);
+  if (!usage || usage.unlimited) return null;
+  const exhausted = usage.remaining <= 0;
+  return (
+    <View
+      accessible
+      accessibilityLabel={t('s.aiQuotaA11y', { n: usage.remaining, limit: usage.limit })}
+      style={{
+        flexDirection: 'row', alignItems: 'center', gap: 4,
+        borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4,
+        borderWidth: 1,
+        borderColor: exhausted ? colors.rose : colors.cardBorder,
+        backgroundColor: exhausted ? colors.roseBg : colors.card,
+      }}
+    >
+      <Sparkles size={11} color={exhausted ? colors.rose : colors.accent} strokeWidth={2.4} />
+      <Text style={{ fontSize: 11, fontWeight: '800', color: exhausted ? colors.rose : colors.textPrimary }}>
+        {usage.remaining}/{usage.limit}
+      </Text>
+    </View>
+  );
+}
+
 const aiPill: any = {
   flexDirection: 'row', alignItems: 'center',
   borderRadius: 999, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4,
@@ -111,7 +142,7 @@ function buildShellStyles() {
 let styles = buildShellStyles();
 subscribeTheme(() => { styles = buildShellStyles(); });
 
-/* Glass main header (mobile): logo · AI status · hamburger. */
+/* Glass main header (mobile): logo · AI status + Tageslimit · hamburger. */
 export function MainHeader() {
   const insets = useSafeAreaInsets();
   const { toggle } = useAppShell();
@@ -132,8 +163,9 @@ export function MainHeader() {
           </Text>
         </Pressable>
 
-        <View style={{ flex: 1, alignItems: 'center' }}>
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
           <AiStatusIndicator />
+          <AiQuotaBadge />
         </View>
 
         <Pressable
@@ -338,7 +370,6 @@ function DrawerSheet({ visible, onClose }: { visible: boolean; onClose: () => vo
             <Row icon={<Home {...ic(colors.accent)} />} label={t('nav.overview')} onPress={() => go('Dashboard')} />
             <Row icon={<UsersRound {...ic(colors.accent)} />} label={t('nav.community')} onPress={() => go('Community')} />
             <Row icon={<ShoppingCart {...ic(colors.accent)} />} label={t('nav.shopping')} onPress={() => go('Shopping')} />
-            <Row icon={<Zap {...ic(colors.accent)} />} label={t('s.monTab')} onPress={() => goTab('Monstr')} />
             <Row icon={<Palette {...ic(colors.accent)} />} label={t('nav.theme')} onPress={() => go('Theme')} />
             <Row icon={<Settings {...ic(colors.accent)} />} label={t('nav.settings')} onPress={() => go('Settings')} />
             {myRole === 'admin' || myRole === 'mod' ? <Row icon={<Shield {...ic(colors.accent)} />} label={myRole === 'admin' ? t('nav.adminPanel') : t('s.drawerModeration')} onPress={() => go('Admin')} /> : null}

@@ -1,5 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { Camera, Image as ImageIcon, RotateCcw, ScanLine, Search, TriangleAlert, X } from 'lucide-react-native';
 import { WebView } from 'react-native-webview';
 import { colors, fonts } from '../theme';
@@ -334,213 +345,215 @@ window.addEventListener('load', go);
   return (
     <>
       <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-        <View style={{ flex: 1, justifyContent: 'center', padding: 18, backgroundColor: colors.overlayStrong }}>
-          <View style={{ maxHeight: '92%', borderRadius: 24, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.bg, overflow: 'hidden' }}>
-            <ScrollView contentContainerStyle={{ padding: 18 }} keyboardShouldPersistTaps="handled">
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <View style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accentSoft }}>
-                  <ScanLine size={17} color={colors.accent} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <View style={{ flex: 1, justifyContent: 'center', padding: 18, backgroundColor: colors.overlayStrong }}>
+            <View style={{ maxHeight: '92%', borderRadius: 24, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.bg, overflow: 'hidden' }}>
+              <ScrollView contentContainerStyle={{ padding: 18 }} keyboardShouldPersistTaps="handled">
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accentSoft }}>
+                    <ScanLine size={17} color={colors.accent} />
+                  </View>
+                  <Text style={{ flex: 1, fontFamily: fonts.display, fontSize: 18, fontWeight: '800', color: colors.textPrimary }}>
+                    {pick(lang, BARCODE_L10N.scanTitle)}
+                  </Text>
+                  <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={pick(lang, BARCODE_L10N.cancel)}>
+                    <X size={20} color={colors.textSecondary} />
+                  </Pressable>
                 </View>
-                <Text style={{ flex: 1, fontFamily: fonts.display, fontSize: 18, fontWeight: '800', color: colors.textPrimary }}>
-                  {pick(lang, BARCODE_L10N.scanTitle)}
-                </Text>
-                <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={pick(lang, BARCODE_L10N.cancel)}>
-                  <X size={20} color={colors.textSecondary} />
-                </Pressable>
-              </View>
 
-              {/* 3.1.2: Live-Scanner — Handy hinhalten, bis der Code erkannt wird */}
-              {live && !image ? (
-                <View style={{ marginTop: 12 }}>
-                  <View style={{ height: 200, borderRadius: 18, overflow: 'hidden', backgroundColor: '#000' }}>
-                    {liveError ? (
-                      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-                        <TriangleAlert size={18} color="#fff" />
-                        <Text style={{ color: '#fff', fontSize: 12.5, textAlign: 'center', marginTop: 8 }}>{t('s.scanNoCamera')}</Text>
-                      </View>
-                    ) : (
+                {/* 3.1.2: Live-Scanner — Handy hinhalten, bis der Code erkannt wird */}
+                {live && !image ? (
+                  <View style={{ marginTop: 12 }}>
+                    <View style={{ height: 200, borderRadius: 18, overflow: 'hidden', backgroundColor: '#000' }}>
+                      {liveError ? (
+                        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+                          <TriangleAlert size={18} color="#fff" />
+                          <Text style={{ color: '#fff', fontSize: 12.5, textAlign: 'center', marginTop: 8 }}>{t('s.scanNoCamera')}</Text>
+                        </View>
+                      ) : (
+                        <WebView
+                          originWhitelist={['*']}
+                          source={{ html: liveHtml, baseUrl: 'file:///android_asset/' }}
+                          allowFileAccess
+                          allowFileAccessFromFileURLs
+                          allowUniversalAccessFromFileURLs
+                          javaScriptEnabled
+                          domStorageEnabled={false}
+                          mediaPlaybackRequiresUserAction={false}
+                          allowsInlineMediaPlayback
+                          onMessage={onLiveMessage}
+                          onPermissionRequest={(event: any) => {
+                            try {
+                              const request = event?.nativeEvent?.request;
+                              const resources = event?.nativeEvent?.resources ?? ['android.webkit.resource.VIDEO_CAPTURE'];
+                              if (request?.grant) request.grant(resources);
+                              else if (event?.nativeEvent?.grant) event.nativeEvent.grant(resources);
+                            } catch {
+                              setLiveError(true);
+                            }
+                          }}
+                          onError={() => setLiveError(true)}
+                          style={{ flex: 1, backgroundColor: '#000' }}
+                        />
+                      )}
+                    </View>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: colors.textPrimary, marginTop: 10 }}>{t('s.scanLive')}</Text>
+                    <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>{t('s.scanLiveHint')}</Text>
+                    <Pressable
+                      onPress={() => setLive(false)}
+                      style={({ pressed }) => [{ alignSelf: 'flex-start', marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6, backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.7 : 1 }]}
+                    >
+                      <Camera size={13} color={colors.textSecondary} />
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textSecondary }}>{t('s.scanFallback')}</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+
+                {/* 3.2.0: Produkt suchen statt nur scannen */}
+                <View style={{ marginTop: 14 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 12 }}>
+                    <Search size={16} color={colors.textSecondary} />
+                    <TextInput value={searchQ} onChangeText={setSearchQ} onSubmitEditing={() => void runSearch()} placeholder={t('s.scanSearchPh')} placeholderTextColor={colors.textSecondary} style={{ flex: 1, paddingVertical: 11, fontSize: 15, color: colors.textPrimary }} />
+                    <Pressable onPress={() => void runSearch()} hitSlop={8}>
+                      <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.accent }}>{t('s.scanSearchGo')}</Text>
+                    </Pressable>
+                  </View>
+                  {searching ? <ActivityIndicator size="small" color={colors.accent} style={{ marginTop: 10 }} /> : null}
+                  {hits.map((hit) => (
+                    <Pressable key={hit.code} onPress={() => { onCode(hit.code); onClose(); }} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.cardBorder, opacity: pressed ? 0.7 : 1 }]}>
+                      <ImageIcon size={15} color={colors.textSecondary} />
+                      <Text numberOfLines={1} style={{ flex: 1, fontSize: 13.5, color: colors.textPrimary }}>{hit.name}{hit.brand ? ` · ${hit.brand}` : ''}</Text>
+                      <Text style={{ fontSize: 11, color: colors.textSecondary }}>{hit.kcal != null ? `${hit.kcal} kcal` : ''}</Text>
+                    </Pressable>
+                  ))}
+                  {!searching && !hits.length && searchQ.trim().length > 2 ? (
+                    <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 8 }}>{t('s.scanNoHits')}</Text>
+                  ) : null}
+                </View>
+
+                {/* how to take a picture that decodes on the first pass (nur im Foto-Modus) */}
+                {live && !image ? null : (
+                  <>
+                <View style={{ marginTop: 12, borderRadius: 16, backgroundColor: colors.surfaceMuted, padding: 12 }}>
+                  <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.textPrimary }}>
+                    {pick(lang, BARCODE_L10N.sharpnessTitle)}
+                  </Text>
+                  {[BARCODE_L10N.tipFill, BARCODE_L10N.tipDistance, BARCODE_L10N.tipLight].map((tip) => (
+                    <View key={tip.en} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 7, marginTop: 6 }}>
+                      <View style={{ width: 5, height: 5, borderRadius: 3, marginTop: 6, backgroundColor: colors.accent }} />
+                      <Text style={{ flex: 1, fontSize: 12, lineHeight: 17, color: colors.textSecondary }}>{pick(lang, tip)}</Text>
+                    </View>
+                  ))}
+                </View>
+                  </>
+                )}
+
+                <Pressable
+                  onPress={() => void grab('camera')}
+                  disabled={busy}
+                  accessibilityRole="button"
+                  accessibilityLabel={pick(lang, BARCODE_L10N.takePhoto)}
+                  style={({ pressed }) => [{ marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 16, paddingVertical: 15, backgroundColor: colors.accent, opacity: busy ? 0.6 : pressed ? 0.85 : 1 }]}
+                >
+                  <Camera size={18} color={colors.accentText} strokeWidth={2.4} />
+                  <Text style={{ color: colors.accentText, fontWeight: '800', fontSize: 15 }}>{pick(lang, BARCODE_L10N.takePhoto)}</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => void grab('library')}
+                  disabled={busy}
+                  accessibilityRole="button"
+                  accessibilityLabel={pick(lang, BARCODE_L10N.fromGallery)}
+                  style={({ pressed }) => [{ marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 16, paddingVertical: 13, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, opacity: busy ? 0.6 : pressed ? 0.85 : 1 }]}
+                >
+                  <ImageIcon size={17} color={colors.accent} />
+                  <Text style={{ color: colors.accent, fontWeight: '700', fontSize: 14 }}>{pick(lang, BARCODE_L10N.fromGallery)}</Text>
+                </Pressable>
+
+                {image ? (
+                  <View style={{ marginTop: 14 }}>
+                    <Image source={{ uri: image }} style={{ width: '100%', height: 132, borderRadius: 16, backgroundColor: colors.surfaceMuted }} resizeMode="contain" />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                      <ActivityIndicator size="small" color={colors.accent} />
+                      <Text style={{ fontSize: 12.5, color: colors.textSecondary }}>
+                        {pick(lang, BARCODE_L10N.reading)}
+                        {progress.total ? ` · ${pick(lang, BARCODE_L10N.pass)} ${progress.done}/${progress.total}` : ''}
+                      </Text>
+                    </View>
+                    {/* Hidden decoder: it only has to run, not to be visible. */}
+                    <View style={{ width: 1, height: 1, opacity: 0 }} pointerEvents="none">
                       <WebView
+                        source={{ html }}
                         originWhitelist={['*']}
-                        source={{ html: liveHtml, baseUrl: 'file:///android_asset/' }}
                         allowFileAccess
                         allowFileAccessFromFileURLs
                         allowUniversalAccessFromFileURLs
                         javaScriptEnabled
-                        domStorageEnabled={false}
-                        mediaPlaybackRequiresUserAction={false}
-                        allowsInlineMediaPlayback
-                        onMessage={onLiveMessage}
-                        onPermissionRequest={(event: any) => {
-                          try {
-                            const request = event?.nativeEvent?.request;
-                            const resources = event?.nativeEvent?.resources ?? ['android.webkit.resource.VIDEO_CAPTURE'];
-                            if (request?.grant) request.grant(resources);
-                            else if (event?.nativeEvent?.grant) event.nativeEvent.grant(resources);
-                          } catch {
-                            setLiveError(true);
-                          }
+                        onMessage={onMessage}
+                        onError={() => {
+                          setBusy(false);
+                          setImage(null);
+                          setFailed(true);
+                          setNotice('noCode');
                         }}
-                        onError={() => setLiveError(true)}
-                        style={{ flex: 1, backgroundColor: '#000' }}
+                        style={{ width: 1, height: 1, opacity: 0 }}
                       />
-                    )}
+                    </View>
                   </View>
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: colors.textPrimary, marginTop: 10 }}>{t('s.scanLive')}</Text>
-                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>{t('s.scanLiveHint')}</Text>
-                  <Pressable
-                    onPress={() => setLive(false)}
-                    style={({ pressed }) => [{ alignSelf: 'flex-start', marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6, backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.7 : 1 }]}
-                  >
-                    <Camera size={13} color={colors.textSecondary} />
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textSecondary }}>{t('s.scanFallback')}</Text>
-                  </Pressable>
-                </View>
-              ) : null}
-
-              {/* 3.2.0: Produkt suchen statt nur scannen */}
-              <View style={{ marginTop: 14 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 12 }}>
-                  <Search size={16} color={colors.textSecondary} />
-                  <TextInput value={searchQ} onChangeText={setSearchQ} onSubmitEditing={() => void runSearch()} placeholder={t('s.scanSearchPh')} placeholderTextColor={colors.textSecondary} style={{ flex: 1, paddingVertical: 11, fontSize: 15, color: colors.textPrimary }} />
-                  <Pressable onPress={() => void runSearch()} hitSlop={8}>
-                    <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.accent }}>{t('s.scanSearchGo')}</Text>
-                  </Pressable>
-                </View>
-                {searching ? <ActivityIndicator size="small" color={colors.accent} style={{ marginTop: 10 }} /> : null}
-                {hits.map((hit) => (
-                  <Pressable key={hit.code} onPress={() => { onCode(hit.code); onClose(); }} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.cardBorder, opacity: pressed ? 0.7 : 1 }]}>
-                    <ImageIcon size={15} color={colors.textSecondary} />
-                    <Text numberOfLines={1} style={{ flex: 1, fontSize: 13.5, color: colors.textPrimary }}>{hit.name}{hit.brand ? ` · ${hit.brand}` : ''}</Text>
-                    <Text style={{ fontSize: 11, color: colors.textSecondary }}>{hit.kcal != null ? `${hit.kcal} kcal` : ''}</Text>
-                  </Pressable>
-                ))}
-                {!searching && !hits.length && searchQ.trim().length > 2 ? (
-                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 8 }}>{t('s.scanNoHits')}</Text>
                 ) : null}
-              </View>
 
-              {/* how to take a picture that decodes on the first pass (nur im Foto-Modus) */}
-              {live && !image ? null : (
-                <>
-              <View style={{ marginTop: 12, borderRadius: 16, backgroundColor: colors.surfaceMuted, padding: 12 }}>
-                <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.textPrimary }}>
-                  {pick(lang, BARCODE_L10N.sharpnessTitle)}
-                </Text>
-                {[BARCODE_L10N.tipFill, BARCODE_L10N.tipDistance, BARCODE_L10N.tipLight].map((tip) => (
-                  <View key={tip.en} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 7, marginTop: 6 }}>
-                    <View style={{ width: 5, height: 5, borderRadius: 3, marginTop: 6, backgroundColor: colors.accent }} />
-                    <Text style={{ flex: 1, fontSize: 12, lineHeight: 17, color: colors.textSecondary }}>{pick(lang, tip)}</Text>
-                  </View>
-                ))}
-              </View>
-                </>
-              )}
-
-              <Pressable
-                onPress={() => void grab('camera')}
-                disabled={busy}
-                accessibilityRole="button"
-                accessibilityLabel={pick(lang, BARCODE_L10N.takePhoto)}
-                style={({ pressed }) => [{ marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 16, paddingVertical: 15, backgroundColor: colors.accent, opacity: busy ? 0.6 : pressed ? 0.85 : 1 }]}
-              >
-                <Camera size={18} color={colors.accentText} strokeWidth={2.4} />
-                <Text style={{ color: colors.accentText, fontWeight: '800', fontSize: 15 }}>{pick(lang, BARCODE_L10N.takePhoto)}</Text>
-              </Pressable>
-
-              <Pressable
-                onPress={() => void grab('library')}
-                disabled={busy}
-                accessibilityRole="button"
-                accessibilityLabel={pick(lang, BARCODE_L10N.fromGallery)}
-                style={({ pressed }) => [{ marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 16, paddingVertical: 13, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, opacity: busy ? 0.6 : pressed ? 0.85 : 1 }]}
-              >
-                <ImageIcon size={17} color={colors.accent} />
-                <Text style={{ color: colors.accent, fontWeight: '700', fontSize: 14 }}>{pick(lang, BARCODE_L10N.fromGallery)}</Text>
-              </Pressable>
-
-              {image ? (
-                <View style={{ marginTop: 14 }}>
-                  <Image source={{ uri: image }} style={{ width: '100%', height: 132, borderRadius: 16, backgroundColor: colors.surfaceMuted }} resizeMode="contain" />
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                    <ActivityIndicator size="small" color={colors.accent} />
-                    <Text style={{ fontSize: 12.5, color: colors.textSecondary }}>
-                      {pick(lang, BARCODE_L10N.reading)}
-                      {progress.total ? ` · ${pick(lang, BARCODE_L10N.pass)} ${progress.done}/${progress.total}` : ''}
+                {failed ? (
+                  <View style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, backgroundColor: colors.roseBg, padding: 12 }}>
+                    <TriangleAlert size={16} color={colors.rose} />
+                    <Text style={{ flex: 1, fontSize: 12.5, lineHeight: 17, color: colors.rose }}>
+                      {pick(lang, BARCODE_L10N.notFound)}
                     </Text>
                   </View>
-                  {/* Hidden decoder: it only has to run, not to be visible. */}
-                  <View style={{ width: 1, height: 1, opacity: 0 }} pointerEvents="none">
-                    <WebView
-                      source={{ html }}
-                      originWhitelist={['*']}
-                      allowFileAccess
-                      allowFileAccessFromFileURLs
-                      allowUniversalAccessFromFileURLs
-                      javaScriptEnabled
-                      onMessage={onMessage}
-                      onError={() => {
-                        setBusy(false);
-                        setImage(null);
-                        setFailed(true);
-                        setNotice('noCode');
-                      }}
-                      style={{ width: 1, height: 1, opacity: 0 }}
-                    />
-                  </View>
-                </View>
-              ) : null}
+                ) : null}
 
-              {failed ? (
-                <View style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, backgroundColor: colors.roseBg, padding: 12 }}>
-                  <TriangleAlert size={16} color={colors.rose} />
-                  <Text style={{ flex: 1, fontSize: 12.5, lineHeight: 17, color: colors.rose }}>
-                    {pick(lang, BARCODE_L10N.notFound)}
+                {failed ? (
+                  <Pressable
+                    onPress={() => void grab('camera')}
+                    accessibilityRole="button"
+                    accessibilityLabel={pick(lang, BARCODE_L10N.retry)}
+                    style={({ pressed }) => [{ marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 16, paddingVertical: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, opacity: pressed ? 0.85 : 1 }]}
+                  >
+                    <RotateCcw size={16} color={colors.accent} />
+                    <Text style={{ color: colors.accent, fontWeight: '700', fontSize: 13.5 }}>{pick(lang, BARCODE_L10N.retry)}</Text>
+                  </Pressable>
+                ) : null}
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 }}>
+                  <View style={{ flex: 1, height: 1, backgroundColor: colors.cardBorder }} />
+                  <Text style={{ fontSize: 10.5, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                    {pick(lang, BARCODE_L10N.manual)}
                   </Text>
+                  <View style={{ flex: 1, height: 1, backgroundColor: colors.cardBorder }} />
                 </View>
-              ) : null}
-
-              {failed ? (
-                <Pressable
-                  onPress={() => void grab('camera')}
-                  accessibilityRole="button"
-                  accessibilityLabel={pick(lang, BARCODE_L10N.retry)}
-                  style={({ pressed }) => [{ marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 16, paddingVertical: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, opacity: pressed ? 0.85 : 1 }]}
-                >
-                  <RotateCcw size={16} color={colors.accent} />
-                  <Text style={{ color: colors.accent, fontWeight: '700', fontSize: 13.5 }}>{pick(lang, BARCODE_L10N.retry)}</Text>
-                </Pressable>
-              ) : null}
-
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 }}>
-                <View style={{ flex: 1, height: 1, backgroundColor: colors.cardBorder }} />
-                <Text style={{ fontSize: 10.5, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.6 }}>
-                  {pick(lang, BARCODE_L10N.manual)}
-                </Text>
-                <View style={{ flex: 1, height: 1, backgroundColor: colors.cardBorder }} />
-              </View>
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-                <TextInput
-                  value={manual}
-                  onChangeText={setManual}
-                  keyboardType="number-pad"
-                  placeholder="4001234567890"
-                  placeholderTextColor={colors.textSecondary}
-                  style={{ flex: 1, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 12, paddingVertical: 11, color: colors.textPrimary, fontSize: 15 }}
-                />
-                <Pressable
-                  onPress={useManual}
-                  disabled={manual.replace(/\D/g, '').length < 6}
-                  accessibilityRole="button"
-                  accessibilityLabel={pick(lang, BARCODE_L10N.use)}
-                  style={({ pressed }) => [{ borderRadius: 14, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.darkButton, opacity: manual.replace(/\D/g, '').length < 6 ? 0.5 : pressed ? 0.8 : 1 }]}
-                >
-                  <Text style={{ color: colors.darkButtonText, fontWeight: '800' }}>{pick(lang, BARCODE_L10N.use)}</Text>
-                </Pressable>
-              </View>
-            </ScrollView>
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                  <TextInput
+                    value={manual}
+                    onChangeText={setManual}
+                    keyboardType="number-pad"
+                    placeholder="4001234567890"
+                    placeholderTextColor={colors.textSecondary}
+                    style={{ flex: 1, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 12, paddingVertical: 11, color: colors.textPrimary, fontSize: 15 }}
+                  />
+                  <Pressable
+                    onPress={useManual}
+                    disabled={manual.replace(/\D/g, '').length < 6}
+                    accessibilityRole="button"
+                    accessibilityLabel={pick(lang, BARCODE_L10N.use)}
+                    style={({ pressed }) => [{ borderRadius: 14, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.darkButton, opacity: manual.replace(/\D/g, '').length < 6 ? 0.5 : pressed ? 0.8 : 1 }]}
+                  >
+                    <Text style={{ color: colors.darkButtonText, fontWeight: '800' }}>{pick(lang, BARCODE_L10N.use)}</Text>
+                  </Pressable>
+                </View>
+              </ScrollView>
+            </View>
           </View>
-        </View>
-      </Modal>
+      
+        </KeyboardAvoidingView></Modal>
 
       {/* Why nothing was decoded - a popup instead of a line somewhere below. */}
       <Popup
