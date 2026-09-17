@@ -119,7 +119,11 @@ export function RecipeFormScreen({ route }: any) {
     setError(null);
     setEstimating(true);
     try {
-      const res = await estimateN({ title: title.trim(), ingredients: linesOf(ingredientsText), steps: linesOf(stepsText) });
+      const res = await estimateN({
+        title: title.trim(),
+        ingredients: linesOf(ingredientsText),
+        steps: linesOf(stepsText),
+      });
       setCalories(res.calories != null ? String(res.calories) : '');
       setProtein(res.protein != null ? String(res.protein) : '');
       setCarbs(res.carbs != null ? String(res.carbs) : '');

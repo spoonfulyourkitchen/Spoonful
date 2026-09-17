@@ -72,6 +72,21 @@ export function CroppedImage({
     };
   }, [uri]);
 
+  /**
+   * 3.3.1: Die Bildgröße kommt jetzt zusätzlich aus dem Ladevorgang selbst.
+   *
+   * `Image.getSize` liefert bei Bildern aus der App (data-URL) keine Größe — die
+   * Folge war der hartnäckige Fehler, dass immer die Bildmitte angezeigt wurde,
+   * auch bei alten Ausschnitten ohne gespeicherte Größe. Das `onLoad`-Ereignis
+   * kennt die echten Maße in jedem Fall.
+   */
+  const onImageLoad = (event: any) => {
+    const src = event?.nativeEvent?.source;
+    if (src?.width > 0 && src?.height > 0) {
+      setImgSize((prev) => (prev && prev.w === src.width && prev.h === src.height ? prev : { w: src.width, h: src.height }));
+    }
+  };
+
   useEffect(() => {
     setTryOriginal(false);
   }, [uri, thumbWidth]);
@@ -106,7 +121,7 @@ export function CroppedImage({
     ? { w: crop.iw, h: crop.ih }
     : imgSize;
   const view = (() => {
-    if (!c || !known) return null;
+    if (!c || !known || size.w <= 0 || size.h <= 0) return null;
     const base = Math.max(size.w / known.w, size.h / known.h);
     const scale = base * c.zoom;
     const drawW = known.w * scale;
@@ -122,6 +137,7 @@ export function CroppedImage({
             source={pictureSource}
             resizeMode="stretch"
             onError={handleError}
+            onLoad={onImageLoad}
             style={{ position: 'absolute', left: view.left, top: view.top, width: view.width, height: view.height }}
           />
         ) : (
@@ -129,6 +145,7 @@ export function CroppedImage({
             source={pictureSource}
             resizeMode={resizeMode}
             onError={handleError}
+            onLoad={onImageLoad}
             style={[{ width: '100%', height: '100%' }, imageStyle]}
           />
         )

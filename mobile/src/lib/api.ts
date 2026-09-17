@@ -275,11 +275,20 @@ ops['recipes.reportImage'] = {
 ops['recipes.libraryCount'] = {
   async query() {
     try {
-      /* Die Bibliothek liegt in `recipes` (nicht in einer Kopie). */
+      /* 3.3.1: über eine Funktion — die funktioniert auch ohne Anmeldung, damit
+         die Landing-Seite die echte Zahl zeigt statt einer festen Angabe. */
+      const { data, error } = await supabase.rpc('library_count');
+      if (error) throw error;
+      const total = typeof data === 'number' ? data : Number(data ?? 0);
+      if (Number.isFinite(total) && total > 0) return { total };
+    } catch {
+      /* Funktion noch nicht da → zweiter Versuch direkt auf der Tabelle */
+    }
+    try {
       const { count, error } = await supabase
         .from('recipes')
         .select('id', { count: 'exact', head: true });
-      if (error) throw rowError(error);
+      if (error) throw error;
       return { total: count ?? 0 };
     } catch {
       /* offline oder ohne Rechte: einfach keine Zahl anzeigen */
@@ -1238,6 +1247,7 @@ ops['ai.estimateNutrition'] = {
       title: args.title,
       ingredients: args.ingredients,
       steps: args.steps,
+      servings: Number(args.servings) > 0 ? Number(args.servings) : undefined,
     });
   },
 };

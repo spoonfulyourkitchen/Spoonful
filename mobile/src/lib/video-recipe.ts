@@ -487,6 +487,41 @@ export function cleanJunkLines(lines: string[]): string[] {
 }
 
 /**
+ * 3.3.1: Titel aus einem Videotitel bauen (Fallback, wenn die KI nicht lief).
+ *
+ * Videotitel sind selten Gerichtnamen: „MEIN BESTES REZEPT!! 😍 | Folge mir",
+ * „Schnelles Abendessen #shorts". Hier bleibt nur der Teil übrig, der wie ein
+ * Gericht klingt — ohne Emojis, Hashtags, Kanäle, Schreien und Werbung.
+ */
+export function craftTitle(raw: string, fallback = ''): string {
+  const source = String(raw ?? '');
+  const parts = source
+    .split(/[|•·–—>»«]|\s{2,}|\s-\s/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const cleaned = parts
+    .map((part) =>
+      part
+        .replace(/#[^\s#]+/g, ' ')
+        .replace(/https?:\/\/\S+/gi, ' ')
+        .replace(/[\u2190-\u21FF\u2600-\u27BF\uFE0F\uD83C-\uDBFF\uDC00-\uDFFF]/g, ' ')
+        .replace(/\b(rezept|recipe|rezepte|recipes|shorts?|video|vlog|tutorial|subscribe|abonnieren)\b/gi, ' ')
+        .replace(/\s{2,}/g, ' ')
+        .trim(),
+    )
+    .filter((part) => part.replace(/[^A-Za-z\u00C0-\u024F\u0600-\u06FF]/g, '').length >= 4);
+
+  const best = cleaned.find((part) => !isJunkLine(part)) ?? cleaned[0] ?? '';
+  const tidy = best.replace(/\s{2,}/g, ' ').trim();
+  if (!tidy) return String(fallback ?? '').trim();
+  /* Schreien in normale Schreibweise bringen: „MEIN BESTES REZEPT" → „Mein bestes Rezept" */
+  const letters = tidy.replace(/[^A-Za-z\u00C0-\u024F]/g, '');
+  const shouty = letters.length > 6 && letters === letters.toUpperCase();
+  const normal = shouty ? tidy.charAt(0).toUpperCase() + tidy.slice(1).toLowerCase() : tidy.charAt(0).toUpperCase() + tidy.slice(1);
+  return normal.slice(0, 70);
+}
+
+/**
  * 3.2.3: Zutaten aus dem Video und von der KI zusammenführen — die Video-Angaben
  * gewinnen, die KI füllt nur auf, was dort fehlt.
  */
@@ -588,7 +623,7 @@ export async function recipeFromVideo(
     if (structured && structured.steps.length >= 2) {
       const ingredients = mergeIngredients(cleaned.ingredients, structured.ingredients);
       return {
-        title: structured.title || title || ingredients[0] || structured.steps[0].slice(0, 60),
+        title: structured.title || craftTitle(title, ingredients[0] ?? '') || structured.steps[0].slice(0, 60),
         ingredients,
         steps: structured.steps,
         source,
@@ -601,7 +636,7 @@ export async function recipeFromVideo(
 
   if (isUsable(cleaned)) {
     return {
-      title: title || cleaned.ingredients[0] || cleaned.steps[0].slice(0, 60),
+      title: craftTitle(title, cleaned.ingredients[0] ?? '') || cleaned.steps[0].slice(0, 60),
       ingredients: cleaned.ingredients,
       steps: cleaned.steps,
       source,
@@ -616,7 +651,7 @@ export async function recipeFromVideo(
     const structured = await aiRecipeFromText({ title, text }).catch(() => null);
     if (structured && structured.ingredients.length && structured.steps.length) {
       return {
-        title: structured.title || title || structured.ingredients[0],
+        title: structured.title || craftTitle(title, structured.ingredients[0] ?? ''),
         ingredients: structured.ingredients,
         steps: structured.steps,
         source,
@@ -633,7 +668,7 @@ export async function recipeFromVideo(
     .slice(0, 25);
   if (lines.length >= 4) {
     return {
-      title: title || lines[0].slice(0, 60),
+      title: craftTitle(title, lines[0]) || lines[0].slice(0, 60),
       ingredients: local.ingredients,
       steps: local.steps.length ? local.steps : lines,
       source,

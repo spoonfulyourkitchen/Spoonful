@@ -672,6 +672,49 @@ export async function translateRecipeContentOnline(
   return { title, description, ingredients, steps };
 }
 
+/**
+ * 3.3.1: Einzelne Zeilen übersetzen — für Texte, die nicht zum Rezept selbst
+ * gehören (z. B. Coach-Tipp und „Achte auf" pro Schritt, die in der Bibliothek
+ * auf Englisch liegen).
+ *
+ * Reihenfolge: Zeilen-Cache → Online-Übersetzer → Wörterbuch. Schlägt alles
+ * fehl, bleibt das Original stehen (nie ein leerer Text).
+ */
+export async function translateLines(lines: string[], language: string): Promise<string[]> {
+  const source = (lines ?? []).map((l) => String(l ?? ''));
+  const lang = ONLINE_LANGS[language];
+  if (language === 'en') return source;
+
+  const dict = maps[language];
+  const offline = (text: string) => (dict ? tidy(applyPhrases(applyGlossary(text, language), dict)) : text);
+
+  const out = source.map((text) => (lang ? cacheGet(lang, text.trim()) ?? text : text));
+  if (!lang) return out.map((text, i) => (text === source[i] ? offline(source[i]) : text));
+
+  const pending: number[] = [];
+  source.forEach((text, i) => {
+    if (!text.trim()) return;
+    if (out[i] !== text) return; /* schon aus dem Cache */
+    pending.push(i);
+  });
+
+  if (pending.length) {
+    const translated = await translateWithGoogle(pending.map((i) => source[i]), lang);
+    if (translated) {
+      pending.forEach((index, pos) => {
+        const value = polish(translated[pos] ?? '');
+        if (value && value.trim()) {
+          out[index] = value;
+          cacheSet(lang, source[index].trim(), value);
+        }
+      });
+    }
+  }
+
+  /* Was online nicht kam, versucht das Wörterbuch. */
+  return out.map((text, i) => (text === source[i] && source[i].trim() ? offline(source[i]) : text));
+}
+
 export function translateRecipeContent(recipe: RecipeContent, language: string): TranslatedRecipe {
   const map = maps[language];
   const keep: TranslatedRecipe = {

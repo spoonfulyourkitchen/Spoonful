@@ -69,7 +69,9 @@ export function cropFromFrame(input: {
   const fy = Math.max(0, Math.min(1, cy / imageH));
   const widthZoom = (imageW * view.s) / frame.w;
   const edge = Math.max(0.34, 1 - 2 * Math.abs(fx - 0.5), 1 - 2 * Math.abs(fy - 0.5));
-  return clampCrop({ fx, fy, zoom: Math.max(1, widthZoom, 1 / edge) });
+  /* 3.3.1: Bildgröße mitgeben — ohne sie kann die Anzeige den Ausschnitt nicht
+     berechnen (genau deshalb war früher „immer die Mitte" zu sehen). */
+  return clampCrop({ fx, fy, zoom: Math.max(1, widthZoom, 1 / edge), iw: imageW, ih: imageH });
 }
 
 /** Kurzer, stabiler Schlüssel für eine (evtl. sehr lange) Bild-URL. */

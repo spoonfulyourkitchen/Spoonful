@@ -8,6 +8,7 @@
  */
 import { supabase } from './supabase';
 import { withTimeout } from './safe';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /** 3.2.2: Obergrenze für einen KI-Aufruf. */
 const AI_TIMEOUT_MS = 60000;
@@ -461,6 +462,11 @@ export async function aiRecipeFromText(args: {
   const system =
     'You turn the description or the subtitles of a cooking video into a clean, complete recipe. ' +
     'Answer with valid JSON only: {"title": string, "ingredients": string[], "steps": string[]}. ' +
+    /* 3.3.1: Der Titel wird gebaut, nicht kopiert. Videotitel sind oft Clickbait
+       oder enthalten Kanalnamen, Emojis und Hashtags. */
+    'CRAFT the title yourself: a clean, appetising dish name (max 6 words, no emojis, no hashtags, ' +
+    'no channel or creator name, no "recipe", no clickbait, no ALL CAPS). Only keep the video title ' +
+    'if it already is a proper dish name. ' +
     /* 3.3.0: Videos enthalten viel Müll (Abo-Aufrufe, Links, Hashtags, Werbung,
        „bewertet das Video") — der gehört nicht in ein Rezept. Fehlende Schritte
        ergänzt die KI aus dem, was im Video steht. */
@@ -490,22 +496,191 @@ export async function aiRecipeFromText(args: {
 }
 
 /** Nutrition estimator used on the recipe form. */
+/* ── 3.3.1: Nährwerte ────────────────────────────────────────────────────────
+ * „KI schätzen" lieferte bei jedem Klick eine andere Zahl (1000 / 800 / 400 kcal
+ * für dasselbe Rezept). Das ist unbrauchbar. Jetzt gilt:
+ *   1. eine kleine, feste Nährwert-Tabelle rechnet aus den Mengen der Zutaten,
+ *   2. die KI schätzt zusätzlich mit Temperatur 0 (also stabil),
+ *   3. weichen beide stark ab, wird gemittelt — und das Ergebnis gemerkt, damit
+ *      dasselbe Rezept immer dieselben Werte ergibt.
+ * ------------------------------------------------------------------------- */
+const NUTRITION_CACHE_KEY = 'spoonful:nutrition-cache:v1';
+
+/** Grobe Werte je 100 g: [kcal, Protein, Kohlenhydrate, Fett]. */
+const FOOD_TABLE: [RegExp, [number, number, number, number]][] = [
+  [/oil|olive oil|öl|olivenöl|butter|margarine|ghee|schmalz/, [890, 0, 0, 100]],
+  [/sugar|zucker|honey|honig|syrup|sirup|jam|marmelade/, [330, 0, 82, 0]],
+  [/flour|mehl|semolina|grieß|starch|stärke|breadcrumbs|paniermehl/, [350, 10, 74, 1]],
+  [/rice|reis|pasta|nudel|spaghetti|penne|macaroni|couscous|bulgur/, [350, 11, 73, 1.5]],
+  [/bread|brot|baguette|pita|toast/, [265, 9, 49, 3]],
+  [/chicken|hähnchen|huhn|poultry|pute|turkey/, [165, 31, 0, 3.6]],
+  [/beef|rind|steak|lamb|lamm|pork|schwein|veal|kalb|meat|hack|mince/, [250, 26, 0, 17]],
+  [/salmon|lachs|tuna|thunfisch|fish|fisch|shrimp|garnele|prawn|sardine/, [200, 22, 0, 12]],
+  [/egg|eier|\bei\b/, [155, 13, 1, 11]],
+  [/cheese|käse|feta|mozzarella|parmesan|halloumi|quark|labneh/, [330, 22, 2, 26]],
+  [/yogurt|joghurt|milk|milch|cream|sahne|buttermilk/, [110, 4, 5, 8]],
+  [/lentil|linse|chickpea|kichererbse|bean|bohne|peas|erbs/, [120, 8, 20, 1]],
+  [/potato|kartoffel|sweet potato|süßkartoffel/, [85, 2, 19, 0.2]],
+  [/onion|zwiebel|garlic|knoblauch|tomato|tomate|pepper|paprika|cucumber|gurke|carrot|karotte|zucchini|aubergine|cabbage|kohl|spinach|spinat|lettuce|salat|lemon|zitrone|herb|kräuter|parsley|petersilie|mint|minze/, [45, 2, 8, 0.5]],
+  [/nut|nuss|nüsse|almond|mandel|walnut|walnuss|pistachio|cashew|sesame|sesam|tahini/, [600, 20, 15, 55]],
+  [/olive|oliven/, [150, 1, 6, 14]],
+  [/chocolate|schokolade|cocoa|kakao/, [540, 6, 58, 31]],
+  [/water|wasser|stock|brühe|broth|vinegar|essig|spice|salz|salt/, [15, 0.5, 2, 0]],
+];
+
+const DEFAULT_FOOD: [number, number, number, number] = [110, 4, 12, 4];
+
+/** Menge einer Zutatenzeile in Gramm (null wenn unklar). */
+function gramsFromIngredient(line: string): number | null {
+  const text = String(line ?? '').toLowerCase().replace(',', '.');
+  const match = /(\d+(?:\.\d+)?)\s*(kg|g|gramm|ml|l|liter|cl|dl|tbsp|el|esslöffel|tsp|tl|teelöffel|cup|tasse|stück|stk|piece|pcs|zehe|clove)?/.exec(text);
+  if (!match) return null;
+  const value = Number(match[1]);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  const unit = match[2] ?? '';
+  if (unit === 'kg') return value * 1000;
+  if (unit === 'l' || unit === 'liter') return value * 1000;
+  if (unit === 'ml') return value;
+  if (unit === 'cl') return value * 10;
+  if (unit === 'dl') return value * 100;
+  if (unit === 'g' || unit === 'gramm') return value;
+  if (['tbsp', 'el', 'esslöffel'].includes(unit)) return value * 15;
+  if (['tsp', 'tl', 'teelöffel'].includes(unit)) return value * 5;
+  if (['cup', 'tasse'].includes(unit)) return value * 200;
+  if (['stück', 'stk', 'piece', 'pcs'].includes(unit)) return value * 90;
+  if (['zehe', 'clove'].includes(unit)) return value * 4;
+  /* ohne Einheit: kleine Zahl = Stück, große Zahl = Gramm */
+  return value > 25 ? value : value * 90;
+}
+
+function foodRow(ingredient: string): [number, number, number, number] {
+  const text = String(ingredient ?? '').toLowerCase();
+  for (const [re, values] of FOOD_TABLE) {
+    if (re.test(text)) return values;
+  }
+  return DEFAULT_FOOD;
+}
+
+/** Nährwerte aus den Zutaten-Mengen (pro Portion), null wenn nichts zu rechnen ist. */
+export function estimateNutritionLocally(
+  ingredients: string[] | undefined,
+  servings = 4,
+): { calories: number; protein: number; carbs: number; fat: number } | null {
+  const list = (ingredients ?? []).map((i) => String(i ?? '').trim()).filter(Boolean);
+  if (list.length < 2) return null;
+  let kcal = 0;
+  let protein = 0;
+  let carbs = 0;
+  let fat = 0;
+  let counted = 0;
+  for (const line of list) {
+    const grams = gramsFromIngredient(line);
+    if (!grams) continue;
+    const [k, p, c, f] = foodRow(line);
+    const factor = grams / 100;
+    kcal += k * factor;
+    protein += p * factor;
+    carbs += c * factor;
+    fat += f * factor;
+    counted += 1;
+  }
+  if (counted < 2 || kcal <= 0) return null;
+  const perServing = Math.max(1, servings || 4);
+  const round1 = (v: number) => Math.round(v * 10) / 10;
+  return {
+    calories: Math.max(30, Math.round(kcal / perServing / 10) * 10),
+    protein: round1(protein / perServing),
+    carbs: round1(carbs / perServing),
+    fat: round1(fat / perServing),
+  };
+}
+
+function nutritionKey(args: { title?: string; ingredients?: string[]; steps?: string[] }): string {
+  const raw = `${args.title ?? ''}|${(args.ingredients ?? []).join(';')}|${(args.steps ?? []).length}`;
+  let h = 5381;
+  for (let i = 0; i < raw.length; i += 1) h = ((h << 5) + h + raw.charCodeAt(i)) | 0;
+  return `${NUTRITION_CACHE_KEY}:${(h >>> 0).toString(36)}`;
+}
+
+async function readNutritionCache(key: string) {
+  try {
+    const raw = await AsyncStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeNutritionCache(key: string, value: object) {
+  try {
+    await AsyncStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* Zwischenspeicher ist Komfort */
+  }
+}
+
 export async function aiEstimateNutrition(args: {
   title?: string;
   ingredients?: string[];
   steps?: string[];
+  /** Portionen, für die gerechnet wird (Standard 4). */
+  servings?: number;
 }): Promise<{ calories?: number; protein?: number; carbs?: number; fat?: number }> {
+  const servings = Math.max(1, Number(args.servings ?? 4) || 4);
+  const key = nutritionKey(args);
+  /* 3.3.1: Gleiches Rezept → gleiche Werte (Zwischenspeicher). */
+  const cached = await readNutritionCache(key);
+  if (cached && typeof cached.calories === 'number') return cached;
+
+  const local = estimateNutritionLocally(args.ingredients, servings);
   const system =
-    'You are a nutritionist. Estimate nutrition for the described recipe. ' +
-    'Answer with valid JSON only: {"calories": number, "protein": number, "carbs": number, "fat": number}.';
+    'You are a precise nutritionist. Estimate the nutrition PER SERVING from the amounts in the ' +
+    'ingredient list. Answer with valid JSON only: ' +
+    '{"calories": number, "protein": number, "carbs": number, "fat": number}. ' +
+    'Rules: use realistic values for the given amounts, count oil, butter, sugar and nuts fully, ' +
+    'and keep the numbers consistent (calories is about 4x protein + 4x carbs + 9x fat).';
   const user =
     `Recipe: ${args.title || 'Untitled'}\n\nIngredients:\n${(args.ingredients ?? []).join('\n')}\n\n` +
-    `Steps:\n${(args.steps ?? []).join('\n')}\n\nEstimate per serving (assume 4 servings).`;
-  const raw = await chatJSON(system, user);
-  return {
-    calories: intOr(raw.calories),
-    protein: numberOr(raw.protein),
-    carbs: numberOr(raw.carbs),
-    fat: numberOr(raw.fat),
-  };
+    `Steps:\n${(args.steps ?? []).join('\n')}\n\n` +
+    `Give the values for exactly ${servings} servings.` +
+    (local ? `\nFor orientation, a simple calculation gives about ${local.calories} kcal per serving.` : '');
+
+  let ai: { calories?: number; protein?: number; carbs?: number; fat?: number } | null = null;
+  try {
+    /* Temperatur 0: gleiche Frage → gleiche Antwort. */
+    const raw = await chatJSON(system, user, 0);
+    ai = {
+      calories: intOr(raw.calories),
+      protein: numberOr(raw.protein),
+      carbs: numberOr(raw.carbs),
+      fat: numberOr(raw.fat),
+    };
+  } catch {
+    ai = null;
+  }
+
+  const round1 = (v?: number) => (v == null ? undefined : Math.round(v * 10) / 10);
+  let result: { calories?: number; protein?: number; carbs?: number; fat?: number } | null = null;
+
+  if (local && ai?.calories) {
+    /* Weichen beide stark ab, wird gemittelt statt zu springen. */
+    const diff = Math.abs(ai.calories - local.calories) / Math.max(1, local.calories);
+    const calories = diff > 0.45 ? Math.round((ai.calories + local.calories) / 2 / 10) * 10 : local.calories;
+    result = {
+      calories,
+      protein: round1(((ai.protein ?? local.protein) + local.protein) / 2),
+      carbs: round1(((ai.carbs ?? local.carbs) + local.carbs) / 2),
+      fat: round1(((ai.fat ?? local.fat) + local.fat) / 2),
+    };
+  } else if (ai?.calories) {
+    result = { calories: ai.calories, protein: round1(ai.protein), carbs: round1(ai.carbs), fat: round1(ai.fat) };
+  } else if (local) {
+    result = local;
+  }
+
+  if (!result?.calories) throw new Error('The AI could not estimate this recipe. Please try again.');
+  await writeNutritionCache(key, result);
+  return result;
 }

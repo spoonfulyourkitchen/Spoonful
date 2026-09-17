@@ -266,11 +266,22 @@ export function TextField(
   const { label, icon, inputStyle, style, ...rest } = props;
   return (
     <View style={[{ marginBottom: 14 }, style as StyleProp<ViewStyle>]}>
-      {label ? (
-        <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textSecondary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.6 }}>
-          {label}
-        </Text>
-      ) : null}
+      {/* 3.3.1: Die Beschriftung bekommt eine feste Zeilenhöhe und schrumpft bei
+          langen Wörtern (z. B. „VORBEREITUNGSZEIT (MIN)"), statt umzubrechen.
+          Vorher wurden dadurch nebeneinander liegende Felder unterschiedlich
+          hoch und die Reihe sah verschoben aus. */}
+      <View style={{ height: 17, justifyContent: 'center' }}>
+        {label ? (
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
+            style={{ fontSize: 12, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.6 }}
+          >
+            {label}
+          </Text>
+        ) : null}
+      </View>
       <View
         style={[
           styles.inputWrap,
@@ -475,6 +486,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 14,
     paddingHorizontal: 14,
+    /* 3.3.1: feste Höhe — so stehen nebeneinander liegende Felder immer auf
+       gleicher Höhe, egal wie lang die Beschriftung ist. */
+    minHeight: 46,
   },
   input: {
     flex: 1,

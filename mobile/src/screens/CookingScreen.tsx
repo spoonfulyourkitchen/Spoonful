@@ -1,17 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  KeyboardAvoidingView,
   Modal,
   PanResponder,
-  Platform,
   Pressable,
   ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
-/* 3.3.0: Meldungen im App-Design statt System-Dialog */
-import { Alert } from '../lib/alert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Camera,
@@ -36,7 +32,6 @@ import {
   Square,
   Timer,
   UsersRound,
-  Utensils,
   Volume2,
   X,
 } from 'lucide-react-native';
@@ -59,7 +54,7 @@ import {
   useKitchenTimers,
 } from '../lib/kitchenTimers';
 import { recipeLines } from '../lib/recipe';
-import { isTranslatableLanguage } from '../lib/recipe-translate';
+import { isTranslatableLanguage, translateLines } from '../lib/recipe-translate';
 import { loadStepGuides, type StepGuide } from '../lib/step-guides';
 import { speakText, speechAvailable, stopSpeaking } from '../lib/speech';
 import { showNotice } from '../components/AppNotice';
@@ -77,11 +72,8 @@ import {
 import {
   lastActiveAt,
   loadExtras,
-  loadSecondRecipe,
   markLastActive,
   saveExtras,
-  saveSecondRecipe,
-  type SecondRecipe,
   type StepExtras,
 } from '../lib/cooking-extras';
 import { pickStepPhoto, takeStepPhoto } from '../lib/photo';
@@ -130,15 +122,46 @@ function cleanIngredientForShop(line: string): string {
   return name ? name.charAt(0).toUpperCase() + name.slice(1) : line;
 }
 
-/** Farben der Schritt-Kennzeichnung (Vorbereitung ist das Theme-„easy"-Grün). */
-const PHASE_COLORS = {
-  start: colors.cyan,
-  prep: colors.easy,
-  combine: colors.cyan,
-  cook: colors.accent,
-  finish: colors.success,
-  next: colors.cyan,
-} as const;
+
+/**
+ * 3.3.1: Schritt-Hinweise. Aufbau bewusst klar:
+ *   Coach-Tipp   (fett, weiß)   → darunter der Tipp in Grau
+ *   Achte auf    (fett, weiß)   → darunter der Hinweis in hellem Gelb
+ * So sieht man sofort, was die Aussage ist und was der Hinweis dazu.
+ */
+function StepGuideBlock({
+  coach,
+  look,
+  placeholder,
+  coachLabel,
+  lookLabel,
+}: {
+  coach: string | null;
+  look: string | null;
+  placeholder: string;
+  coachLabel: string;
+  lookLabel: string;
+}) {
+  if (!coach && !look) {
+    return <Text style={{ fontSize: 12.5, lineHeight: 18, color: colors.textSecondary }}>{placeholder}</Text>;
+  }
+  return (
+    <>
+      {coach ? (
+        <View>
+          <Text style={{ fontSize: 12, fontWeight: '800', color: colors.textPrimary }}>{coachLabel}</Text>
+          <Text style={{ fontSize: 13, lineHeight: 19, color: colors.textSecondary, marginTop: 3 }}>{coach}</Text>
+        </View>
+      ) : null}
+      {look ? (
+        <View style={{ marginTop: coach ? 12 : 0 }}>
+          <Text style={{ fontSize: 12, fontWeight: '800', color: colors.textPrimary }}>{lookLabel}</Text>
+          <Text style={{ fontSize: 13, lineHeight: 19, color: colors.amber, marginTop: 3, fontWeight: '600' }}>{look}</Text>
+        </View>
+      ) : null}
+    </>
+  );
+}
 
 export function CookingScreen({ route }: any) {
   const insets = useSafeAreaInsets();
@@ -179,13 +202,10 @@ export function CookingScreen({ route }: any) {
   const [showSub, setShowSub] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
-  const [second, setSecond] = useState<SecondRecipe | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [awayFor, setAwayFor] = useState(0);
   const householdCooking = useQuery(api.householdCooking.state) as any[] | undefined;
   const publishCooking = useMutation(api.householdCooking.set);
   const stopCooking = useMutation(api.householdCooking.stop);
-  const savedRecipes = useQuery(api.savedRecipes.list) as any[] | undefined;
   const myProfile = useQuery(api.users.currentUser) as any;
   /** true, sobald die Konto-ID bekannt ist (Notizen/Fotos sind pro Konto). */
   const profileReady = myProfile !== undefined;
@@ -243,6 +263,39 @@ export function CookingScreen({ route }: any) {
     };
   }, [recipeKey]);
   const guideFor = (i: number) => guides?.find((g) => g.index === i) ?? null;
+
+  /* 3.3.1: Die Hinweise liegen in der Bibliothek auf Englisch. Ist die App auf
+     einer anderen Sprache, werden sie übersetzt (mit Zwischenspeicher) — vorher
+     standen sie unübersetzt im Kochmodus. */
+  const [guideText, setGuideText] = useState<{ coach: string | null; look: string | null } | null>(null);
+  const rawGuide = guideFor(index);
+  useEffect(() => {
+    let alive = true;
+    const coach = rawGuide?.coach ?? null;
+    const look = rawGuide?.look ?? null;
+    if (!coach && !look) {
+      setGuideText(null);
+      return () => {
+        alive = false;
+      };
+    }
+    if (lang === 'en') {
+      setGuideText({ coach, look });
+      return () => {
+        alive = false;
+      };
+    }
+    setGuideText({ coach, look });
+    void translateLines([coach ?? '', look ?? ''], lang)
+      .then(([coachTr, lookTr]) => {
+        if (!alive) return;
+        setGuideText({ coach: coach ? coachTr : null, look: look ? lookTr : null });
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [rawGuide?.coach, rawGuide?.look, lang]);
 
   /* ── 3.3.0: Vorlesen (Text-to-Speech) ───────────────────────────────────── */
   const [speechOk, setSpeechOk] = useState(false);
@@ -350,14 +403,6 @@ export function CookingScreen({ route }: any) {
     };
   }, [recipeKey, index, phase, profileReady, myProfile?.id]);
 
-  /* zweites Gericht im Parallel-Modus (Nr. 12) */
-  useEffect(() => {
-    if (!profileReady) return;
-    loadSecondRecipe(myProfile?.id)
-      .then(setSecond)
-      .catch(() => {});
-  }, [profileReady, myProfile?.id]);
-
   /* Fortschritt im Haushalt veröffentlichen (Nr. 26) */
   useEffect(() => {
     if (phase === 'prep' || !cookingAdvanced) return;
@@ -442,34 +487,8 @@ export function CookingScreen({ route }: any) {
     void finishAndLog();
   };
 
-  const startSecond = (r: any) => {
-    const stepsB = recipeLines(r?.steps);
-    if (!stepsB.length) return;
-    const next: SecondRecipe = {
-      recipeKey: String(r?._id ?? r?.recipeKey ?? r?.title ?? 'second'),
-      title: String(r?.title ?? t('s.cookSecond')),
-      steps: stepsB,
-      index: 0,
-      done: [],
-    };
-    setSecond(next);
-    void saveSecondRecipe(myProfile?.id, next);
-    setPickerOpen(false);
-  };
 
-  const advanceSecond = (delta: number) => {
-    if (!second) return;
-    const nextIndex = Math.max(0, Math.min(second.steps.length - 1, second.index + delta));
-    const done = delta > 0 ? [...new Set([...second.done, second.index])] : second.done.filter((n) => n < nextIndex);
-    const nextAt = { ...second, index: nextIndex, done };
-    setSecond(nextAt);
-    void saveSecondRecipe(myProfile?.id, nextAt);
-  };
 
-  const dropSecond = () => {
-    setSecond(null);
-    void saveSecondRecipe(myProfile?.id, null);
-  };
 
   /** Übersetzung ein-/ausschalten (Kochmodus in der App-Sprache). */
   const toggleTranslation = async () => {
@@ -1067,27 +1086,13 @@ export function CookingScreen({ route }: any) {
                     Bibliothek (vom Bot erzeugt). Fehlen sie, wird das gesagt —
                     statt automatisch erfundener Tipps. */}
                 <View style={{ marginTop: 16, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.surfaceMuted, padding: 12 }}>
-                  {(() => {
-                    const g = guideFor(index);
-                    if (!g || (!g.coach && !g.look)) {
-                      return <Text style={{ fontSize: 12.5, lineHeight: 18, color: colors.textSecondary }}>{t('s.cookGuideSoon')}</Text>;
-                    }
-                    return (
-                      <>
-                        {g.coach ? (
-                          <>
-                            <Text style={{ fontSize: 12, fontWeight: '800', color: colors.textPrimary }}>{t('s.cookGuideCoach')}</Text>
-                            <Text style={{ fontSize: 13, lineHeight: 19, color: colors.textSecondary, marginTop: 3 }}>{g.coach}</Text>
-                          </>
-                        ) : null}
-                        {g.look ? (
-                          <Text style={{ fontSize: 12.5, lineHeight: 18, color: colors.accent, marginTop: 8, fontWeight: '600' }}>
-                            {t('s.cookGuideLook')} {g.look}
-                          </Text>
-                        ) : null}
-                      </>
-                    );
-                  })()}
+                  <StepGuideBlock
+                    coach={guideText?.coach ?? null}
+                    look={guideText?.look ?? null}
+                    placeholder={t('s.cookGuideSoon')}
+                    coachLabel={t('s.cookGuideCoach')}
+                    lookLabel={t('s.cookGuideLook')}
+                  />
                 </View>
 
                 {/* suggested timer for this step */}
@@ -1170,57 +1175,8 @@ export function CookingScreen({ route }: any) {
               </View>
             ) : null}
 
-            {/* Zweites Gericht parallel kochen (Nr. 12) — nur advanced */}
-            {cookingAdvanced ? (
-              <>
-            {second ? (
-              <View style={{ marginTop: 16, borderRadius: 18, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 14 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Utensils size={14} color={colors.accent} />
-                  <Text numberOfLines={1} style={{ flex: 1, fontSize: 12.5, fontWeight: '800', color: colors.textPrimary }}>{second.title}</Text>
-                  <Text style={{ fontSize: 11.5, color: colors.textSecondary }}>
-                    {t('s.cookStepOf', { n: second.index + 1, total: second.steps.length })}
-                  </Text>
-                  <Pressable onPress={dropSecond} hitSlop={8} style={{ marginLeft: 4 }}>
-                    <X size={15} color={colors.textSecondary} />
-                  </Pressable>
-                </View>
-                <View style={{ height: 4, borderRadius: 2, backgroundColor: colors.surfaceMuted, overflow: 'hidden', marginTop: 8 }}>
-                  <View style={{ height: 4, width: `${second.steps.length ? (second.done.length / second.steps.length) * 100 : 0}%`, borderRadius: 2, backgroundColor: colors.accent }} />
-                </View>
-                <Text numberOfLines={4} style={{ marginTop: 8, fontSize: 13.5, lineHeight: 20, color: colors.textPrimary }}>
-                  {second.steps[second.index]}
-                </Text>
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-                  <Pressable
-                    onPress={() => advanceSecond(-1)}
-                    disabled={second.index === 0}
-                    style={({ pressed }) => [{ width: 46, alignItems: 'center', justifyContent: 'center', borderRadius: 12, paddingVertical: 10, backgroundColor: colors.surfaceMuted, opacity: second.index === 0 ? 0.45 : pressed ? 0.7 : 1 }]}
-                  >
-                    <ChevronLeft size={17} color={colors.textPrimary} />
-                  </Pressable>
-                  <Pressable
-                    onPress={() => advanceSecond(1)}
-                    style={({ pressed }) => [{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, paddingVertical: 10, backgroundColor: colors.darkButton, opacity: pressed ? 0.85 : 1 }]}
-                  >
-                    <Check size={16} color={colors.darkButtonText} />
-                    <Text style={{ color: colors.darkButtonText, fontWeight: '700', fontSize: 13.5 }}>
-                      {t('s.cookStepOf', { n: Math.min(second.steps.length, second.index + 2), total: second.steps.length })}
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-            ) : (
-              <Pressable
-                onPress={() => setPickerOpen(true)}
-                style={({ pressed }) => [{ marginTop: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingVertical: 12, opacity: pressed ? 0.75 : 1 }]}
-              >
-                <Plus size={15} color={colors.accent} />
-                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.accent }}>{t('s.cookSecondAdd')}</Text>
-              </Pressable>
-            )}
-              </>
-            ) : null}
+            {/* 3.3.1: „Zweites Gericht parallel kochen" wurde entfernt (war zu
+                viel und wurde nicht genutzt). */}
 
             {/* bottom actions */}
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
@@ -1284,7 +1240,7 @@ export function CookingScreen({ route }: any) {
             </View>
 
             {(() => {
-              const g = guideFor(index);
+              const g = guideText;
               if (!g || (!g.coach && !g.look)) {
                 return (
                   <Text style={{ marginTop: 14, fontSize: 12.5, lineHeight: 18, color: colors.textSecondary }}>{t('s.cookGuideSoon')}</Text>
@@ -1292,17 +1248,13 @@ export function CookingScreen({ route }: any) {
               }
               return (
                 <View style={{ marginTop: 14, borderRadius: 14, backgroundColor: colors.surfaceMuted, padding: 12 }}>
-                  {g.coach ? (
-                    <>
-                      <Text style={{ fontSize: 12, fontWeight: '800', color: colors.textPrimary }}>{t('s.cookGuideCoach')}</Text>
-                      <Text style={{ fontSize: 13, lineHeight: 19, color: colors.textSecondary, marginTop: 3 }}>{g.coach}</Text>
-                    </>
-                  ) : null}
-                  {g.look ? (
-                    <Text style={{ fontSize: 12.5, lineHeight: 18, color: colors.accent, marginTop: 8, fontWeight: '600' }}>
-                      {t('s.cookGuideLook')} {g.look}
-                    </Text>
-                  ) : null}
+                  <StepGuideBlock
+                    coach={g.coach}
+                    look={g.look}
+                    placeholder={t('s.cookGuideSoon')}
+                    coachLabel={t('s.cookGuideCoach')}
+                    lookLabel={t('s.cookGuideLook')}
+                  />
                 </View>
               );
             })()}
@@ -1332,40 +1284,6 @@ export function CookingScreen({ route }: any) {
         </View>
       </Modal>
 
-      {/* zweites Gericht wählen (Nr. 12) */}
-      <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <View style={{ flex: 1, backgroundColor: rgbaHelper('#000000', 0.5), justifyContent: 'flex-end' }}>
-            <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 26, maxHeight: '72%' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                <Text style={{ fontFamily: fonts.display, fontSize: 18, fontWeight: '800', color: colors.textPrimary }}>{t('s.cookSecondPick')}</Text>
-                <Pressable onPress={() => setPickerOpen(false)} hitSlop={8}>
-                  <X size={18} color={colors.textSecondary} />
-                </Pressable>
-              </View>
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {(savedRecipes ?? []).slice(0, 50).map((r, i) => {
-                  const count = recipeLines(r?.steps).length;
-                  return (
-                    <Pressable
-                      key={String(r?.recipeKey ?? r?._id ?? i)}
-                      onPress={() => startSecond(r)}
-                      style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.cardBorder, opacity: pressed ? 0.7 : 1 }]}
-                    >
-                      <Utensils size={15} color={colors.textSecondary} />
-                      <Text numberOfLines={1} style={{ flex: 1, fontSize: 13.5, color: colors.textPrimary }}>{String(r?.title ?? '')}</Text>
-                      <Text style={{ fontSize: 11.5, color: colors.textSecondary }}>{count}</Text>
-                    </Pressable>
-                  );
-                })}
-                {(savedRecipes ?? []).length === 0 ? (
-                  <Text style={{ fontSize: 12.5, color: colors.textSecondary, paddingVertical: 8 }}>{t('s.cookSecondAdd')}</Text>
-                ) : null}
-              </ScrollView>
-            </View>
-          </View>
-      
-        </KeyboardAvoidingView></Modal>
     </View>
   );
 }

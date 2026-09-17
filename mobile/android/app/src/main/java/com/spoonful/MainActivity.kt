@@ -38,8 +38,12 @@ class MainActivity : ReactActivity() {
 
   private fun applyImmersiveMode() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-      /* true = Fenster passt sich den Systemleisten an (adjustResize wirkt). */
-      window.setDecorFitsSystemWindows(true)
+      /* 3.3.1: `setDecorFitsSystemWindows(false)` ist hier wichtig — mit `true`
+         reservierte Android den Platz der (ausgeblendeten) Navigationsleiste und
+         die App rückte nach oben, mit einer leeren Lücke unten. Die Tastatur
+         regelt die App selbst (KeyboardAvoidingView), deshalb darf das Fenster
+         randlos sein. */
+      window.setDecorFitsSystemWindows(false)
       val controller = window.insetsController ?: return
       controller.hide(WindowInsets.Type.navigationBars())
       controller.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE

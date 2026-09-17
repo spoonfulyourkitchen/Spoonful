@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMutation, useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';
 import { colors } from '../theme';
-import { GlassCard, SectionLabel } from './ui';
+import { GlassCard } from './ui';
 import { Collapsible } from './Collapsible';
 import { useTranslation } from '../lib/i18n';
 import { searchFoods, productByBarcode, scaleToPortion, type FoodHit } from '../lib/foodFacts';
@@ -134,7 +134,7 @@ export function TrackerExtras() {
   const saveWeight = async () => {
     const kg = Number(kgInput.replace(',', '.'));
     if (!Number.isFinite(kg) || kg < 20 || kg > 400) {
-      <Collapsible bare title={pick(lang, TRACKER_L10N.weightTitle)} open={openSections.weight} onToggle={() => toggleSection('weight')} />
+      setPopup({ title: pick(lang, TRACKER_L10N.weightTitle), body: pick(lang, TRACKER_L10N.weightInvalid) });
       return;
     }
     setKgBusy(true);
@@ -333,9 +333,10 @@ export function TrackerExtras() {
         </View>
       </GlassCard>
 
-      {/* weight: quick logging + trend + automatic goal suggestion */}
-      <SectionLabel>{pick(lang, TRACKER_L10N.weightTitle)}</SectionLabel>
-      <GlassCard pad={16} radius={20}>
+      {/* weight: quick logging + trend + automatic goal suggestion (3.3.1:
+          aufklappbar wie Essen und Wasser — standardmäßig geschlossen) */}
+      <Collapsible bare title={pick(lang, TRACKER_L10N.weightTitle)} open={openSections.weight} onToggle={() => toggleSection('weight')} />
+      <GlassCard visible={openSections.weight} pad={16} radius={20}>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 10 }}>
             <TextInput

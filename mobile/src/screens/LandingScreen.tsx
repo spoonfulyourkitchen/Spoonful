@@ -68,7 +68,7 @@ export function LandingScreen() {
           </Text>
           <View style={{ flex: 1 }} />
           <View style={{ borderRadius: 999, backgroundColor: colors.accentSoft, paddingHorizontal: 10, paddingVertical: 5 }}>
-            <Text style={{ fontSize: 11, fontWeight: '800', color: colors.accent }}>{t('home.badge')}</Text>
+            <Text style={{ fontSize: 11, fontWeight: '800', color: colors.accent }}>{t('home.badge', { v: APP_VERSION })}</Text>
           </View>
         </View>
 

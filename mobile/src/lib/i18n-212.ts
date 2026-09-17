@@ -37,7 +37,7 @@ const de: Dict212 = {
     changed: 'Sprache geändert',
   },
   home: {
-    badge: 'Neu in 2.1.2', everything: 'Alles, was neu ist', stats: 'In der App',
+    badge: 'Neu in {v}', everything: 'Alles, was neu ist', stats: 'In der App',
     statRecipes: '1.100+ Rezepte', statCountries: '100 Länder geplant', statLangs: '9 Sprachen',
     f1t: 'Rezeptbibliothek', f1b: 'Suche nach Zutat oder Gericht, filtere nach Land, Zeit, Kalorien und Ernährung - mit echten Fotos und Nährwerten.',
     f2t: 'KI-Koch', f2b: 'Beschreibe, was du da hast - du bekommst ein komplettes Rezept zurück, in der Sprache, in der du geschrieben hast.',
@@ -93,7 +93,7 @@ const ar: Dict212 = {
     changed: 'تم تغيير اللغة',
   },
   home: {
-    badge: 'جديد في 2.1.2', everything: 'كل ما هو جديد', stats: 'داخل التطبيق',
+    badge: 'جديد في {v}', everything: 'كل ما هو جديد', stats: 'داخل التطبيق',
     statRecipes: 'أكثر من ١١٠٠ وصفة', statCountries: '١٠٠ دولة مخطط لها', statLangs: '٩ لغات',
     f1t: 'مكتبة الوصفات', f1b: 'ابحث بالمكوّن أو الطبق وفلتر حسب الدولة والوقت والسعرات والنظام الغذائي.',
     f2t: 'الشيف الذكي', f2b: 'اشرح ما لديك وستحصل على وصفة كاملة باللغة التي كتبت بها.',
@@ -149,7 +149,7 @@ const fr: Dict212 = {
     changed: 'Langue modifiée',
   },
   home: {
-    badge: 'Nouveau en 2.1.2', everything: 'Tout ce qui est nouveau', stats: "Dans l'application",
+    badge: 'Nouveau en {v}', everything: 'Tout ce qui est nouveau', stats: "Dans l'application",
     statRecipes: '1 100+ recettes', statCountries: '100 pays prévus', statLangs: '9 langues',
     f1t: 'Bibliothèque de recettes', f1b: 'Cherchez par ingrédient ou plat, filtrez par pays, temps, calories et régime.',
     f2t: 'Chef IA', f2b: 'Décrivez ce que vous avez et recevez une recette complète, dans votre langue.',
@@ -205,7 +205,7 @@ const es: Dict212 = {
     changed: 'Idioma cambiado',
   },
   home: {
-    badge: 'Nuevo en 2.1.2', everything: 'Todo lo nuevo', stats: 'Dentro de la app',
+    badge: 'Nuevo en {v}', everything: 'Todo lo nuevo', stats: 'Dentro de la app',
     statRecipes: 'Más de 1.100 recetas', statCountries: '100 países planificados', statLangs: '9 idiomas',
     f1t: 'Biblioteca de recetas', f1b: 'Busca por ingrediente o plato y filtra por país, tiempo, calorías y dieta.',
     f2t: 'Chef IA', f2b: 'Describe lo que tienes y recibirás una receta completa en tu idioma.',
@@ -261,7 +261,7 @@ const it: Dict212 = {
     changed: 'Lingua cambiata',
   },
   home: {
-    badge: 'Novità in 2.1.2', everything: 'Tutte le novità', stats: "Dentro l'app",
+    badge: 'Novità in {v}', everything: 'Tutte le novità', stats: "Dentro l'app",
     statRecipes: '1.100+ ricette', statCountries: '100 paesi in programma', statLangs: '9 lingue',
     f1t: 'Libreria di ricette', f1b: 'Cerca per ingrediente o piatto e filtra per paese, tempo, calorie e dieta.',
     f2t: 'Chef IA', f2b: 'Descrivi quello che hai e ricevi una ricetta completa nella tua lingua.',
@@ -317,7 +317,7 @@ const tr: Dict212 = {
     changed: 'Dil değiştirildi',
   },
   home: {
-    badge: '2.1.2 yenilikleri', everything: 'Tüm yenilikler', stats: 'Uygulama içinde',
+    badge: '{v} yenilikleri', everything: 'Tüm yenilikler', stats: 'Uygulama içinde',
     statRecipes: '1.100+ tarif', statCountries: '100 ülke planlandı', statLangs: '9 dil',
     f1t: 'Tarif kütüphanesi', f1b: 'Malzemeye veya yemeğe göre ara; ülke, süre, kalori ve diyete göre filtrele.',
     f2t: 'Yapay zeka şefi', f2b: 'Elindekileri yaz, tam bir tarif al - yazdığın dilde.',
@@ -373,7 +373,7 @@ const pt: Dict212 = {
     changed: 'Idioma alterado',
   },
   home: {
-    badge: 'Novo na 2.1.2', everything: 'Tudo o que é novo', stats: 'Dentro da app',
+    badge: 'Novo na {v}', everything: 'Tudo o que é novo', stats: 'Dentro da app',
     statRecipes: '1.100+ receitas', statCountries: '100 países planeados', statLangs: '9 idiomas',
     f1t: 'Biblioteca de receitas', f1b: 'Pesquise por ingrediente ou prato e filtre por país, tempo, calorias e dieta.',
     f2t: 'Chef IA', f2b: 'Descreva o que tem e receba uma receita completa, no idioma em que escreveu.',
@@ -429,7 +429,7 @@ const nl: Dict212 = {
     changed: 'Taal gewijzigd',
   },
   home: {
-    badge: 'Nieuw in 2.1.2', everything: 'Alles wat nieuw is', stats: 'In de app',
+    badge: 'Nieuw in {v}', everything: 'Alles wat nieuw is', stats: 'In de app',
     statRecipes: '1.100+ recepten', statCountries: '100 landen gepland', statLangs: '9 talen',
     f1t: 'Receptenbibliotheek', f1b: 'Zoek op ingrediënt of gerecht en filter op land, tijd, calorieën en dieet.',
     f2t: 'AI-chef', f2b: 'Beschrijf wat je hebt en krijg een compleet recept, in de taal die je schrijft.',
@@ -485,7 +485,7 @@ const ru: Dict212 = {
     changed: 'Язык изменён',
   },
   home: {
-    badge: 'Новое в 2.1.2', everything: 'Всё новое', stats: 'Внутри приложения',
+    badge: 'Новое в {v}', everything: 'Всё новое', stats: 'Внутри приложения',
     statRecipes: 'Более 1100 рецептов', statCountries: '100 стран в планах', statLangs: '9 языков',
     f1t: 'Библиотека рецептов', f1b: 'Поиск по ингредиенту или блюду, фильтры по стране, времени, калориям и диете.',
     f2t: 'ИИ-повар', f2b: 'Опишите, что есть, и получите полный рецепт на своём языке.',
@@ -545,7 +545,7 @@ const en: Dict212 = {
     changed: 'Language changed',
   },
   home: {
-    badge: 'New in 2.1.2', everything: 'Everything that is new', stats: 'Inside the app',
+    badge: 'New in {v}', everything: 'Everything that is new', stats: 'Inside the app',
     statRecipes: '1,100+ recipes', statCountries: '100 countries planned', statLangs: '9 languages',
     f1t: 'Recipe library', f1b: 'Search by ingredient or dish, filter by country, time, kcal and diet - with real photos and nutrition.',
     f2t: 'AI Chef', f2b: 'Describe what you have and get a full recipe back - in the language you wrote in.',
