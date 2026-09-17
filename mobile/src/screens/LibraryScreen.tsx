@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -13,6 +12,8 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+/* 3.3.0: Meldungen im App-Design statt System-Dialog */
+import { Alert } from '../lib/alert';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Clock3, Filter, Search, Shuffle, SlidersHorizontal, X } from 'lucide-react-native';
 import { useQuery } from '../lib/convex-auth';

@@ -1,5 +1,5 @@
 import React, { Component, useSyncExternalStore, useEffect, useState } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
@@ -7,6 +7,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ConvexAuthProvider, useConvexAuth, useQuery } from './src/lib/convex-auth';
 import { api } from './src/lib/api';
 import { I18nProvider } from './src/lib/i18n';
+import { AppNoticeHost } from './src/components/AppNotice';
 import { requestNotifications, applyReminders } from './src/lib/notifications';
 import { colors, fonts, getThemeId, subscribeTheme, applyTheme, loadStoredThemeId } from './src/theme';
 import { hydrateOfflineCaches } from './src/lib/offline';
@@ -228,15 +229,32 @@ function RootNavigator() {
 
 export default function App() {
   const themeId = useThemeId();
+  /**
+   * 3.3.0: Tastatur.
+   *
+   * Die App läuft Edge-to-Edge (`edgeToEdgeEnabled=true` bzw. ab Android 15
+   * ohnehin erzwungen) — dadurch wirkt `adjustResize` aus dem Manifest nicht
+   * mehr und die Tastatur legte sich über die Eingabefelder. Deshalb schiebt
+   * jetzt eine eigene `KeyboardAvoidingView` den Inhalt hoch (Android:
+   * `height`, iOS: `padding`). Dialoge haben zusätzlich ihre eigene
+   * KeyboardAvoidingView, weil sie in einem eigenen Fenster liegen.
+   */
   return (
     <SafeAreaProvider>
       <I18nProvider>
         <ConvexAuthProvider>
-          <NavigationContainer ref={navigationRef} key={themeId}>
-            <CrashBoundary>
-              <RootNavigator />
-            </CrashBoundary>
-          </NavigationContainer>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            <NavigationContainer ref={navigationRef} key={themeId}>
+              <CrashBoundary>
+                <RootNavigator />
+              </CrashBoundary>
+            </NavigationContainer>
+          </KeyboardAvoidingView>
+          {/* 3.3.0: gestaltete Meldungen statt System-Dialoge */}
+          <AppNoticeHost />
           {/* email confirmation: banner while the mail cannot be sent, lock afterwards */}
           <VerifyGate />
           {/* one-time popup message from the admin panel */}

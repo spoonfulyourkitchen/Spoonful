@@ -1,5 +1,7 @@
 import React from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+/* 3.3.0: Meldungen im App-Design statt System-Dialog */
+import { Alert } from '../lib/alert';
 import { ChefHat, Pencil, Plus, Trash2 } from 'lucide-react-native';
 import { useMutation, useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';

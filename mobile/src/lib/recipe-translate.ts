@@ -463,11 +463,38 @@ async function withTimeout<T>(fn: (signal?: AbortSignal) => Promise<T>, ms: numb
  * account needed). One request carries the whole recipe by joining the lines
  * with a newline, which keeps grammar, word order and cooking terms natural.
  */
-async function translateWithGoogle(lines: string[], lang: string): Promise<string[] | null> {
+/**
+ * 3.3.0: Übersetzungs-Cache.
+ *
+ * Rezepte werden mehrfach angesehen (Detailseite, Kochmodus, zurück und wieder
+ * vor). Jede Zeile wurde dabei erneut angefragt — langsam und unnötig. Jetzt
+ * werden fertige Übersetzungen pro Sprache im Speicher behalten.
+ */
+const lineCache = new Map<string, string>();
+
+function cacheGet(lang: string, text: string): string | undefined {
+  return lineCache.get(`${lang}|${text}`);
+}
+
+function cacheSet(lang: string, text: string, value: string): void {
+  if (lineCache.size > 4000) lineCache.clear();
+  lineCache.set(`${lang}|${text}`, value);
+}
+
+/**
+ * 3.3.0: Quellsprache automatisch erkennen lassen (`sl=auto`).
+ *
+ * Vorher wurde immer Englisch als Quelle angegeben. Rezepte, die die KI in der
+ * Sprache des Nutzers geschrieben hat (Deutsch, Arabisch …), wurden dadurch
+ * falsch oder gar nicht übersetzt — genau das war der „Stress" beim Übersetzen.
+ */
+async function translateWithGoogle(lines: string[], lang: string, sourceLang = 'auto'): Promise<string[] | null> {
   const text = lines.map((l) => l.trim()).join('\n');
   if (!text) return lines.map(() => '');
   const url =
-    'https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=' +
+    'https://translate.googleapis.com/translate_a/single?client=gtx&sl=' +
+    encodeURIComponent(sourceLang) +
+    '&tl=' +
     lang +
     '&dt=t&q=' +
     encodeURIComponent(text);
@@ -583,15 +610,26 @@ export async function translateRecipeContentOnline(
   let primaryAlive = true;
   for (const indexes of indexChunks) {
     const lines = indexes.map((i) => segments[i]);
-    const translated = primaryAlive ? await translateWithGoogle(lines, lang) : null;
+    /* 3.3.0: schon übersetzte Zeilen kommen aus dem Cache. */
+    const pending: number[] = [];
+    indexes.forEach((index, pos) => {
+      const hit = cacheGet(lang, (segments[index] ?? '').trim());
+      if (hit && hit.trim()) results[index] = hit;
+      else pending.push(pos);
+    });
+    if (!pending.length) continue;
+
+    const pendingLines = pending.map((pos) => lines[pos]);
+    const translated = primaryAlive ? await translateWithGoogle(pendingLines, lang) : null;
     if (!translated) {
       primaryAlive = false;
       continue;
     }
-    indexes.forEach((index, pos) => {
-      const value = polish(translated[pos] ?? '');
-      if (value && value.toLowerCase() !== (segments[index] ?? '').trim().toLowerCase()) {
-        results[index] = value;
+    pending.forEach((pos, i) => {
+      const value = polish(translated[i] ?? '');
+      if (value && value.toLowerCase() !== (segments[indexes[pos]] ?? '').trim().toLowerCase()) {
+        results[indexes[pos]] = value;
+        cacheSet(lang, (segments[indexes[pos]] ?? '').trim(), value);
       }
     });
   }

@@ -51,14 +51,42 @@ function parseGrams(raw: unknown): number | undefined {
   return Math.round(value);
 }
 
-function normalize(p: any): FoodHit | null {
-  if (!p || !p.product_name) return null;
+/**
+ * 3.3.0: Deutlich mehr Produkte werden erkannt.
+ *
+ * Vorher brauchte ein Treffer zwingend `product_name` — viele Einträge in Open
+ * Food Facts haben aber nur einen generischen Namen oder einen Namen in einer
+ * anderen Sprache und fielen damit komplett raus. Jetzt wird der Reihe nach
+ * alles genommen, was da ist, und der Name notfalls aus Marke + Menge gebaut.
+ */
+function normalize(p: any, fallbackCode?: string): FoodHit | null {
+  if (!p || typeof p !== 'object') return null;
   const n: any = p.nutriments ?? {};
+  const brand = p.brands ? String(p.brands).split(',')[0].trim() : undefined;
+
+  /* Name: Hauptname, dann Sprachvarianten, dann generisch, dann Marke+Menge. */
+  const candidates = [
+    p.product_name,
+    p.product_name_de,
+    p.product_name_en,
+    p.generic_name,
+    p.generic_name_de,
+    p.generic_name_en,
+    p.abbreviated_product_name,
+  ];
+  let name = candidates.map((c) => (c ? String(c).trim() : '')).find((c) => c.length > 1) ?? '';
+  if (!name && brand) name = `${brand}${p.quantity ? ` ${String(p.quantity)}` : ''}`;
+  if (!name) return null;
+
+  /* Ohne Nährwerte bringt der Treffer nichts — dann lieber „nicht gefunden". */
+  const hasEnergy = (n['energy-kcal_100g'] ?? n['energy-kcal'] ?? n.proteins_100g) != null;
+  if (!hasEnergy) return null;
+
   const serving = p.serving_size ? String(p.serving_size) : undefined;
   return {
-    code: String(p.code ?? p._id ?? ''),
-    name: String(p.product_name).slice(0, 120),
-    brand: p.brands ? String(p.brands).split(',')[0].trim() : undefined,
+    code: String(p.code ?? p._id ?? fallbackCode ?? ''),
+    name: name.slice(0, 120),
+    brand,
     kcal: num(n['energy-kcal_100g'] ?? n['energy-kcal']),
     protein: num(n.proteins_100g),
     carbs: num(n.carbohydrates_100g),
@@ -116,15 +144,40 @@ export async function searchFoods(query: string, limit = 12): Promise<FoodHit[]>
     `${SEARCH_URL}?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1` +
     `&page_size=${limit}&fields=${FIELDS}`;
   const data = await withTimeout<{ products?: any[] }>(url);
-  return (data?.products ?? []).map(normalize).filter((x): x is FoodHit => !!x);
+  return (data?.products ?? []).map((p: any) => normalize(p)).filter((x): x is FoodHit => !!x);
 }
 
-/** Looks up a single product by its EAN/UPC barcode. */
+/**
+ * 3.3.0: Barcode-Lookup mit mehreren Chancen.
+ *
+ * Scanner liefern je nach Gerät 8-, 12- oder 13-stellige Codes (EAN-8, UPC-A,
+ * EAN-13). Bisher wurde nur exakt eine Schreibweise abgefragt — deshalb fand
+ * die App viele Produkte nicht. Jetzt werden die üblichen Varianten probiert
+ * (UPC-A ↔ EAN-13 mit/ohne führende Null) und zwei Open-Food-Facts-Endpunkte.
+ */
 export async function productByBarcode(barcode: string): Promise<FoodHit | null> {
-  const code = barcode.replace(/\D/g, '');
-  if (code.length < 6) return null;
-  const data = await withTimeout<{ status?: number; product?: any }>(`${PRODUCT_URL}${code}.json`);
-  if (!data || data.status === 0) return null;
-  const hit = normalize(data.product);
-  return hit && hit.code ? hit : hit ? { ...hit, code } : null;
+  const digits = String(barcode ?? '').replace(/\D/g, '');
+  if (digits.length < 6) return null;
+
+  const variants: string[] = [digits];
+  if (digits.length === 12) variants.push(`0${digits}`);          /* UPC-A → EAN-13 */
+  if (digits.length === 13 && digits.startsWith('0')) variants.push(digits.slice(1));
+  if (digits.length === 14 && digits.startsWith('0')) variants.push(digits.slice(1));
+
+  for (const code of Array.from(new Set(variants))) {
+    /* 1) v2 (mehr Felder, inkl. Sprachvarianten) */
+    const v2 = await withTimeout<{ status?: number; product?: any }>(
+      `${PRODUCT_URL}${code}.json?fields=${FIELDS},product_name_de,product_name_en,generic_name,generic_name_de,generic_name_en,abbreviated_product_name`,
+    );
+    const hitV2 = v2 && v2.status !== 0 ? normalize(v2.product, code) : null;
+    if (hitV2) return hitV2;
+
+    /* 2) v0 als Rückfall (andere Indexierung, findet manche Einträge) */
+    const v0 = await withTimeout<{ status?: number; product?: any; code?: string }>(
+      `https://world.openfoodfacts.org/api/v0/product/${code}.json`,
+    );
+    const hitV0 = v0 && v0.status !== 0 ? normalize(v0.product, code) : null;
+    if (hitV0) return hitV0;
+  }
+  return null;
 }

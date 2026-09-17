@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
   PanResponder,
@@ -11,6 +10,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
+/* 3.3.0: Meldungen im App-Design statt System-Dialog */
+import { Alert } from '../lib/alert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Camera,
@@ -23,6 +24,7 @@ import {
   Gauge,
   Languages,
   ListChecks,
+  Maximize2,
   Minus,
   NotebookPen,
   Pause,
@@ -31,9 +33,11 @@ import {
   RotateCcw,
   ShoppingCart,
   SkipForward,
+  Square,
   Timer,
   UsersRound,
   Utensils,
+  Volume2,
   X,
 } from 'lucide-react-native';
 import { useMutation } from '../lib/convex-auth';
@@ -55,8 +59,10 @@ import {
   useKitchenTimers,
 } from '../lib/kitchenTimers';
 import { recipeLines } from '../lib/recipe';
-import { coachText, detectPhase, type CoachPhase } from '../lib/coach-tips';
 import { isTranslatableLanguage } from '../lib/recipe-translate';
+import { loadStepGuides, type StepGuide } from '../lib/step-guides';
+import { speakText, speechAvailable, stopSpeaking } from '../lib/speech';
+import { showNotice } from '../components/AppNotice';
 import { useAction, useQuery } from '../lib/convex-auth';
 import {
   estimateStepMinutes,
@@ -124,15 +130,15 @@ function cleanIngredientForShop(line: string): string {
   return name ? name.charAt(0).toUpperCase() + name.slice(1) : line;
 }
 
-/** Farben + Beschriftung je Coach-Phase (Texte kommen aus coach-tips.ts). */
-const PHASE_COLORS: Record<CoachPhase, string> = {
+/** Farben der Schritt-Kennzeichnung (Vorbereitung ist das Theme-„easy"-Grün). */
+const PHASE_COLORS = {
   start: colors.cyan,
   prep: colors.easy,
   combine: colors.cyan,
   cook: colors.accent,
   finish: colors.success,
   next: colors.cyan,
-};
+} as const;
 
 export function CookingScreen({ route }: any) {
   const insets = useSafeAreaInsets();
@@ -223,12 +229,65 @@ export function CookingScreen({ route }: any) {
 
   const currentStep = steps[index] ?? '';
   const stepMinutes = useMemo(() => (phase === 'cook' ? extractMinutes(currentStep) : null), [phase, currentStep]);
-  /* Coach: Phase + Tipp, der sich nicht wiederholt (siehe lib/coach-tips.ts). */
-  const coach = useMemo(() => {
-    const ph = detectPhase(currentStep, index, total);
-    const txt = coachText(ph, lang, `${index}:${currentStep.slice(0, 48)}`);
-    return { phaseKey: ph, phase: t(`s.cookPhase_${ph}`), color: PHASE_COLORS[ph], tip: txt.tip, look: txt.look };
-  }, [currentStep, index, total, lang, t]);
+  /* Coach-Hinweise pro Schritt (vom Bot erzeugt, siehe lib/step-guides.ts).
+     Fehlen sie noch, zeigt die Oberfläche einen Hinweis — es werden keine
+     Tipps mehr erfunden. */
+  const [guides, setGuides] = useState<StepGuide[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void loadStepGuides(recipeKey).then((rows) => {
+      if (alive) setGuides(rows);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [recipeKey]);
+  const guideFor = (i: number) => guides?.find((g) => g.index === i) ?? null;
+
+  /* ── 3.3.0: Vorlesen (Text-to-Speech) ───────────────────────────────────── */
+  const [speechOk, setSpeechOk] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const [popupOpen, setPopupOpen] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    void speechAvailable().then((ok) => {
+      if (alive) setSpeechOk(ok);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  /* Beim Verlassen des Kochmodus nicht weiterreden. */
+  useEffect(() => () => { void stopSpeaking(); }, []);
+
+  const readAloud = async (text: string) => {
+    const body = String(text ?? '').trim();
+    if (!body) return;
+    setSpeaking(true);
+    const ok = await speakText(body, lang);
+    if (!ok) setSpeaking(false);
+  };
+
+  const stopReadAloud = async () => {
+    await stopSpeaking();
+    setSpeaking(false);
+  };
+
+  const toggleSpeak = async () => {
+    if (speaking) {
+      await stopReadAloud();
+      return;
+    }
+    await readAloud(currentStep);
+  };
+
+  /** Langes Drücken: nur die Schritt-Box als Pop-up (ohne Vorbereitung/Timer). */
+  const openPopup = () => {
+    setPopupOpen(true);
+    if (speaking) void stopReadAloud();
+  };
 
   /* ── 3.0.0: Meta je Schritt (Titel, Dauer, Schwierigkeit, Teilschritte) ── */
   const stepMeta = useMemo(
@@ -336,11 +395,14 @@ export function CookingScreen({ route }: any) {
   };
 
   const attachStepPhoto = () =>
-    Alert.alert(t('s.cookPhoto'), undefined, [
-      { text: t('s.cookCamera'), onPress: () => void saveStepPhoto('camera') },
-      { text: t('s.formGallery'), onPress: () => void saveStepPhoto('gallery') },
-      { text: t('common.close'), style: 'cancel' },
-    ]);
+    showNotice({
+      title: t('s.cookPhoto'),
+      actions: [
+        { label: t('s.cookCamera'), onPress: () => void saveStepPhoto('camera') },
+        { label: t('s.formGallery'), onPress: () => void saveStepPhoto('gallery') },
+        { label: t('common.close'), variant: 'ghost' },
+      ],
+    });
 
   /**
    * Schritt-Foto (Nr. 17): bleibt beim **eigenen Konto** - das Bild wird nur
@@ -360,7 +422,7 @@ export function CookingScreen({ route }: any) {
       setExtras(next);
       void saveExtras(myProfile?.id, recipeKey, next);
     } catch {
-      Alert.alert(t('s.cookPhotoFail'));
+      showNotice({ title: t('s.cookPhotoFail'), tone: 'error' });
     }
   };
 
@@ -435,10 +497,10 @@ export function CookingScreen({ route }: any) {
         setTr({ title: String(res?.title || origTitle), steps: stepsNew, ingredients: recipeLines(res?.ingredients) });
         setShowTr(true);
       } else {
-        Alert.alert(t('s.cookTranslateFail'));
+        showNotice({ title: t('s.cookTranslateFail'), tone: 'error' });
       }
     } catch (e) {
-      Alert.alert(t('s.cookTranslateFail'), e instanceof Error ? e.message : undefined);
+      showNotice({ title: t('s.cookTranslateFail'), body: e instanceof Error ? e.message : undefined, tone: 'error' });
     } finally {
       setBusyTranslate(false);
     }
@@ -547,30 +609,28 @@ export function CookingScreen({ route }: any) {
 
   const sendToShopping = async () => {
     const names = ingredients.map(cleanIngredientForShop).filter(Boolean);
-    if (!names.length) { Alert.alert(t('s.xNothingToAdd'), 'This recipe has no listed ingredients.'); return; }
+    if (!names.length) return;
     if (connNow === 'offline') {
       for (const n of names) await addPendingOp('shopping.add', { name: n });
-      Alert.alert(t('s.xSavedOffline'), `${names.length} ingredients queued for your shopping list.`);
       return;
     }
     try {
-      const res = await addManyShop({ items: names.map((n) => ({ name: n, recipeTitle: title })) });
-      Alert.alert(t('s.xAddedShopping'), `Added ${(res as any)?.added ?? names.length} ingredients from "${title}".`);
-    } catch { Alert.alert(t('s.xCouldNotAdd'), 'Try again in a moment.'); }
+      await addManyShop({ items: names.map((n) => ({ name: n, recipeTitle: title })) });
+    } catch {
+      showNotice({ title: t('s.xCouldNotAdd'), body: t('common.tryAgain'), tone: 'error' });
+    }
   };
 
   const finishAndLog = async () => {
+    /* 3.3.0: Am Ende kommt keine System-Meldung mehr (und keine Sätze über
+       hinzugefügte Einträge) — der Kochmodus wechselt einfach in den
+       Fertig-Zustand. Die Mahlzeit wird still im Hintergrund erfasst. */
     const cals = scaledNutrition.calories;
     const prot = scaledNutrition.protein;
     const carbs = scaledNutrition.carbs;
     const fat = scaledNutrition.fat;
-    const restart = () => { setPhase('prep'); setIndex(0); setDoneSteps(new Set()); setCheckedIng(new Set()); void clearTimers(); setSuggested(null); };
     if (connNow === 'offline') {
       if (cals != null) await addPendingOp('tracker.log', { title, calories: cals, protein: prot ?? null, carbs: carbs ?? null, fat: fat ?? null });
-      Alert.alert(t('s.xYouMadeIt'), `${title} is ready to serve.${cals != null ? ' It was saved offline and will sync to your tracker.' : ''} Enjoy!`, [
-        { text: 'Done', onPress: () => goBack() },
-        { text: 'Cook again', style: 'cancel', onPress: restart },
-      ]);
       return;
     }
     if (cals != null) {
@@ -578,16 +638,15 @@ export function CookingScreen({ route }: any) {
         await logMeal({ title, calories: cals, protein: prot ?? undefined, carbs: carbs ?? undefined, fat: fat ?? undefined, servings });
       } catch { /* best-effort */ }
     }
-    Alert.alert(t('s.xYouMadeIt'), `${title} is ready and ${cals != null ? `was added to your tracker (${cals} kcal).` : 'ready to serve.'} Enjoy!`, [
-      { text: 'Done', onPress: () => goBack() },
-      { text: 'Cook again', style: 'cancel', onPress: restart },
-    ]);
   };
 
   /* Wischgesten: nach links = Schritt fertig (Nr. 8), nach rechts = zurück.
      Die Handler liegen in einem Ref, damit der Responder nicht veraltet. */
   const panAction = useRef({ phase, index, next: markDoneAndNext, prev: goPrev });
   panAction.current = { phase, index, next: markDoneAndNext, prev: goPrev };
+  /* 3.3.0: gleiches für das Fokus-Pop-up (dort gibt es kein Scrollen). */
+  const popupAction = useRef({ next: markDoneAndNext, prev: goPrev });
+  popupAction.current = { next: markDoneAndNext, prev: goPrev };
   const pan = useRef(PanResponder.create({
     onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 24 && Math.abs(g.dx) > Math.abs(g.dy) * 1.2,
     onPanResponderRelease: (_e, g) => {
@@ -597,6 +656,18 @@ export function CookingScreen({ route }: any) {
       else if (g.dx > 24 && a.index > 0) a.prev();
     },
   })).current;
+
+  /** 3.3.0: gleiches Wischen im Fokus-Pop-up (dort gibt es kein Scrollen). */
+  const popupPan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 26 && Math.abs(g.dx) > Math.abs(g.dy) * 1.4,
+      onPanResponderRelease: (_e, g) => {
+        const a = popupAction.current;
+        if (g.dx < -26) a.next();
+        else if (g.dx > 26) a.prev();
+      },
+    }),
+  ).current;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top, paddingBottom: insets.bottom }}>
@@ -834,7 +905,9 @@ export function CookingScreen({ route }: any) {
             <View {...pan.panHandlers} style={{ marginTop: 14 }}>
               <View style={{ borderRadius: 22, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 20 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', color: coach.color }}>{coach.phase}</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', color: colors.accent }}>
+                    {t('cooking.step')} {index + 1} {t('cooking.of')} {total}
+                  </Text>
                   {cookingAdvanced ? (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                     {/* Gruppierung Vorbereitung / Kochen / Finish (Nr. 3) */}
@@ -858,9 +931,37 @@ export function CookingScreen({ route }: any) {
                     </View>
                   )}
                 </View>
-                <Text style={{ fontFamily: fonts.display, fontSize: 25, lineHeight: 34, color: colors.textPrimary, fontWeight: '700', marginTop: 14 }}>
+                <Text style={{ fontFamily: fonts.display, fontSize: 25, lineHeight: 34, color: colors.textPrimary, fontWeight: '700', marginTop: 14, paddingRight: speechOk ? 46 : 0 }}>
                   {currentStep}
                 </Text>
+                <View style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  {/* 3.3.0: Vorlesen — liest genau diesen Schritt vor, damit man
+                      nicht auf das Display schauen muss. */}
+                  {speechOk ? (
+                    <Pressable
+                      onPress={() => void toggleSpeak()}
+                      accessibilityRole="button"
+                      accessibilityLabel={speaking ? t('s.cookListenStop') : t('s.cookListen')}
+                      style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, borderWidth: 1, borderColor: speaking ? colors.accent : colors.cardBorder, backgroundColor: speaking ? colors.accentSoft : colors.card, paddingHorizontal: 12, paddingVertical: 7, opacity: pressed ? 0.8 : 1 }]}
+                    >
+                      {speaking ? <Square size={13} color={colors.accent} /> : <Volume2 size={14} color={colors.accent} />}
+                      <Text style={{ fontSize: 12, fontWeight: '800', color: colors.accent }}>
+                        {speaking ? t('s.cookListenStop') : t('s.cookListen')}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                  {/* 3.3.0: langes Drücken öffnet nur diese Box als Pop-up. */}
+                  <Pressable
+                    onLongPress={() => openPopup()}
+                    delayLongPress={320}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('s.cookStepPopup')}
+                    style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 12, paddingVertical: 7, opacity: pressed ? 0.8 : 1 }]}
+                  >
+                    <Maximize2 size={13} color={colors.textSecondary} />
+                    <Text style={{ fontSize: 12, fontWeight: '800', color: colors.textSecondary }}>{t('s.cookStepPopup')}</Text>
+                  </Pressable>
+                </View>
 
                 {/* Abhängigkeiten + Teilschritte + Notiz/Foto/Skip (nur advanced) */}
                 {cookingAdvanced ? (
@@ -962,10 +1063,31 @@ export function CookingScreen({ route }: any) {
                   </>
                 ) : null}
 
-                <View style={{ marginTop: 16, borderRadius: 14, backgroundColor: colors.dark ? rgbaHelper('#ffffff', 0.05) : rgbaHelper('#ffffff', 0.7), padding: 12 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '800', color: colors.textPrimary }}>{t('s.cookCoachTip')}</Text>
-                  <Text style={{ fontSize: 13, lineHeight: 19, color: colors.textSecondary, marginTop: 3 }}>{coach.tip}</Text>
-                  <Text style={{ fontSize: 12.5, lineHeight: 18, color: coach.color, marginTop: 8, fontWeight: '600' }}>{t('s.cookLookFor')} {coach.look}</Text>
+                {/* 3.3.0: Coach-Tipp + „Achte auf" kommen pro Schritt aus der
+                    Bibliothek (vom Bot erzeugt). Fehlen sie, wird das gesagt —
+                    statt automatisch erfundener Tipps. */}
+                <View style={{ marginTop: 16, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.surfaceMuted, padding: 12 }}>
+                  {(() => {
+                    const g = guideFor(index);
+                    if (!g || (!g.coach && !g.look)) {
+                      return <Text style={{ fontSize: 12.5, lineHeight: 18, color: colors.textSecondary }}>{t('s.cookGuideSoon')}</Text>;
+                    }
+                    return (
+                      <>
+                        {g.coach ? (
+                          <>
+                            <Text style={{ fontSize: 12, fontWeight: '800', color: colors.textPrimary }}>{t('s.cookGuideCoach')}</Text>
+                            <Text style={{ fontSize: 13, lineHeight: 19, color: colors.textSecondary, marginTop: 3 }}>{g.coach}</Text>
+                          </>
+                        ) : null}
+                        {g.look ? (
+                          <Text style={{ fontSize: 12.5, lineHeight: 18, color: colors.accent, marginTop: 8, fontWeight: '600' }}>
+                            {t('s.cookGuideLook')} {g.look}
+                          </Text>
+                        ) : null}
+                      </>
+                    );
+                  })()}
                 </View>
 
                 {/* suggested timer for this step */}
@@ -1117,6 +1239,98 @@ export function CookingScreen({ route }: any) {
           </>
         )}
       </ScrollView>
+
+      {/* 3.3.0: Fokus-Pop-up — dieselbe Schritt-Box, aber ohne Vorbereitung
+          (oben) und ohne Timer-Liste (unten). Kein Scrollen, dafür einfaches
+          Wischen zwischen den Schritten. Der Timer lässt sich hier genauso
+          starten. */}
+      <Modal visible={popupOpen} transparent animationType="fade" onRequestClose={() => { void stopReadAloud(); setPopupOpen(false); }} statusBarTranslucent>
+        <View style={{ flex: 1, backgroundColor: colors.overlayStrong, padding: 16, justifyContent: 'center' }}>
+          <View {...popupPan.panHandlers} style={{ borderRadius: 24, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={{ flex: 1, fontSize: 12, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', color: colors.accent }}>
+                {t('cooking.step')} {index + 1} {t('cooking.of')} {total}
+              </Text>
+              <Pressable onPress={() => { void stopReadAloud(); setPopupOpen(false); }} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('common.close')}>
+                <X size={20} color={colors.textSecondary} />
+              </Pressable>
+            </View>
+
+            <Text style={{ fontFamily: fonts.display, fontSize: 24, lineHeight: 33, color: colors.textPrimary, fontWeight: '700', marginTop: 12 }}>
+              {currentStep}
+            </Text>
+
+            <View style={{ marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {speechOk ? (
+                <Pressable
+                  onPress={() => void toggleSpeak()}
+                  accessibilityRole="button"
+                  accessibilityLabel={speaking ? t('s.cookListenStop') : t('s.cookListen')}
+                  style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, borderWidth: 1, borderColor: speaking ? colors.accent : colors.cardBorder, backgroundColor: speaking ? colors.accentSoft : colors.surfaceMuted, paddingHorizontal: 12, paddingVertical: 8, opacity: pressed ? 0.8 : 1 }]}
+                >
+                  {speaking ? <Square size={13} color={colors.accent} /> : <Volume2 size={14} color={colors.accent} />}
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: colors.accent }}>{speaking ? t('s.cookListenStop') : t('s.cookListen')}</Text>
+                </Pressable>
+              ) : null}
+              {stepMinutes && stepMinutes > 0 ? (
+                <Pressable
+                  onPress={() => startTimer(stepMinutes)}
+                  style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, backgroundColor: colors.cyanBg, paddingHorizontal: 12, paddingVertical: 8, opacity: pressed ? 0.8 : 1 }]}
+                >
+                  <Timer size={15} color={colors.cyan} />
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: colors.cyan }}>{`${stepMinutes} ${t('common.min')}`}</Text>
+                </Pressable>
+              ) : null}
+            </View>
+
+            {(() => {
+              const g = guideFor(index);
+              if (!g || (!g.coach && !g.look)) {
+                return (
+                  <Text style={{ marginTop: 14, fontSize: 12.5, lineHeight: 18, color: colors.textSecondary }}>{t('s.cookGuideSoon')}</Text>
+                );
+              }
+              return (
+                <View style={{ marginTop: 14, borderRadius: 14, backgroundColor: colors.surfaceMuted, padding: 12 }}>
+                  {g.coach ? (
+                    <>
+                      <Text style={{ fontSize: 12, fontWeight: '800', color: colors.textPrimary }}>{t('s.cookGuideCoach')}</Text>
+                      <Text style={{ fontSize: 13, lineHeight: 19, color: colors.textSecondary, marginTop: 3 }}>{g.coach}</Text>
+                    </>
+                  ) : null}
+                  {g.look ? (
+                    <Text style={{ fontSize: 12.5, lineHeight: 18, color: colors.accent, marginTop: 8, fontWeight: '600' }}>
+                      {t('s.cookGuideLook')} {g.look}
+                    </Text>
+                  ) : null}
+                </View>
+              );
+            })()}
+
+            <View style={{ marginTop: 16, flexDirection: 'row', gap: 8 }}>
+              <Pressable
+                onPress={goPrev}
+                disabled={index === 0}
+                style={({ pressed }) => [{ width: 52, alignItems: 'center', justifyContent: 'center', borderRadius: 14, paddingVertical: 13, backgroundColor: colors.surfaceMuted, opacity: index === 0 ? 0.45 : pressed ? 0.7 : 1 }]}
+              >
+                <ChevronLeft size={19} color={colors.textPrimary} />
+              </Pressable>
+              <Pressable
+                onPress={goNext}
+                style={({ pressed }) => [{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, paddingVertical: 13, backgroundColor: colors.darkButton, opacity: pressed ? 0.85 : 1 }]}
+              >
+                {doneSteps.has(index) ? <Check size={17} color={colors.darkButtonText} /> : <CircleCheck size={17} color={colors.darkButtonText} />}
+                <Text style={{ color: colors.darkButtonText, fontWeight: '700', fontSize: 14.5 }}>
+                  {doneSteps.has(index) ? (isLast ? t('cooking.readyToServe') : t('cooking.nextStep')) : t('cooking.nowDoThis')}
+                </Text>
+                {!isLast ? <ChevronRight size={17} color={colors.darkButtonText} /> : null}
+              </Pressable>
+            </View>
+
+            <Text style={{ marginTop: 10, fontSize: 11, color: colors.textSecondary, textAlign: 'center' }}>{t('s.cookPopupHint')}</Text>
+          </View>
+        </View>
+      </Modal>
 
       {/* zweites Gericht wählen (Nr. 12) */}
       <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>

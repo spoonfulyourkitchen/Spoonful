@@ -299,7 +299,11 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
     (args.explain ? ', note' : '') +
     '. ' +
     'Rules: realistic amounts, correct cooking technique, no invented exotic equipment, no brand names, ' +
-    'max 12 ingredients, 4-8 steps, metric units. ' +
+    /* 3.3.0: Rezepte müssen ausführlich sein — mindestens 8 Schritte, auch bei
+       einfachen Gerichten (Vorbereitung, Zwischenschritte, Finish). */
+    'max 12 ingredients, AT LEAST 8 steps (never fewer than 8), metric units. ' +
+    'Write every step so it can be followed without thinking: one action per step, ' +
+    'with amounts and times inside the step. ' +
     detailRule +
     ' ' +
     goalRule +
@@ -455,11 +459,19 @@ export async function aiRecipeFromText(args: {
   const raw = String(args.text ?? '').trim();
   if (raw.length < 60) return null;
   const system =
-    'You turn the description or the subtitles of a cooking video into a recipe. ' +
+    'You turn the description or the subtitles of a cooking video into a clean, complete recipe. ' +
     'Answer with valid JSON only: {"title": string, "ingredients": string[], "steps": string[]}. ' +
+    /* 3.3.0: Videos enthalten viel Müll (Abo-Aufrufe, Links, Hashtags, Werbung,
+       „bewertet das Video") — der gehört nicht in ein Rezept. Fehlende Schritte
+       ergänzt die KI aus dem, was im Video steht. */
+    'REMOVE everything that is not part of the recipe: subscribe/follow/like/share requests, ' +
+    'channel or social media names, links and URLs, hashtags, emojis, giveaways, sponsor mentions, ' +
+    '"watch the full video", timestamps and any sentence that is only talking to the audience. ' +
+    'Split longer narration into individual short imperative steps, in the correct cooking order. ' +
+    'If the video gives fewer than 8 steps but enough information, ADD the missing obvious steps ' +
+    '(preparation, heating, resting, seasoning, plating) so the recipe has AT LEAST 8 steps — ' +
+    'but never invent ingredients or amounts that are not in the text. ' +
     'Keep the original language of the text and keep every amount (e.g. "500 g Mehl"). ' +
-    'Steps must be short imperative sentences in the cooking order. ' +
-    'Do not invent ingredients that are not in the text. ' +
     'If the text contains no recipe at all, answer {"title":"","ingredients":[],"steps":[]}.';
   const user = [args.title ? `Video title: ${args.title}` : '', 'Text:', raw.slice(0, 6000)]
     .filter(Boolean)

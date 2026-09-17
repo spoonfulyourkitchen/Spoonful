@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, Text, View } from 'react-native';
+/* 3.3.0: Meldungen im App-Design statt System-Dialog */
+import { Alert } from '../lib/alert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MailCheck, RefreshCw, Send } from 'lucide-react-native';
 

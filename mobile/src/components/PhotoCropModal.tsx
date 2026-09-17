@@ -247,7 +247,9 @@ export function PhotoCropHost() {
   const toCrop = (): PhotoCrop => {
     const img = imgSize;
     if (!img?.w || !img?.h || !frame.w || !view.s) return { ...DEFAULT_CROP };
-    return cropFromFrame({ frame, view, imageW: img.w, imageH: img.h });
+    /* 3.3.0: Bildgröße mitgeben — damit sitzt der Ausschnitt später exakt,
+       auch wenn die Anzeige die Größe nicht nachladen kann (data-URL). */
+    return { ...cropFromFrame({ frame, view, imageW: img.w, imageH: img.h }), iw: img.w, ih: img.h };
   };
 
   const onImgLoad = (e: any) => {

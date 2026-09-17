@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -12,6 +11,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
+/* 3.3.0: Meldungen im App-Design statt System-Dialog */
+import { Alert } from '../lib/alert';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {

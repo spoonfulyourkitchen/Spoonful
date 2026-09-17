@@ -275,8 +275,9 @@ ops['recipes.reportImage'] = {
 ops['recipes.libraryCount'] = {
   async query() {
     try {
+      /* Die Bibliothek liegt in `recipes` (nicht in einer Kopie). */
       const { count, error } = await supabase
-        .from('catalog_recipes')
+        .from('recipes')
         .select('id', { count: 'exact', head: true });
       if (error) throw rowError(error);
       return { total: count ?? 0 };

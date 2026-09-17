@@ -24,6 +24,12 @@ class MainActivity : ReactActivity() {
    * die App offen ist — wie bei vielen anderen Apps. Sie kommt durch eine
    * Wischgeste kurz zurück ("sticky immersive") und versteckt sich danach
    * wieder. Die Statusleiste bleibt sichtbar.
+   *
+   * 3.3.0: Wichtig für die Tastatur — `setDecorFitsSystemWindows(false)` (echtes
+   * Edge-to-Edge) ist wieder raus. Auf Android 14 und älter wirkt `adjustResize`
+   * aus dem Manifest dann wieder und die Tastatur schiebt die Eingabefelder
+   * nach oben. Auf Android 15+ (dort erzwingt Android Edge-to-Edge und der
+   * Aufruf ist wirkungslos) übernimmt das eine KeyboardAvoidingView in App.tsx.
    */
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -32,7 +38,8 @@ class MainActivity : ReactActivity() {
 
   private fun applyImmersiveMode() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-      window.setDecorFitsSystemWindows(false)
+      /* true = Fenster passt sich den Systemleisten an (adjustResize wirkt). */
+      window.setDecorFitsSystemWindows(true)
       val controller = window.insetsController ?: return
       controller.hide(WindowInsets.Type.navigationBars())
       controller.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE

@@ -7,7 +7,6 @@
  */
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -17,6 +16,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
+/* 3.3.0: Meldungen im App-Design statt System-Dialog */
+import { Alert } from '../lib/alert';
 import { Check, X } from 'lucide-react-native';
 
 import { colors, fonts } from '../theme';

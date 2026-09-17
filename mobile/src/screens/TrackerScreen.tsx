@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+/* 3.3.0: Meldungen im App-Design statt System-Dialog */
+import { Alert } from '../lib/alert';
 import { Calculator, CalendarCheck2, Flame, Plus, Sparkles, Trash2, TrendingUp, X } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMutation, useQuery } from '../lib/convex-auth';

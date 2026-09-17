@@ -1,12 +1,15 @@
 /**
- * 3.2.0: Einkaufsliste â€” komplett neu und bewusst einfach.
+ * 3.2.0/3.3.0: Einkaufsliste — bewusst einfach und schnell.
  *
- *   * oben eingeben (oder Ã¼ber "Add to shopping list" bei einem Rezept fÃ¼llen)
+ *   * oben eingeben (oder über "Add to shopping list" bei einem Rezept füllen)
  *   * Liste nach Rezept gruppiert; neben jeder Gruppe steht "Zum Haushalt"
- *   * pro Haushalt hÃ¶chstens ZWEI Listen; danach kommt ein Hinweis
+ *   * pro Haushalt höchstens ZWEI Listen; danach kommt ein Hinweis
  *   * keine Filter-Chips, keine Extras, kein Rezept-Import-Knopf
+ *
+ * 3.3.0: Die Anzeige kommt aus dem lokalen Speicher (sofort, offline) und jede
+ * Zeile ist memoisiert, damit das Abhaken nur die betroffene Zeile neu zeichnet.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { Check, ChevronDown, ChevronUp, Plus, ShoppingCart, Trash2, UsersRound } from 'lucide-react-native';
 
@@ -49,7 +52,7 @@ export function ShoppingScreen() {
   const clearChecked = useMutation(api.shoppingList.clearChecked);
 
   /**
-   * 3.2.3: Anzeige kommt aus dem lokalen Speicher â€” dadurch ist jede Aktion
+   * 3.2.3: Anzeige kommt aus dem lokalen Speicher Ã¢â‚¬â€ dadurch ist jede Aktion
    * sofort sichtbar und die Liste funktioniert offline.
    */
   const list = React.useSyncExternalStore(subscribeShoppingLocal, getShoppingLocal, getShoppingLocal);
@@ -71,7 +74,7 @@ export function ShoppingScreen() {
   const openItems = useMemo(() => list.filter((i) => !i.checked), [list]);
   const doneItems = useMemo(() => list.filter((i) => i.checked), [list]);
 
-  /** Nach Rezept gruppiert - genau so, wie "Add to shopping list" befÃ¼llt. */
+  /** Nach Rezept gruppiert - genau so, wie "Add to shopping list" befÃƒÂ¼llt. */
   const groups = useMemo(() => {
     const map = new Map<string, LocalShoppingItem[]>();
     for (const it of openItems) {
@@ -92,7 +95,7 @@ export function ShoppingScreen() {
     if (!value) return;
     setName('');
     const local = addLocalItem(value);
-    if (offline) return; /* offline bleibt lokal und wird spÃ¤ter zusammengefÃ¼hrt */
+    if (offline) return; /* offline bleibt lokal und wird spÃƒÂ¤ter zusammengefÃƒÂ¼hrt */
     void Promise.resolve(addItem({ name: value }))
       .then((res: any) => {
         const id = serverIdOf(res);
@@ -112,6 +115,30 @@ export function ShoppingScreen() {
     if (offline || !item.synced) return;
     void Promise.resolve(removeItem({ id: item.id })).catch(() => undefined);
   };
+
+  /**
+   * 3.3.0: Geschwindigkeit. Die Zeilen bekommen stabile Funktionen und sind
+   * memoisiert (`Row`), deshalb zeichnet das Abhaken nur noch die eine Zeile neu
+   * statt der ganzen Liste â€” das war der Rest, der die Liste trÃ¤ge machte.
+   */
+  const toggleById = useCallback(
+    (id: string) => {
+      toggleLocalItem(id);
+      const item = getShoppingLocal().find((i) => i.id === id);
+      if (offline || !item?.synced) return;
+      void Promise.resolve(toggleItem({ id })).catch(() => undefined);
+    },
+    [offline, toggleItem],
+  );
+
+  const removeById = useCallback(
+    (id: string) => {
+      removeLocalItem(id);
+      if (offline) return;
+      void Promise.resolve(removeItem({ id })).catch(() => undefined);
+    },
+    [offline, removeItem],
+  );
 
   const clearDone = () => {
     clearLocalChecked();
@@ -157,7 +184,7 @@ export function ShoppingScreen() {
             <PageHeader
               eyebrow={t('shopping.whatYouNeed')}
               title={t('shopping.title')}
-              subtitle={`${openItems.length} ${t('s.shopOpen')} Â· ${doneItems.length} ${t('common.done')}`}
+              subtitle={`${openItems.length} ${t('s.shopOpen')} Ã‚Â· ${doneItems.length} ${t('common.done')}`}
             />
           </View>
           {offline ? <OfflineBadge /> : null}
@@ -187,7 +214,7 @@ export function ShoppingScreen() {
         ) : null}
 
         {!list.length ? (
-          <EmptyState icon={<ShoppingCart size={22} color={colors.accent} />} title={t('shopping.empty')} body={t('s.shopEmptyBody')} />
+          <EmptyState icon={<ShoppingCart size={22} color={colors.accent} />} title={t('shopping.emptyList')} body={t('s.shopEmptyBody')} />
         ) : null}
 
         {groups.map((group) => (
@@ -197,7 +224,7 @@ export function ShoppingScreen() {
               <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, fontWeight: '800', color: colors.textPrimary }}>
                 {group.title || t('s.shopOwn')}
               </Text>
-              {/* 3.2.3: Ohne Netz gibt es keinen Haushalts-Sync â€” Knopf ausblenden. */}
+              {/* 3.2.3: Ohne Netz gibt es keinen Haushalts-Sync Ã¢â‚¬â€ Knopf ausblenden. */}
               {!offline ? (
                 <Pressable
                   onPress={() => void shareGroup(group.title, group.items)}
@@ -211,7 +238,7 @@ export function ShoppingScreen() {
             </View>
             <View style={{ marginTop: 6 }}>
               {group.items.map((item) => (
-                <Row key={item.id} item={item} onToggle={() => toggle(item)} onRemove={() => remove(item)} />
+                <Row key={item.id} item={item} onToggle={toggleById} onRemove={removeById} />
               ))}
             </View>
           </View>
@@ -222,14 +249,14 @@ export function ShoppingScreen() {
             <Pressable onPress={() => setDoneOpen((v) => !v)} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 12, opacity: pressed ? 0.8 : 1 }]}>
               <Check size={15} color={colors.success} />
               <Text style={{ flex: 1, fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>
-                {t('common.done')} Â· {doneItems.length}
+                {t('common.done')} Ã‚Â· {doneItems.length}
               </Text>
               {doneOpen ? <ChevronUp size={16} color={colors.textSecondary} /> : <ChevronDown size={16} color={colors.textSecondary} />}
             </Pressable>
             {doneOpen ? (
               <View style={{ paddingHorizontal: 12, paddingBottom: 12 }}>
                 {doneItems.map((item) => (
-                  <Row key={item.id} item={item} onToggle={() => toggle(item)} onRemove={() => remove(item)} />
+                  <Row key={item.id} item={item} onToggle={toggleById} onRemove={removeById} />
                 ))}
                 <Pressable
                   onPress={clearDone}
@@ -247,10 +274,10 @@ export function ShoppingScreen() {
   );
 }
 
-/** Eine Zeile: tippen = abhaken, lange drÃ¼cken = lÃ¶schen. */
-function Row({ item, onToggle, onRemove }: { item: LocalShoppingItem; onToggle: () => void; onRemove: () => void }) {
+/** Eine Zeile: tippen = abhaken, lange drÃƒÂ¼cken = lÃƒÂ¶schen. */
+const Row = React.memo(function Row({ item, onToggle, onRemove }: { item: LocalShoppingItem; onToggle: (id: string) => void; onRemove: (id: string) => void }) {
   return (
-    <Pressable onPress={onToggle} onLongPress={onRemove} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, opacity: pressed ? 0.7 : 1 }]}>
+    <Pressable onPress={() => onToggle(item.id)} onLongPress={() => onRemove(item.id)} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, opacity: pressed ? 0.7 : 1 }]}>
       <View
         style={{
           width: 22,
@@ -268,11 +295,11 @@ function Row({ item, onToggle, onRemove }: { item: LocalShoppingItem; onToggle: 
       <Text numberOfLines={2} style={{ flex: 1, fontSize: 15, color: item.checked ? colors.textSecondary : colors.textPrimary, textDecorationLine: item.checked ? 'line-through' : 'none' }}>
         {item.name}
       </Text>
-      <Pressable onPress={onRemove} hitSlop={8} style={{ padding: 2 }}>
+      <Pressable onPress={() => onRemove(item.id)} hitSlop={8} style={{ padding: 2 }}>
         <Trash2 size={15} color={rgbaHelper(colors.rose, 0.85)} />
       </Pressable>
     </Pressable>
   );
-}
+});
 
 export default ShoppingScreen;

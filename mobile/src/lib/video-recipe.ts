@@ -467,6 +467,26 @@ const isUsable = (found: { ingredients: string[]; steps: string[] }) =>
   (found.ingredients.length >= 1 && found.steps.length >= 2);
 
 /**
+ * 3.3.0: Typische „Video-Müll"-Zeilen erkennen — Abo-Aufrufe, Links, Hashtags,
+ * Werbung, Zeitstempel. Solche Zeilen dürfen nicht als Zutat oder Schritt im
+ * Rezept landen (das war der Hauptgrund, warum die Video-Erkennung „tot" wirkte).
+ */
+export function isJunkLine(line: string): boolean {
+  const s = String(line ?? '').trim();
+  if (!s) return true;
+  if (/https?:\/\/|www\.|\.com|\.de\b|\.net|bit\.ly|youtu\.be/i.test(s)) return true;
+  if (/(^|\s)#[^\s#]+/.test(s)) return true;
+  if (/^\s*\d{1,2}:\d{2}/.test(s)) return true;                       /* 00:42 Zeitstempel */
+  if (/[❤️🔥👌😍👇🙏✅💯]/u.test(s)) return true;
+  return /(subscribe|abonnier|abonniert|kanal|channel|follow (me|us)|folge mir|like (this|the) video|daumen hoch|teile das video|share (this|the) video|bewert|kommentier|comment below|schreib.*kommentar|glocke|bell icon|benachrichtigung|notification|link in (the )?bio|link in der beschreibung|bio|patreon|sponsor|werbung|ad\b|giveaway|gewinnspiel|rabattcode|discount code|watch (the )?full|ganzes video|thanks for watching|danke f.rs zuschauen|bis zum n.chsten|see you (next|in)|new video|playlist)/i.test(s);
+}
+
+/** Zutaten-/Schritt-Zeilen von Video-Müll befreien. */
+export function cleanJunkLines(lines: string[]): string[] {
+  return lines.map((l) => String(l ?? '').trim()).filter((l) => l && !isJunkLine(l));
+}
+
+/**
  * 3.2.3: Zutaten aus dem Video und von der KI zusammenführen — die Video-Angaben
  * gewinnen, die KI füllt nur auf, was dort fehlt.
  */
@@ -546,15 +566,27 @@ export async function recipeFromVideo(
   const local = parseRecipeFromText(text);
 
   /**
-   * 3.2.3: Viele Videos (Reels/Shorts) nennen nur die Zutaten. Dann ergänzt die
-   * KI die fehlenden Zubereitungsschritte, statt den Video-Text 1:1 als Rezept
-   * auszugeben. Die Zutaten aus dem Video bleiben dabei erhalten.
+   * 3.3.0: Video-Text sauber machen. Beschreibungen enthalten fast immer Dinge,
+   * die kein Rezept sind (Abo-Aufrufe, Links, Hashtags, Werbung). Diese Zeilen
+   * fliegen raus, und wenn etwas gefunden wurde, ordnet die KI den Text noch
+   * einmal komplett — so landen keine Fremdsätze als Zutat/Schritt im Rezept.
    */
-  const tooFewSteps = local.ingredients.length >= 2 && local.steps.length < 3;
-  if (tooFewSteps && allowAi && text.trim().length >= 200) {
+  const cleaned = {
+    ingredients: cleanJunkLines(local.ingredients),
+    steps: cleanJunkLines(local.steps),
+  };
+  const junkFound = cleaned.ingredients.length !== local.ingredients.length || cleaned.steps.length !== local.steps.length;
+  const tooFewSteps = cleaned.ingredients.length >= 2 && cleaned.steps.length < 3;
+  const aiAvailable = allowAi && text.trim().length >= 120;
+
+  /**
+   * 3.2.3/3.3.0: Die KI ergänzt zu kurze Rezepte (typisch bei Reels) und räumt
+   * Text auf. Die Zutaten aus dem Video bleiben dabei erhalten.
+   */
+  if ((tooFewSteps || junkFound) && aiAvailable) {
     const structured = await aiRecipeFromText({ title, text }).catch(() => null);
     if (structured && structured.steps.length >= 2) {
-      const ingredients = mergeIngredients(local.ingredients, structured.ingredients);
+      const ingredients = mergeIngredients(cleaned.ingredients, structured.ingredients);
       return {
         title: structured.title || title || ingredients[0] || structured.steps[0].slice(0, 60),
         ingredients,
@@ -567,15 +599,15 @@ export async function recipeFromVideo(
     }
   }
 
-  if (isUsable(local)) {
+  if (isUsable(cleaned)) {
     return {
-      title: title || local.ingredients[0] || local.steps[0].slice(0, 60),
-      ingredients: local.ingredients,
-      steps: local.steps,
+      title: title || cleaned.ingredients[0] || cleaned.steps[0].slice(0, 60),
+      ingredients: cleaned.ingredients,
+      steps: cleaned.steps,
       source,
       language,
       textSource: origin,
-      needsReview: local.ingredients.length < 3,
+      needsReview: cleaned.ingredients.length < 3,
     };
   }
 

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -11,6 +10,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
+/* 3.3.0: Meldungen im App-Design statt System-Dialog */
+import { Alert } from '../lib/alert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Flag, MessageSquare, Send, Trash2, X } from 'lucide-react-native';
 

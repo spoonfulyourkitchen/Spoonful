@@ -10,7 +10,21 @@
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type PhotoCrop = { fx: number; fy: number; zoom: number };
+export type PhotoCrop = {
+  fx: number;
+  fy: number;
+  zoom: number;
+  /**
+   * 3.3.0: Bildgröße zum Zeitpunkt des Zuschneidens (Pixel).
+   *
+   * Ohne sie musste die Anzeige die Größe erst per `Image.getSize` nachladen —
+   * und bei Bildern, die als data-URL vorliegen (Kamera/Foto in der App), klappt
+   * das nicht zuverlässig. Die Folge war der alte Fehler, dass immer die Mitte
+   * des Bildes zu sehen war. Jetzt reist die Größe im Ausschnitt mit.
+   */
+  iw?: number;
+  ih?: number;
+};
 
 export const DEFAULT_CROP: PhotoCrop = { fx: 0.5, fy: 0.5, zoom: 1 };
 
@@ -25,6 +39,7 @@ export const clampCrop = (c: PhotoCrop): PhotoCrop => {
     zoom,
     fx: Math.max(0.5 - room, Math.min(0.5 + room, c.fx)),
     fy: Math.max(0.5 - room, Math.min(0.5 + room, c.fy)),
+    ...(c.iw && c.ih && c.iw > 0 && c.ih > 0 ? { iw: c.iw, ih: c.ih } : {}),
   };
 };
 

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Image, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Image, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+/* 3.3.0: Meldungen im App-Design statt System-Dialog */
+import { Alert } from '../lib/alert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, Camera, ImagePlus, Sparkles } from 'lucide-react-native';
 import { useAction, useMutation } from '../lib/convex-auth';

@@ -17,6 +17,7 @@ import { APP_320B } from './i18n-320b';
 import { APP_320C } from './i18n-320c';
 import { APP_321 } from './i18n-321';
 import { APP_322 } from './i18n-322';
+import { APP_330 } from './i18n-330';
 import { I18N_TEXTS } from './i18n-texts';
 import { I18N_TEXTS_EXTRA } from './i18n-texts-extra';
 
@@ -464,7 +465,7 @@ function mergeDict(base: Dict, extra?: Dict): Dict {
 }
 
 const translations: Record<Language, Dict> = (Object.keys(baseDicts) as Language[]).reduce((acc, lang) => {
-  const merged = mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(baseDicts[lang], FEATURES[lang] ?? {}), APP_212[lang] ?? {}), APP_310[lang] ?? {}), APP_312[lang] ?? {}), APP_320[lang] ?? {}), APP_320B[lang] ?? {}), APP_320C[lang] ?? {}), APP_321[lang] ?? {}), mergeDict(mergeDict(APP_322[lang] ?? {}, I18N_TEXTS[lang] ?? {}), I18N_TEXTS_EXTRA[lang] ?? {}));
+  const merged = mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(mergeDict(baseDicts[lang], FEATURES[lang] ?? {}), APP_212[lang] ?? {}), APP_310[lang] ?? {}), APP_312[lang] ?? {}), APP_320[lang] ?? {}), APP_320B[lang] ?? {}), APP_320C[lang] ?? {}), APP_321[lang] ?? {}), mergeDict(mergeDict(APP_322[lang] ?? {}, I18N_TEXTS[lang] ?? {}), I18N_TEXTS_EXTRA[lang] ?? {})), APP_330[lang] ?? {});
   acc[lang] = {
     ...merged,
     ui: { ...(merged.ui ?? {}), ...(UI_L10N[lang] ?? {}) },
@@ -498,6 +499,22 @@ function interpolate(text: string, params?: Record<string, string | number>): st
   );
 }
 
+/**
+ * 3.3.0: Wenn ein Schlüssel in *keiner* Sprache gefunden wird, wird nicht mehr
+ * der rohe Schlüssel angezeigt (das sah nach einem Fehler aus, z. B.
+ * „shopping.empty"). Stattdessen kommt ein lesbarer Ersatz aus dem letzten
+ * Schlüsselsegment: „shopping.empty" → „Empty".
+ */
+function humanizeKey(key: string): string {
+  const last = key.split('.').pop() ?? key;
+  const words = last
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .trim();
+  if (!words) return key;
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 function getTranslation(lang: Language, key: string, params?: Record<string, string | number>): string {
   // Placeholders are cheap to fill, so only plain labels are cached.
   const cacheKey = params ? "" : `${lang}|${key}`;
@@ -507,7 +524,7 @@ function getTranslation(lang: Language, key: string, params?: Record<string, str
   }
   const keys = key.split(".");
   const found = resolveIn(translations[lang], keys) ?? resolveIn(translations.en, keys);
-  const text = found ?? key;
+  const text = found ?? humanizeKey(key);
   if (cacheKey) textCache.set(cacheKey, text);
   return interpolate(text, params);
 }

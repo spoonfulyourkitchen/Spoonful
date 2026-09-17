@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Dimensions,
   FlatList,
@@ -16,6 +15,8 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+/* 3.3.0: Meldungen im App-Design statt System-Dialog */
+import { Alert } from '../lib/alert';
 import { Bookmark, BookmarkCheck, Clock3, Flame, Heart, MessageSquare, Play, Search, SlidersHorizontal, Star, UsersRound, X } from 'lucide-react-native';
 import { useMutation, useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';

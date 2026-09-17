@@ -82,6 +82,11 @@ if (flag('help')) {
   console.log(`Spoonful Recipe-Bot
 
   --verify                 nur DB-Report (kein Erzeugen)
+  --step-guides            Schritt-Hinweise (Coach-Tipp + Achte auf) für die Bibliothek erzeugen und hochladen
+  --limit=50               (mit --step-guides) nur N Rezepte
+  --country=Syria          (mit --step-guides/--audit) nur dieses Land
+  --all                    (mit --step-guides) auch vorhandene Hinweise neu erzeugen
+  --syria=500              Ziel-Rezeptzahl für Syrien (Standard 500, andere Länder: --per-country)
   --audit                  Nachkontrolle: fehlende/doppelte Bilder, Feldprobleme (+CSV/JSON)
   --fix-images             fehlende Bilder über Commons nachtragen (mit --audit)
   --check-images           auch alle vorhandenen Bild-URLs prüfen (langsam)
@@ -1193,11 +1198,14 @@ function printCountryReport(countries, dbCounts, perCountry) {
   const open = [];
   for (const c of countries) {
     const n = dbCounts.get(c.name) || 0;
-    (n >= perCountry ? done : open).push({ ...c, n });
+    const target = targetFor(c.name, perCountry);
+    (n >= target ? done : open).push({ ...c, n, target });
   }
-  console.log(`\nFertig (>= ${perCountry}): ${done.length} Länder`);
+  console.log(`\nFertig (eigenes Ziel je Land, Syrien ${SYRIA_TARGET}): ${done.length} Länder`);
   console.log(done.map((c) => `  ${c.name} (${c.n})`).join('\n') || '  —');
   console.log(`\nOffen: ${open.length} Länder`);
+  open.slice(0, 25).forEach((c) => console.log(`  ${c.name}: ${c.n}/${c.target}`));
+  if (open.length > 25) console.log(`  … und ${open.length - 25} weitere`);
   const missing = [...dbCounts.keys()].filter((name) => !countries.some((c) => c.name === name));
   if (missing.length) console.log(`\nIn der DB, aber nicht in countries.ts: ${missing.join(', ')}`);
   console.log('');
@@ -1562,6 +1570,186 @@ async function auditMode() {
 }
 
 /* ── Hauptlauf ───────────────────────────────────────────────────────────── */
+/* ── 3.3.0: Länder-Ziele ─────────────────────────────────────────────────────
+ * Manche Küchen sollen bewusst größer sein. Syrien ist die wichtigste Küche der
+ * App und bekommt deshalb ein eigenes Ziel (Standard 500 statt 100).
+ * ------------------------------------------------------------------------- */
+const SYRIA_TARGET = Math.max(1, num('syria', 500));
+
+/** Ziel-Rezeptzahl für ein Land (Syrien: --syria, sonst --per-country). */
+function targetFor(countryName, perCountry) {
+  return String(countryName).toLowerCase() === 'syria' ? Math.max(perCountry, SYRIA_TARGET) : perCountry;
+}
+
+/* ── 3.3.0: Schritt-Hinweise (Coach-Tipp + „Achte auf") ─────────────────────
+ * Erzeugt für JEDES Rezept der Bibliothek pro Schritt einen Coach-Tipp und ein
+ * „Achte auf" und lädt sie direkt in `recipe_step_guides` hoch. Die App zeigt
+ * sie im Kochmodus an (auch im Fokus-Pop-up) und liest sie auf Wunsch vor.
+ *
+ *   node bot.mjs --step-guides                # alles, was noch fehlt
+ *   node bot.mjs --step-guides --limit=50     # nur 50 Rezepte (Test)
+ *   node bot.mjs --step-guides --country=Syria
+ *   node bot.mjs --step-guides --all          # auch vorhandene neu erzeugen
+ * ------------------------------------------------------------------------- */
+const GUIDES_PER_BATCH = Math.max(1, Math.min(20, num('guides-batch', 5)));
+
+function recipeSteps(row) {
+  const raw = row?.steps;
+  let list = [];
+  if (Array.isArray(raw)) list = raw;
+  else if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) list = parsed;
+    } catch {
+      list = raw.split('\n');
+    }
+  }
+  return list.map((s) => String(s ?? '').trim()).filter(Boolean);
+}
+
+function recipeIngredients(row) {
+  const raw = row?.ingredients;
+  if (Array.isArray(raw)) return raw.map((i) => String(i ?? '').trim()).filter(Boolean);
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map((i) => String(i ?? '').trim()).filter(Boolean);
+    } catch {
+      return raw.split('\n').map((i) => i.trim()).filter(Boolean);
+    }
+  }
+  return [];
+}
+
+/** Alle Rezepte der Bibliothek (id, title, ingredients, steps, cuisine). */
+async function fetchAllRecipes() {
+  const out = [];
+  const page = 500;
+  for (let offset = 0; offset < 40000; offset += page) {
+    const rows = await rest(
+      `recipes?select=id,title,ingredients,steps,cuisine&order=id.asc&limit=${page}&offset=${offset}`,
+    );
+    if (!Array.isArray(rows) || !rows.length) break;
+    out.push(...rows);
+    if (rows.length < page) break;
+  }
+  return out;
+}
+
+/** Rezept-Ids, die schon Hinweise haben. */
+async function fetchGuideIds() {
+  const ids = new Set();
+  const page = 1000;
+  for (let offset = 0; offset < 60000; offset += page) {
+    const rows = await rest(`recipe_step_guides?select=recipe_id&lang=eq.en&limit=${page}&offset=${offset}`);
+    if (!Array.isArray(rows) || !rows.length) break;
+    rows.forEach((r) => ids.add(String(r.recipe_id)));
+    if (rows.length < page) break;
+  }
+  return ids;
+}
+
+function guidePrompt(rows) {
+  const system =
+    'You write short cooking guidance for a recipe app. Answer with valid JSON only: ' +
+    '{"guides":[{"coach":"...","look":"..."}]} — exactly one entry per step, same order and count as the input steps. ' +
+    '"coach" is one practical sentence (max 140 characters) that helps the cook do this step right: what to watch, ' +
+    'how to tell it is done, a small technique hint. "look" is a short visible check (max 90 characters) that answers ' +
+    '"how do I know it is right?" (colour, smell, texture, sound). English, plain language, no emojis, ' +
+    'no numbers that are not in the recipe, never invent new ingredients.';
+  const user = rows
+    .map((row, i) => {
+      const ingredients = recipeIngredients(row).join('; ');
+      const steps = recipeSteps(row)
+        .map((s, n) => `${n + 1}. ${s}`)
+        .join('\n');
+      return [`Recipe ${i + 1}: ${row.title ?? ''}`, ingredients ? `Ingredients: ${ingredients}` : '', 'Steps:', steps]
+        .filter(Boolean)
+        .join('\n');
+    })
+    .join('\n---\n');
+  return { system, user };
+}
+
+const guideValidator = (json) => Array.isArray(json?.guides) && json.guides.some((g) => String(g?.coach ?? '').trim().length > 10);
+
+async function insertGuides(recipeId, stepsCount, guides) {
+  const rows = [];
+  for (let i = 0; i < Math.min(stepsCount, guides.length); i += 1) {
+    const coach = String(guides[i]?.coach ?? '').trim().slice(0, 400);
+    const look = String(guides[i]?.look ?? '').trim().slice(0, 240);
+    if (!coach && !look) continue;
+    rows.push({ recipe_id: String(recipeId), step_index: i, lang: 'en', coach_tip: coach || null, look_for: look || null });
+  }
+  if (!rows.length) return 0;
+  await rest('recipe_step_guides?on_conflict=recipe_id,step_index,lang', {
+    method: 'POST',
+    body: rows,
+    prefer: 'resolution=merge-duplicates,return=minimal',
+  });
+  return rows.length;
+}
+
+async function stepGuidesMode() {
+  if (!CFG.serviceKey) {
+    console.error('Fehlt: SUPABASE_SERVICE_ROLE_KEY — lege tools/recipe-bot/.env an (siehe .env.example).');
+    process.exit(1);
+  }
+  const onlyCountry = String(opt('country', '')).trim();
+  const onlyMissing = !flag('all');
+  const limit = Math.max(0, num('limit', 0));
+
+  log('Schritt-Hinweise: Rezepte laden…');
+  let recipes = await fetchAllRecipes();
+  if (onlyCountry) recipes = recipes.filter((r) => String(r.cuisine ?? '').toLowerCase() === onlyCountry.toLowerCase());
+  if (onlyMissing) {
+    const done = await fetchGuideIds();
+    recipes = recipes.filter((r) => !done.has(String(r.id)));
+  }
+  recipes = recipes.filter((r) => recipeSteps(r).length > 0);
+  if (limit) recipes = recipes.slice(0, limit);
+
+  log(`${recipes.length} Rezepte ohne Hinweise${onlyCountry ? ` (${onlyCountry})` : ''} — ${GUIDES_PER_BATCH} je Anfrage`);
+  writeStatus({ running: true, mode: 'step-guides', total: recipes.length, done: 0 });
+
+  let done = 0;
+  let written = 0;
+  for (let i = 0; i < recipes.length; i += GUIDES_PER_BATCH) {
+    const batch = recipes.slice(i, i + GUIDES_PER_BATCH);
+    const { system, user } = guidePrompt(batch);
+    try {
+      const { json } = await askModel(
+        [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
+        0.3,
+        guideValidator,
+      );
+      /* Die Antwort kann einen Block je Rezept enthalten (Liste von Listen),
+         sonst gelten die Hinweise für alle Rezepte der Anfrage. */
+      const blocks = Array.isArray(json?.guides) ? json.guides : [];
+      const perRecipe = Array.isArray(json?.recipes) ? json.recipes : null;
+      if (perRecipe && perRecipe.length === batch.length) {
+        for (let b = 0; b < batch.length; b += 1) {
+          written += await insertGuides(batch[b].id, recipeSteps(batch[b]).length, perRecipe[b]?.guides ?? []);
+        }
+      } else {
+        for (const row of batch) written += await insertGuides(row.id, recipeSteps(row).length, blocks);
+      }
+      done += batch.length;
+      log(`  ${done}/${recipes.length} Rezepte, ${written} Schritte`);
+      writeStatus({ running: true, mode: 'step-guides', total: recipes.length, done, written });
+    } catch (e) {
+      log(`  Anfrage fehlgeschlagen: ${e instanceof Error ? e.message : e}`, 'warn');
+      await sleep(4000);
+    }
+  }
+  writeStatus({ running: false, mode: 'step-guides', total: recipes.length, done, written, finishedAt: new Date().toISOString() });
+  log(`Fertig: ${done} Rezepte, ${written} Schritt-Hinweise gespeichert.`);
+}
+
 async function main() {
   if (flag('audit')) {
     await auditMode();
@@ -1573,6 +1761,10 @@ async function main() {
   }
   if (flag('check-keys')) {
     await checkKeys();
+    return;
+  }
+  if (flag('step-guides')) {
+    await stepGuidesMode();
     return;
   }
   if (!CFG.serviceKey) {
@@ -1601,7 +1793,7 @@ async function main() {
   if (unknown.length) log(`Unbekannte Ländernamen (Schreibweise wie in countries.ts): ${unknown.join(', ')}`, 'warn');
 
   let todo = countries.filter((c) => (onlyNames.length ? onlyNames.some((n) => n.toLowerCase() === c.name.toLowerCase()) : true));
-  if (!flag('overwrite')) todo = todo.filter((c) => (dbCounts.get(c.name) || 0) < perCountry);
+  if (!flag('overwrite')) todo = todo.filter((c) => (dbCounts.get(c.name) || 0) < targetFor(c.name, perCountry));
   if (args.has('max-countries')) todo = todo.slice(0, num('max-countries', 1));
 
   printCountryReport(countries, dbCounts, perCountry);
@@ -1631,7 +1823,7 @@ async function main() {
     for (const country of pending) {
       const t0 = Date.now();
       const already = dbCounts.get(country.name) || 0;
-      const need = Math.max(0, perCountry - already);
+      const need = Math.max(0, targetFor(country.name, perCountry) - already);
       if (!need) continue;
       log(`── ${country.name} ─────────────────────────────`);
       log(`   vorhanden: ${already}, fehlend: ${need}`);

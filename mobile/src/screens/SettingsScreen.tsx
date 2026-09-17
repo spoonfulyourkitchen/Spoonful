@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Linking,
   Modal,
@@ -13,6 +12,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
+/* 3.3.0: Meldungen im App-Design statt System-Dialog */
+import { Alert } from '../lib/alert';
 import { ChevronRight, Check, Download, FileText, Globe, LogOut, Mail, Palette, Play, ShieldCheck, Star, Trash2, UserRound, Users } from 'lucide-react-native';
 import { useAction, useAuthActions, useMutation, useQuery } from '../lib/convex-auth';
 import { useTranslation, LANGUAGES, isRestartRequired, markLanguagePickerShown, tryReloadApp } from '../lib/i18n';

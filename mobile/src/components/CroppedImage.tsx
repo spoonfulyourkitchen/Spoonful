@@ -98,13 +98,19 @@ export function CroppedImage({
   const active = crop && !isCropDefault(crop) && size.w > 0 && size.h > 0;
   const c = active ? clampCrop(crop as PhotoCrop) : null;
 
-  /* Cover-Maßstab × Zoom, dann den Fokuspunkt genau in die Mitte legen. */
+  /* Cover-Maßstab × Zoom, dann den Fokuspunkt genau in die Mitte legen.
+     3.3.0: die Bildgröße kommt aus dem Ausschnitt selbst (`iw`/`ih`) — nur wenn
+     sie fehlt (alte Ausschnitte), wird sie nachgeladen. So stimmt der Ausschnitt
+     auch bei Bildern, deren Größe nicht abfragbar ist. */
+  const known = crop && crop.iw && crop.ih && crop.iw > 0 && crop.ih > 0
+    ? { w: crop.iw, h: crop.ih }
+    : imgSize;
   const view = (() => {
-    if (!c || !imgSize) return null;
-    const base = Math.max(size.w / imgSize.w, size.h / imgSize.h);
+    if (!c || !known) return null;
+    const base = Math.max(size.w / known.w, size.h / known.h);
     const scale = base * c.zoom;
-    const drawW = imgSize.w * scale;
-    const drawH = imgSize.h * scale;
+    const drawW = known.w * scale;
+    const drawH = known.h * scale;
     return { width: drawW, height: drawH, left: size.w / 2 - c.fx * drawW, top: size.h / 2 - c.fy * drawH };
   })();
 

@@ -18,6 +18,8 @@ class MainApplication : Application(), ReactApplication {
           // add(MyReactNativePackage())
           // 3.2.0: Teilen-Ziel (TikTok/Instagram/YouTube -> Spoonful)
           add(ShareIntentPackage())
+          // 3.3.0: Vorlesen im Kochmodus (Android Text-to-Speech)
+          add(SpoonfulPackage())
         },
     )
   }
