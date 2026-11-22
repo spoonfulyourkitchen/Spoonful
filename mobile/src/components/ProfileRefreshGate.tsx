@@ -6,7 +6,7 @@ import { colors, fonts } from '../theme';
 import { useTranslation } from '../lib/i18n';
 import { useConvexAuth } from '../lib/convex-auth';
 import { addPendingOp } from '../lib/offline';
-import { saveLocalPrefs } from '../lib/local-prefs';
+import { readLocalPrefs, saveLocalPrefs } from '../lib/local-prefs';
 import { isLocalTestActive } from '../lib/local-test';
 import { DEFAULT_INTRO_ANSWERS, readIntroAnswers, type IntroAnswers } from '../lib/intro-answers';
 
@@ -41,14 +41,17 @@ export function ProfileRefreshGate() {
     let alive = true;
     void (async () => {
       try {
-        const [marker, seen, stored] = await Promise.all([
+        const [marker, seen, stored, prefs] = await Promise.all([
           AsyncStorage.getItem(MARKER_KEY),
           AsyncStorage.getItem(SEEN_KEY),
           readIntroAnswers(),
+          readLocalPrefs(),
         ]);
         if (!alive) return;
         if (stored) setAnswers({ ...DEFAULT_INTRO_ANSWERS, ...stored });
-        const oldUser = seen === '1' && !isLocalTestActive();
+        const startedAt = Number(prefs.startedAt ?? 0);
+        const fresh = startedAt > 0 && Date.now() - startedAt < 86400000;
+        const oldUser = seen === '1' && !fresh && !isLocalTestActive();
         if (!marker && oldUser && isAuthenticated) setVisible(true);
       } catch {}
       if (alive) setReady(true);

@@ -65,6 +65,7 @@ export function OnboardingScreen() {
       await addPendingOp('tracker.weight.add', { kg: profile.weight, at: Date.now() });
 
       await ensureStartedAt().catch(() => 0);
+      await AsyncStorage.setItem('spoonful:profile-refresh:v1', '1').catch(() => {});
       await saveLocalPrefs({
         name: answers?.name,
         goal: answers?.goal,

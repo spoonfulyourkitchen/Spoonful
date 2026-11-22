@@ -181,6 +181,7 @@ export function LandingScreen() {
     await AsyncStorage.setItem(SEEN_KEY, '1').catch(() => {});
     await AsyncStorage.setItem(ENTRY_KEY, register ? 'register' : 'login').catch(() => {});
     await ensureStartedAt().catch(() => 0);
+    await AsyncStorage.setItem('spoonful:profile-refresh:v1', '1').catch(() => {});
     await saveLocalPrefs({
       name: answers.name,
       goal: answers.goal,
