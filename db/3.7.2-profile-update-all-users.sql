@@ -44,6 +44,7 @@ as $function$
       created_at
     from announcements, state
     where active
+      and state.signed_in
       and (
         audience = 'all'
         or (audience = 'incomplete_profile' and state.incomplete)
