@@ -36,7 +36,7 @@ import { useTutorialTarget } from '../lib/tutorial';
 import { markReviewAction } from '../lib/review';
 import { readIntroAnswers } from '../lib/intro-answers';
 import { computeTargets, useNutritionProfile } from '../lib/nutrition-profile';
-import { useLocalPrefs } from '../lib/local-prefs';
+import { saveLocalPrefs, useLocalPrefs } from '../lib/local-prefs';
 import { experienceForAi, skillLevel } from '../lib/skill';
 
 const QUICK = ['eggs', 'tomato', 'cheese', 'pasta', 'rice', 'chicken', 'onion', 'garlic', 'spinach', 'potato'];
@@ -470,13 +470,13 @@ export function AssistantScreen() {
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 10, paddingVertical: 6 }}>
-            <Pressable onPress={() => setServings((s) => Math.max(1, s - 1))} hitSlop={8} accessibilityRole="button" accessibilityLabel="minus">
+            <Pressable onPress={() => { const next = Math.max(1, servings - 1); setServings(next); void saveLocalPrefs({ householdSize: next }); }} hitSlop={8} accessibilityRole="button" accessibilityLabel="minus">
               <Minus size={14} color={colors.textPrimary} />
             </Pressable>
             <Text style={{ fontSize: 13, fontWeight: '800', color: colors.textPrimary, minWidth: 62, textAlign: 'center' }}>
               {servings} {t('common.servingsUnit')}
             </Text>
-            <Pressable onPress={() => setServings((s) => Math.min(12, s + 1))} hitSlop={8} accessibilityRole="button" accessibilityLabel="plus">
+            <Pressable onPress={() => { const next = Math.min(12, servings + 1); setServings(next); void saveLocalPrefs({ householdSize: next }); }} hitSlop={8} accessibilityRole="button" accessibilityLabel="plus">
               <Plus size={14} color={colors.textPrimary} />
             </Pressable>
           </View>
