@@ -110,6 +110,13 @@ export function cacheRead<T>(key: string): T | undefined {
   return memCache.get(key) as T | undefined;
 }
 
+export async function cacheRemove(key: string) {
+  memCache.delete(key);
+  try {
+    await AsyncStorage.removeItem(CACHE_PREFIX + key);
+  } catch {}
+}
+
 export async function cacheWrite<T>(key: string, value: T) {
   memCache.set(key, value);
   try {

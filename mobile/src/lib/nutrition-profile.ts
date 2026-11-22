@@ -13,6 +13,7 @@ export type NutritionProfile = {
   activity: Activity;
   goal: GoalTag;
   targetWeight?: number;
+  syncedAt?: number;
 };
 
 export const NUTRITION_PROFILE_KEY = 'spoonful:nutrition-profile';
@@ -74,6 +75,7 @@ function normalize(raw: any): NutritionProfile {
     activity: (activity === 1 || activity === 2 || activity === 3 || activity === 4 ? activity : 3) as Activity,
     goal: parsed.goal === 'cut' || parsed.goal === 'bulk' ? parsed.goal : 'maintain',
     targetWeight: Number(parsed.targetWeight) > 0 ? Math.round(Number(parsed.targetWeight) * 10) / 10 : undefined,
+    syncedAt: Number(parsed.syncedAt) > 0 ? Number(parsed.syncedAt) : undefined,
   };
 }
 

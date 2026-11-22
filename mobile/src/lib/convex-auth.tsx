@@ -38,6 +38,11 @@ export function refreshAllQueries() {
   bumpTick();
 }
 
+export function clearQueryCacheAndRefresh() {
+  clearQueryCache();
+  bumpTick();
+}
+
 export function ConvexAuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);

@@ -156,6 +156,7 @@ function StepGuideBlock({
 }
 
 import { markReviewAction } from '../lib/review';
+import { readIntroAnswers } from '../lib/intro-answers';
 
 export function CookingScreen({ route }: any) {
   useEffect(() => { markReviewAction('cooking'); }, []);
@@ -217,6 +218,20 @@ export function CookingScreen({ route }: any) {
   const [phase, setPhase] = useState<'prep' | 'cook' | 'done'>('prep');
   const [index, setIndex] = useState(0);
   const [servings, setServings] = useState(BASE_SERVINGS);
+  const servingsTouched = useRef(false);
+
+  useEffect(() => {
+    if (servingsTouched.current) return;
+    let alive = true;
+    void readIntroAnswers().then((stored) => {
+      if (!alive || servingsTouched.current) return;
+      const size = Number(stored?.householdSize ?? 0);
+      if (size > 0) setServings(Math.max(1, Math.min(12, size)));
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
   const [doneSteps, setDoneSteps] = useState<Set<number>>(new Set());
   const [checkedIng, setCheckedIng] = useState<Set<number>>(new Set());
   const [, setSuggested] = useState<number | null>(null);
@@ -547,7 +562,10 @@ export function CookingScreen({ route }: any) {
         if (s.phase === 'prep' || s.phase === 'cook' || s.phase === 'done') setPhase(s.phase);
         if (Array.isArray(s.doneSteps)) setDoneSteps(new Set(s.doneSteps.filter((n: unknown) => typeof n === 'number')));
         if (Array.isArray(s.checkedIng)) setCheckedIng(new Set(s.checkedIng.filter((n: unknown) => typeof n === 'number')));
-        if (typeof s.servings === 'number' && s.servings > 0) setServings(s.servings);
+        if (typeof s.servings === 'number' && s.servings > 0) {
+          servingsTouched.current = true;
+          setServings(s.servings);
+        }
       })
       .catch(() => {});
     return () => {
@@ -731,11 +749,11 @@ export function CookingScreen({ route }: any) {
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 }}>
                 <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>{t('s.cookServings')}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <Pressable onPress={() => setServings((s) => Math.max(1, s - 1))} disabled={servings <= 1} style={({ pressed }) => [{ width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, opacity: pressed || servings <= 1 ? 0.5 : 1 }]}>
+                  <Pressable onPress={() => { servingsTouched.current = true; setServings((s) => Math.max(1, s - 1)); }} disabled={servings <= 1} style={({ pressed }) => [{ width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, opacity: pressed || servings <= 1 ? 0.5 : 1 }]}>
                     <Minus size={15} color={colors.textPrimary} />
                   </Pressable>
                   <Text style={{ minWidth: 30, textAlign: 'center', fontSize: 18, fontWeight: '800', color: colors.textPrimary }}>{servings}</Text>
-                  <Pressable onPress={() => setServings((s) => Math.min(20, s + 1))} style={({ pressed }) => [{ width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.5 : 1 }]}>
+                  <Pressable onPress={() => { servingsTouched.current = true; setServings((s) => Math.min(20, s + 1)); }} style={({ pressed }) => [{ width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.5 : 1 }]}>
                     <Plus size={15} color={colors.textPrimary} />
                   </Pressable>
                 </View>

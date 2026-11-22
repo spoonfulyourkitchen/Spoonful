@@ -28,6 +28,7 @@ import {
 import {
   computeTargets,
   goalTagFromOnboarding,
+  setNutritionProfile,
   waterGoalFor,
   type Activity,
   type Sex,
@@ -181,7 +182,7 @@ export function LandingScreen() {
     await AsyncStorage.setItem(SEEN_KEY, '1').catch(() => {});
     await AsyncStorage.setItem(ENTRY_KEY, register ? 'register' : 'login').catch(() => {});
     await ensureStartedAt().catch(() => 0);
-    await AsyncStorage.setItem('spoonful:profile-refresh:v1', '1').catch(() => {});
+    await AsyncStorage.setItem('spoonful:profile-refresh:v2', '1').catch(() => {});
     await saveLocalPrefs({
       name: answers.name,
       goal: answers.goal,
@@ -192,6 +193,16 @@ export function LandingScreen() {
       cookTime: answers.cookTime,
       cuisines: answers.cuisines,
     }).catch(() => {});
+    setNutritionProfile({
+      sex: answers.sex,
+      age: answers.age,
+      height: answers.height,
+      weight: answers.weight,
+      activity: answers.activity,
+      goal: goalTagFromOnboarding(answers.goal),
+      targetWeight: answers.targetWeight || undefined,
+      syncedAt: Date.now(),
+    });
     if (localTest === 'onboarding') {
       await completeLocalTest();
       return;

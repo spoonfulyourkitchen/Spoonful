@@ -350,10 +350,8 @@ export async function shareHouseholdList(title: string, items: HhShoppingItem[])
 }
 
 export async function updateHouseholdList(id: string, items: HhShoppingItem[]): Promise<void> {
-  await safe(async () => {
-    await supabase.rpc('update_household_list', { p_id: id, p_items: items });
-    return null;
-  }, null);
+  const { error } = await supabase.rpc('update_household_list', { p_id: id, p_items: items });
+  if (error && !missing(error)) throw new Error(error.message);
 }
 
 export async function removeHouseholdList(id: string): Promise<void> {
@@ -418,13 +416,11 @@ export async function addTask(title: string, assignedTo?: string | null, assigne
 }
 
 export async function setTaskDone(id: string, done: boolean): Promise<void> {
-  await safe(async () => {
-    await supabase
-      .from('household_tasks')
-      .update({ done, done_at: done ? new Date().toISOString() : null })
-      .eq('id', id);
-    return null;
-  }, null);
+  const { error } = await supabase
+    .from('household_tasks')
+    .update({ done, done_at: done ? new Date().toISOString() : null })
+    .eq('id', id);
+  if (error && !missing(error)) throw new Error(error.message);
 }
 
 export async function removeTask(id: string): Promise<void> {

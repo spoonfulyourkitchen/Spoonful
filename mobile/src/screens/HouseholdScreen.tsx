@@ -26,7 +26,8 @@ import { QrCodeView } from '../components/QrCodeView';
 import { Collapsible } from '../components/Collapsible';
 import { HouseholdQrScannerModal } from '../components/HouseholdQrScannerModal';
 import { useTranslation } from '../lib/i18n';
-import { useMutation, useQuery } from '../lib/convex-auth';
+import { clearQueryCacheAndRefresh, useMutation, useQuery } from '../lib/convex-auth';
+import { cacheRemove } from '../lib/offline';
 import { api } from '../lib/api';
 import { colors, fonts, rgbaHelper } from '../theme';
 import { navigate } from '../navigation/rootRef';
@@ -125,6 +126,7 @@ export function HouseholdScreen() {
     try {
       await fn();
       after?.();
+      clearQueryCacheAndRefresh();
       await refresh();
     } catch (e) {
       Alert.alert(t('s.hhError'), e instanceof Error ? e.message : undefined);
@@ -174,6 +176,8 @@ export function HouseholdScreen() {
 
   const switchHousehold = () => {
     resetShoppingLocal();
+    void cacheRemove('shopping');
+    clearQueryCacheAndRefresh();
   };
   const doCreate = () =>
     run(() => createHousehold({ name: nameDraft.trim() || `${me} ${t('hh.title')}` }), switchHousehold);
@@ -254,7 +258,10 @@ export function HouseholdScreen() {
     run(() => addTask(taskDraft, null, null), () => {
       setTaskDraft('');
     });
-  const toggleTask = (tk: HhTask) => run(() => setTaskDone(tk.id, !tk.done));
+  const toggleTask = (tk: HhTask) => {
+    setTasks((all) => all.map((t) => (t.id === tk.id ? { ...t, done: !t.done } : t)));
+    return run(() => setTaskDone(tk.id, !tk.done));
+  };
 
   
   const doAddExpense = () =>
@@ -275,9 +282,15 @@ export function HouseholdScreen() {
 
   
   const toggleHhItem = (list: HhList, index: number) => {
+    const previous = list.items;
     const next = list.items.map((it, i) => (i === index ? { ...it, checked: !it.checked } : it));
     setLists((all) => all.map((l) => (l.id === list.id ? { ...l, items: next } : l)));
-    void updateHouseholdList(list.id, next);
+    void updateHouseholdList(list.id, next)
+      .then(() => clearQueryCacheAndRefresh())
+      .catch((e) => {
+        setLists((all) => all.map((l) => (l.id === list.id ? { ...l, items: previous } : l)));
+        Alert.alert(t('s.hhError'), e instanceof Error ? e.message : undefined);
+      });
   };
 
   

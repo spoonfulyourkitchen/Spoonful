@@ -16,8 +16,7 @@ import {
 } from '../lib/intro-answers';
 import { goalTagFromOnboarding, setNutritionProfile, type Activity, type Sex } from '../lib/nutrition-profile';
 
-const MARKER_KEY = 'spoonful:profile-refresh:v1';
-const SEEN_KEY = 'spoonful:intro-seen';
+const MARKER_KEY = 'spoonful:profile-refresh:v2';
 const DIETS = ['vegetarian', 'vegan', 'pescatarian', 'halal', 'kosher', 'glutenFree', 'lactoseFree'];
 const ALLERGENS = ['nuts', 'milk', 'gluten', 'eggs', 'soy', 'fish', 'shellfish'];
 const EXPERIENCE = ['beginner', '1-2 years', '3-5 years', '5+ years', 'professional'];
@@ -80,18 +79,19 @@ export function ProfileRefreshGate() {
     let alive = true;
     void (async () => {
       try {
-        const [marker, seen, stored, prefs] = await Promise.all([
+        const [marker, stored, prefs] = await Promise.all([
           AsyncStorage.getItem(MARKER_KEY),
-          AsyncStorage.getItem(SEEN_KEY),
           readIntroAnswers(),
           readLocalPrefs(),
         ]);
         if (!alive) return;
         if (stored) setAnswers({ ...DEFAULT_INTRO_ANSWERS, ...stored });
         const startedAt = Number(prefs.startedAt ?? 0);
-        const fresh = startedAt > 0 && Date.now() - startedAt < 86400000;
-        const oldUser = seen === '1' && !fresh && !isLocalTestActive();
-        if (!marker && oldUser && isAuthenticated) setVisible(true);
+        const completedAt = Number(stored?.completedAt ?? 0);
+        const recent = Math.max(startedAt, completedAt);
+        const fresh = recent > 0 && Date.now() - recent < 86400000;
+        const signedInLongEnough = !fresh && !isLocalTestActive();
+        if (!marker && signedInLongEnough && isAuthenticated) setVisible(true);
       } catch {}
       if (alive) setReady(true);
     })();
@@ -132,6 +132,7 @@ export function ProfileRefreshGate() {
       weight: answers.weight,
       activity: answers.activity,
       targetWeight: answers.targetWeight || undefined,
+      syncedAt: Date.now(),
     });
     await addPendingOp('profile.save', {
       goal: answers.goal || 'keep',

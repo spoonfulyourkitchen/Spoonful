@@ -17,8 +17,8 @@ import { hydrateLocalOnboarded, useLocalOnboarded } from './src/lib/onboarding';
 import { hydrateShoppingLocal } from './src/lib/shopping-local';
 import { hydrateTrackerLocal } from './src/lib/tracker-local';
 import {
+  getNutritionProfile,
   goalTagFromOnboarding,
-  hasStoredNutritionProfile,
   hydrateNutritionProfile,
   setNutritionProfile,
 } from './src/lib/nutrition-profile';
@@ -181,9 +181,10 @@ function RootNavigator() {
     void hydrateLocalOnboarded();
     void (async () => {
       await hydrateNutritionProfile();
-      if (await hasStoredNutritionProfile()) return;
       const intro = await readIntroAnswers();
       if (!intro?.completedAt) return;
+      const stored = getNutritionProfile();
+      if ((stored.syncedAt ?? 0) >= intro.completedAt) return;
       setNutritionProfile({
         sex: intro.sex,
         age: intro.age,
@@ -192,6 +193,7 @@ function RootNavigator() {
         activity: intro.activity,
         goal: goalTagFromOnboarding(intro.goal),
         targetWeight: intro.targetWeight || undefined,
+        syncedAt: intro.completedAt,
       });
     })();
     AsyncStorage.getItem(SESSION_KEY).then((v) => {

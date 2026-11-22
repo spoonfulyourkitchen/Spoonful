@@ -22,6 +22,7 @@ import {
 } from 'lucide-react-native';
 import { useAction, useMutation, useQuery } from '../lib/convex-auth';
 import { api, SHARE_RETRY_WAIT_MS } from '../lib/api';
+import { readIntroAnswers } from '../lib/intro-answers';
 import { colors, difficultyColor, rgbaHelper, subscribeTheme } from '../theme';
 import { navigate, goBack } from '../navigation/rootRef';
 import { AppButton, GlassCard, InfoBox, SectionLabel } from '../components/ui';
@@ -67,6 +68,18 @@ export function RecipeDetailScreen({ route }: any) {
   const [busy, setBusy] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [logPortions, setLogPortions] = useState(1);
+
+  useEffect(() => {
+    let alive = true;
+    void readIntroAnswers().then((stored) => {
+      if (!alive) return;
+      const size = Number(stored?.householdSize ?? 0);
+      if (size > 0) setLogPortions(Math.max(1, Math.min(12, size)));
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
   const [logBusy, setLogBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [retryAt, setRetryAt] = useState<number | null>(null);
