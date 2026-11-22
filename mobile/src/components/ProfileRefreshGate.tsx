@@ -1,13 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Check, Sparkles } from 'lucide-react-native';
+import { Check, Sparkles, X } from 'lucide-react-native';
 import { colors, fonts } from '../theme';
 import { useTranslation } from '../lib/i18n';
-import { useConvexAuth } from '../lib/convex-auth';
+import { convexClient, useConvexAuth, useQuery } from '../lib/convex-auth';
+import { api } from '../lib/api';
 import { addPendingOp } from '../lib/offline';
-import { readLocalPrefs, saveLocalPrefs } from '../lib/local-prefs';
-import { isLocalTestActive } from '../lib/local-test';
+import { saveLocalPrefs } from '../lib/local-prefs';
 import {
   DEFAULT_INTRO_ANSWERS,
   readIntroAnswers,
@@ -16,7 +15,6 @@ import {
 } from '../lib/intro-answers';
 import { goalTagFromOnboarding, setNutritionProfile, type Activity, type Sex } from '../lib/nutrition-profile';
 
-const MARKER_KEY = 'spoonful:profile-refresh:v2';
 const DIETS = ['vegetarian', 'vegan', 'pescatarian', 'halal', 'kosher', 'glutenFree', 'lactoseFree'];
 const ALLERGENS = ['nuts', 'milk', 'gluten', 'eggs', 'soy', 'fish', 'shellfish'];
 const EXPERIENCE = ['beginner', '1-2 years', '3-5 years', '5+ years', 'professional'];
@@ -70,35 +68,28 @@ const FLOW: Step[] = [
 export function ProfileRefreshGate() {
   const { t, lang } = useTranslation();
   const { isAuthenticated } = useConvexAuth();
-  const [ready, setReady] = useState(false);
-  const [visible, setVisible] = useState(false);
+  const due = useQuery(api.users.profileRefreshDue) as boolean | undefined;
+  const [closed, setClosed] = useState(false);
+  const [canClose, setCanClose] = useState(false);
   const [step, setStep] = useState<Step>('intro');
   const [answers, setAnswers] = useState<IntroAnswers>(DEFAULT_INTRO_ANSWERS);
 
+  const visible = !closed && isAuthenticated && due === true;
+
   useEffect(() => {
-    let alive = true;
-    void (async () => {
-      try {
-        const [marker, stored, prefs] = await Promise.all([
-          AsyncStorage.getItem(MARKER_KEY),
-          readIntroAnswers(),
-          readLocalPrefs(),
-        ]);
-        if (!alive) return;
+    void readIntroAnswers()
+      .then((stored) => {
         if (stored) setAnswers({ ...DEFAULT_INTRO_ANSWERS, ...stored });
-        const startedAt = Number(prefs.startedAt ?? 0);
-        const completedAt = Number(stored?.completedAt ?? 0);
-        const recent = Math.max(startedAt, completedAt);
-        const fresh = recent > 0 && Date.now() - recent < 86400000;
-        const signedInLongEnough = !fresh && !isLocalTestActive();
-        if (!marker && signedInLongEnough && isAuthenticated) setVisible(true);
-      } catch {}
-      if (alive) setReady(true);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [isAuthenticated]);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!visible || step !== 'intro') return;
+    setCanClose(false);
+    const timer = setTimeout(() => setCanClose(true), 12000);
+    return () => clearTimeout(timer);
+  }, [visible, step]);
 
   const save = (patch: Partial<IntroAnswers>) => setAnswers((prev) => ({ ...prev, ...patch }));
 
@@ -107,9 +98,8 @@ export function ProfileRefreshGate() {
     save({ [key]: list.includes(value) ? list.filter((item) => item !== value) : [...list, value] } as Partial<IntroAnswers>);
   };
 
-  const dismiss = async (permanent: boolean) => {
-    if (permanent) await AsyncStorage.setItem(MARKER_KEY, '1').catch(() => {});
-    setVisible(false);
+  const dismiss = () => {
+    setClosed(true);
     setStep('intro');
   };
 
@@ -141,7 +131,8 @@ export function ProfileRefreshGate() {
       cookingExperience: answers.experience || undefined,
       onboardedAt: Date.now(),
     }).catch(() => {});
-    await dismiss(true);
+    await convexClient.mutation(api.users.completeProfileRefresh as any, {}).catch(() => {});
+    dismiss();
   };
 
   const index = FLOW.indexOf(step);
@@ -182,13 +173,18 @@ export function ProfileRefreshGate() {
     }
   }, [step, t]);
 
-  if (!ready || !visible) return null;
+  if (!visible) return null;
 
   if (step === 'intro') {
     return (
-      <Modal visible transparent animationType="fade" onRequestClose={() => void dismiss(false)} statusBarTranslucent>
+      <Modal visible transparent animationType="fade" onRequestClose={() => { if (canClose) dismiss(); }} statusBarTranslucent>
         <View style={{ flex: 1, backgroundColor: colors.overlayStrong, justifyContent: 'center', padding: 20 }}>
           <View style={{ backgroundColor: colors.bg, borderRadius: 24, padding: 22 }}>
+            {canClose ? (
+              <Pressable onPress={dismiss} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('common.close')} style={{ position: 'absolute', top: 14, right: 14, zIndex: 2 }}>
+                <X size={18} color={colors.textSecondary} />
+              </Pressable>
+            ) : null}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <View style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accentSoft }}>
                 <Sparkles size={18} color={colors.accent} />
@@ -208,12 +204,7 @@ export function ProfileRefreshGate() {
               style={({ pressed }) => [{ marginTop: 18, borderRadius: 14, paddingVertical: 13, alignItems: 'center', backgroundColor: colors.darkButton, opacity: pressed ? 0.85 : 1 }]}
             >
               <Text style={{ color: colors.darkButtonText, fontWeight: '800', fontSize: 14 }}>
-                {lang === 'de' ? 'Jetzt ergänzen' : 'Update now'}
-              </Text>
-            </Pressable>
-            <Pressable onPress={() => void dismiss(false)} accessibilityRole="button" style={{ marginTop: 10, paddingVertical: 10, alignItems: 'center' }}>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary }}>
-                {lang === 'de' ? 'Später' : 'Later'}
+                {lang === 'de' ? 'Annehmen und ergänzen' : 'Accept and complete'}
               </Text>
             </Pressable>
           </View>
@@ -284,13 +275,13 @@ export function ProfileRefreshGate() {
   const targetKg = answers.targetWeight || answers.weight;
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={() => void dismiss(false)} statusBarTranslucent>
+    <Modal visible transparent animationType="slide" onRequestClose={dismiss} statusBarTranslucent>
       <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: 24 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, gap: 8 }}>
           <Text style={{ flex: 1, fontSize: 12, fontWeight: '700', color: colors.textSecondary }}>
             {t('ob.progress', { n: index + 1, total })}
           </Text>
-          <Pressable onPress={() => void dismiss(false)} hitSlop={10} accessibilityRole="button">
+          <Pressable onPress={dismiss} hitSlop={10} accessibilityRole="button">
             <Text style={{ fontSize: 13, fontWeight: '700', color: colors.accent }}>{lang === 'de' ? 'Später' : 'Later'}</Text>
           </Pressable>
         </View>

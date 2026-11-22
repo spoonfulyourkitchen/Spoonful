@@ -3,6 +3,27 @@
 import { supabase } from './supabase';
 import { ops, rowError } from './api-core';
 
+ops['users.profileRefreshDue'] = {
+  async query() {
+    const { data, error } = await supabase.rpc('profile_refresh_due');
+    if (error) {
+      if (isMissingRpc(error)) return false;
+      throw rowError(error);
+    }
+    return !!data;
+  },
+};
+ops['users.completeProfileRefresh'] = {
+  async mutation() {
+    const { error } = await supabase.rpc('complete_profile_refresh');
+    if (error) {
+      if (isMissingRpc(error)) return null;
+      throw rowError(error);
+    }
+    return null;
+  },
+};
+
 ops['announcement.latest'] = {
   async query() {
     const { data, error } = await supabase.rpc('latest_announcement');

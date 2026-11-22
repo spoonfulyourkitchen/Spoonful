@@ -76,6 +76,8 @@ export const api = {
   users: {
     currentUser: R('users.currentUser', 'query'),
     saveProfile: R('users.saveProfile', 'mutation'),
+    profileRefreshDue: R('users.profileRefreshDue', 'query'),
+    completeProfileRefresh: R('users.completeProfileRefresh', 'mutation'),
   },
   admin: {
     isAdmin: R('admin.isAdmin', 'query'),
