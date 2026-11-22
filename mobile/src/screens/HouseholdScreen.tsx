@@ -1,6 +1,6 @@
 
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -27,13 +27,11 @@ import { Collapsible } from '../components/Collapsible';
 import { HouseholdQrScannerModal } from '../components/HouseholdQrScannerModal';
 import { useTranslation } from '../lib/i18n';
 import { clearQueryCacheAndRefresh, useMutation, useQuery } from '../lib/convex-auth';
-import { cacheRemove } from '../lib/offline';
 import { api } from '../lib/api';
 import { colors, fonts, rgbaHelper } from '../theme';
 import { navigate } from '../navigation/rootRef';
 import { showAdminLoginAlert } from '../lib/notifications';
 import { recipeLines } from '../lib/recipe';
-import { resetShoppingLocal } from '../lib/shopping-local';
 import {
   addExpense, addNamesToShopping, addNote, addPlanEntry, addTask,
   fetchEvents, fetchExpenses, fetchHouseholdLists, fetchMembers, fetchNotes, fetchPlan, fetchStats, fetchTasks,
@@ -70,6 +68,7 @@ export function HouseholdScreen() {
   const [stats, setStats] = useState<HhStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
   const [moreOpen, setMoreOpen] = useState(false);
   
   const [lists, setLists] = useState<HhList[]>([]);
@@ -110,6 +109,8 @@ export function HouseholdScreen() {
       setExpenses(ex);
       setEvents(ev);
       setStats(st);
+    } catch (e) {
+      Alert.alert(t('s.hhError'), e instanceof Error ? e.message : undefined);
     } finally {
       setLoading(false);
     }
@@ -122,6 +123,8 @@ export function HouseholdScreen() {
   }, [hasHousehold, household?.name, refresh]);
 
   const run = async (fn: () => Promise<any>, after?: () => void) => {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     try {
       await fn();
@@ -131,6 +134,7 @@ export function HouseholdScreen() {
     } catch (e) {
       Alert.alert(t('s.hhError'), e instanceof Error ? e.message : undefined);
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };
@@ -174,18 +178,29 @@ export function HouseholdScreen() {
     }
   };
 
-  const switchHousehold = () => {
-    resetShoppingLocal();
-    void cacheRemove('shopping');
+  const resetHouseholdView = () => {
+    setMembers([]);
+    setTasks([]);
+    setPlan([]);
+    setNotes([]);
+    setExpenses([]);
+    setEvents([]);
+    setStats(null);
+    setLists([]);
+    setOpenList(null);
+    setInvite(null);
     clearQueryCacheAndRefresh();
   };
   const doCreate = () =>
-    run(() => createHousehold({ name: nameDraft.trim() || `${me} ${t('hh.title')}` }), switchHousehold);
-  const doJoin = () =>
-    run(() => joinHousehold({ code: joinCode.trim().toUpperCase() }), () => {
+    run(() => createHousehold({ name: nameDraft.trim() || `${me} ${t('hh.title')}` }), resetHouseholdView);
+  const doJoin = () => {
+    const value = joinCode.trim().toUpperCase();
+    if (!value) return;
+    void run(() => joinHousehold({ code: value }), () => {
       setJoinCode('');
-      resetShoppingLocal();
+      resetHouseholdView();
     });
+  };
 
   
   const [scanOpen, setScanOpen] = useState(false);
@@ -197,13 +212,13 @@ export function HouseholdScreen() {
     setJoinCode(clean);
     void run(() => joinHousehold({ code: clean }), () => {
       setJoinCode('');
-      resetShoppingLocal();
+      resetHouseholdView();
     });
   };
   const doLeave = () =>
     Alert.alert(t('hh.leaveConfirm'), undefined, [
       { text: t('s.cropCancel'), style: 'cancel' },
-      { text: t('hh.leave'), style: 'destructive', onPress: () => void run(() => leaveHousehold({}), () => resetShoppingLocal()) },
+      { text: t('hh.leave'), style: 'destructive', onPress: () => void run(() => leaveHousehold({}), resetHouseholdView) },
     ]);
 
   
