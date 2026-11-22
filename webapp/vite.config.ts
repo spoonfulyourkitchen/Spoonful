@@ -4,6 +4,27 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+
+/**
+ * Every build gets its own id. It is written into builds as __SPOONFUL_BUILD__
+ * and served next to them as version.json; the running app compares both and
+ * reloads when a newer build is online.
+ */
+const buildId =
+  process.env.SPOONFUL_BUILD_ID || new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
+
+function buildVersionPlugin(id: string): Plugin {
+  return {
+    name: 'spoonful-build-version',
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'version.json',
+        source: JSON.stringify({ build: id }),
+      });
+    },
+  };
+}
 const r = (...parts: string[]) => path.resolve(here, ...parts);
 const shim = (file: string) => r('src', 'shims', file);
 
@@ -64,7 +85,7 @@ const base = subFolder ? `/${subFolder}/` : '/';
 
 export default defineConfig({
   base,
-  plugins: [webappPackages(), assetRequire(), react()],
+  plugins: [buildVersionPlugin(buildId), webappPackages(), assetRequire(), react()],
   resolve: {
     alias: [
       // React Native -> React Native Web (+ browser fallbacks for native APIs)
@@ -89,6 +110,7 @@ export default defineConfig({
   define: {
     __DEV__: 'true',
     global: 'globalThis',
+    __SPOONFUL_BUILD__: JSON.stringify(buildId),
   },
   // A tsconfig string keeps Vite from parsing mobile/tsconfig.json (which
   // extends a package that only exists inside mobile/node_modules).

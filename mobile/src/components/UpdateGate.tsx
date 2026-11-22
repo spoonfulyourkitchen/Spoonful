@@ -4,6 +4,7 @@ import { Download, Rocket, X } from 'lucide-react-native';
 import { useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';
 import { APP_VERSION } from '../config';
+import { IS_WEB } from '../lib/platform';
 import { colors, fonts } from '../theme';
 import { useTranslation } from '../lib/i18n';
 
@@ -15,11 +16,13 @@ export function UpdateGate() {
   const closedForSession = useRef(false);
 
   useEffect(() => {
+    if (IS_WEB) return;
     if (closedForSession.current) return;
     if (!notice?.url) return;
     setVisible(true);
   }, [notice?._id, notice?.url]);
 
+  if (IS_WEB) return null;
   if (!notice?.url) return null;
 
   const later = () => {
