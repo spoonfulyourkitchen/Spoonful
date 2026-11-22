@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Search } from 'lucide-react-native';
 
-import { colors, fonts, glassShadow, readableText } from '../theme';
+import { colors, fonts, glassShadow, readableText, rgbaHelper } from '../theme';
 import { useConnectivity } from '../lib/offline';
 import { useTranslation } from '../lib/i18n';
 
@@ -315,29 +315,62 @@ export function SearchField({
   );
 }
 
-export function PageHeader({ eyebrow, title, subtitle, style }: { eyebrow?: string; title: string; subtitle?: string; style?: StyleProp<ViewStyle> }) {
+export function PageHeader({
+  eyebrow,
+  title,
+  subtitle,
+  style,
+  right,
+  children,
+}: {
+  eyebrow?: string;
+  title: string;
+  subtitle?: string;
+  style?: StyleProp<ViewStyle>;
+  right?: React.ReactNode;
+  children?: React.ReactNode;
+}) {
   const conn = useConnectivity();
   const { t } = useTranslation();
   return (
-    <View style={[{ marginBottom: 16 }, style]}>
-      {eyebrow ? (
-        <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', color: colors.accent, marginBottom: 5 }}>
-          {eyebrow}
-        </Text>
-      ) : null}
-      <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-        <Text style={{ fontSize: 30, fontWeight: '700', color: colors.textPrimary, letterSpacing: -0.5, fontFamily: fonts.display }}>
-          {title}
-        </Text>
+    <View
+      style={[
+        {
+          marginBottom: 18,
+          borderRadius: 28,
+          backgroundColor: colors.darkButton,
+          paddingHorizontal: 20,
+          paddingTop: 20,
+          paddingBottom: 20,
+        },
+        style,
+      ]}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        {eyebrow ? (
+          <Text numberOfLines={1} style={{ flex: 1, fontSize: 11, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase', color: rgbaHelper(readableText(colors.darkButton), 0.62) }}>
+            {eyebrow}
+          </Text>
+        ) : (
+          <View style={{ flex: 1 }} />
+        )}
         {conn === 'offline' ? (
-          <View style={{ borderRadius: 999, backgroundColor: 'rgba(180,83,9,0.14)', paddingHorizontal: 8, paddingVertical: 3 }}>
-            <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 0.4, color: '#b45309' }}>{t('s.offlineLabel')}</Text>
+          <View style={{ borderRadius: 999, backgroundColor: rgbaHelper(readableText(colors.darkButton), 0.12), paddingHorizontal: 9, paddingVertical: 4 }}>
+            <Text style={{ fontSize: 10, fontWeight: '800', letterSpacing: 0.4, color: rgbaHelper(readableText(colors.darkButton), 0.9) }}>{t('s.offlineLabel')}</Text>
           </View>
         ) : null}
+        {right}
       </View>
+
+      <Text style={{ fontFamily: fonts.display, fontSize: 29, lineHeight: 34, fontWeight: '900', color: readableText(colors.darkButton), marginTop: 8 }}>
+        {title}
+      </Text>
+
       {subtitle ? (
-        <Text style={{ fontSize: 15, lineHeight: 23, color: colors.textSecondary, marginTop: 6 }}>{subtitle}</Text>
+        <Text style={{ fontSize: 13.5, lineHeight: 20, color: rgbaHelper(readableText(colors.darkButton), 0.72), marginTop: 6 }}>{subtitle}</Text>
       ) : null}
+
+      {children ? <View style={{ marginTop: 16 }}>{children}</View> : null}
     </View>
   );
 }
@@ -355,11 +388,12 @@ export function Segmented<T extends string>({
     <View
       style={{
         flexDirection: 'row',
-        borderRadius: 12,
+        borderRadius: 999,
         borderWidth: 1,
         borderColor: colors.cardBorder,
         backgroundColor: colors.card,
-        padding: 3,
+        padding: 4,
+        gap: 4,
       }}
     >
       {options.map((o) => {
@@ -368,13 +402,13 @@ export function Segmented<T extends string>({
           <PressScale key={o.value} onPress={() => onChange(o.value)} style={{ flex: 1 }}>
             <View
               style={{
-                paddingVertical: 9,
-                borderRadius: 9,
+                paddingVertical: 10,
+                borderRadius: 999,
                 alignItems: 'center',
                 backgroundColor: active ? colors.darkButton : 'transparent',
               }}
             >
-              <Text style={{ fontSize: 13, fontWeight: '600', color: active ? readableText(colors.darkButton) : colors.textSecondary }}>{o.label}</Text>
+              <Text numberOfLines={1} style={{ fontSize: 12.5, fontWeight: '800', color: active ? readableText(colors.darkButton) : colors.textSecondary }}>{o.label}</Text>
             </View>
           </PressScale>
         );

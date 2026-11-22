@@ -936,7 +936,7 @@ export function HouseholdScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void refresh()} tintColor={colors.accent} />}
       >
-        <View style={{ backgroundColor: colors.darkButton, paddingHorizontal: 20, paddingTop: 22, paddingBottom: 22, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 }}>
+        <View style={{ marginHorizontal: 18, marginTop: 12, borderRadius: 28, backgroundColor: colors.darkButton, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 20 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <Text style={{ flex: 1, fontSize: 11, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase', color: rgbaHelper(colors.darkButtonText, 0.6) }}>
               {t('s.hhEyebrow')}

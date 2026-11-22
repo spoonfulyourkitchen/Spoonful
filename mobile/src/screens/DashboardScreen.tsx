@@ -7,7 +7,7 @@ import { api } from '../lib/api';
 import { colors, readableText, subscribeTheme } from '../theme';
 import { Page } from '../navigation/Shell';
 import { navigate } from '../navigation/rootRef';
-import { GlassCard } from '../components/ui';
+import { GlassCard, PageHeader } from '../components/ui';
 import { useCachedList, OfflineBadge } from '../lib/offline';
 import { computeTargets, useNutritionProfile } from '../lib/nutrition-profile';
 import { useTranslation } from '../lib/i18n';
@@ -64,12 +64,9 @@ export function DashboardScreen() {
   return (
     <Page>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 24 }}>
-        <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', color: colors.accent, marginBottom: 5 }}>
-          {greeting(t)}, {name}
-        </Text>
-        <Text style={{ fontSize: 28, fontWeight: '800', color: colors.textPrimary, letterSpacing: -0.5 }}>{t('landing.tagline')}</Text>
+        <PageHeader eyebrow={`${greeting(t)}, ${name}`} title={t('landing.tagline')} />
 
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 2 }}>
           <Stat icon={<ChefHat size={18} color={colors.accent} />} value={`${mine.length}`} label={t('s.mineTitle')} />
           <Stat icon={<Bookmark size={18} color={colors.accent} />} value={`${saved.length}`} label={t('s.dashSaved')} />
           <Stat icon={<Flame size={18} color={colors.accent} />} value={`${todayCal}`} label={t('s.dashKcalToday')} />
