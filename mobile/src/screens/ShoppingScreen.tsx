@@ -1,58 +1,91 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { Check, ChevronDown, ChevronUp, Plus, ShoppingCart, Trash2 } from 'lucide-react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Check, ChevronDown, ChevronUp, Plus, ShoppingCart, Trash2, UsersRound } from 'lucide-react-native';
 
 import { colors, rgbaHelper } from '../theme';
 import { Page } from '../navigation/Shell';
 import { EmptyState, PageHeader } from '../components/ui';
 import { useTranslation } from '../lib/i18n';
 import { clearDraft, loadDraft, saveDraft } from '../lib/draft';
-import { useQuery } from '../lib/convex-auth';
+import { clearQueryCacheAndRefresh, useMutation, useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';
-import { shareHouseholdList } from '../lib/household';
 import {
-  addLocalItem,
-  clearLocalChecked,
   getShoppingLocal,
   hydrateShoppingLocal,
-  removeLocalItem,
-  restoreLocalItem,
-  subscribeShoppingLocal,
-  toggleLocalItem,
+  resetShoppingLocal,
   type LocalShoppingItem,
 } from '../lib/shopping-local';
 
 const INPUT_DRAFT = 'shopping-input';
 const UNDO_MS = 5000;
 
+type Item = LocalShoppingItem & { shared?: boolean };
+
 export function ShoppingScreen() {
   const { t } = useTranslation();
-  const list = useSyncExternalStore(subscribeShoppingLocal, getShoppingLocal, getShoppingLocal);
-  const [ready, setReady] = useState(false);
+  const rows = useQuery(api.shoppingList.list) as any[] | undefined;
+  const addItem = useMutation(api.shoppingList.add);
+  const addMany = useMutation(api.shoppingList.addMany);
+  const toggleItem = useMutation(api.shoppingList.toggle);
+  const removeItem = useMutation(api.shoppingList.remove);
+  const clearChecked = useMutation(api.shoppingList.clearChecked);
+
+  const [items, setItems] = useState<Item[]>([]);
+  const [synced, setSynced] = useState(false);
   const [name, setName] = useState('');
-  const [removed, setRemoved] = useState<LocalShoppingItem | null>(null);
+  const [removed, setRemoved] = useState<Item | null>(null);
   const [doneOpen, setDoneOpen] = useState(false);
-  const household = useQuery(api.household.mine) as any;
-  const [sharedOk, setSharedOk] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const undoTimer = useRef<any>(null);
   const draftReady = useRef(false);
+  const migrated = useRef(false);
+
+  const mapRows = useCallback(
+    (list: any[]): Item[] => list.map((r) => ({
+      id: String(r?._id ?? r?.id ?? ''),
+      name: String(r?.name ?? ''),
+      checked: !!r?.checked,
+      recipeTitle: r?.recipeTitle ? String(r.recipeTitle) : null,
+      at: Number(r?.createdAt) || 0,
+      shared: !!r?.householdId,
+    })),
+    [],
+  );
 
   useEffect(() => {
     let alive = true;
     hydrateShoppingLocal().then(() => {
-      if (alive) setReady(true);
+      if (!alive) return;
+      if (!synced) {
+        const local = getShoppingLocal();
+        if (local.length) setItems(local.map((i) => ({ ...i })));
+      }
     });
     loadDraft<string>(INPUT_DRAFT).then((value) => {
-      if (alive && typeof value === 'string' && value.trim()) {
-        setName(value);
-      }
+      if (alive && typeof value === 'string' && value.trim()) setName(value);
       draftReady.current = true;
     });
     return () => {
       alive = false;
       if (undoTimer.current) clearTimeout(undoTimer.current);
     };
-  }, []);
+  }, [synced]);
+
+  useEffect(() => {
+    if (!rows) return;
+    setSynced(true);
+    setItems(mapRows(rows));
+    if (migrated.current || rows.length) return;
+    migrated.current = true;
+    const local = getShoppingLocal();
+    if (!local.length) return;
+    void addMany({ items: local.map((i) => ({ name: i.name, recipeTitle: i.recipeTitle ?? null })) })
+      .then(() => {
+        resetShoppingLocal();
+        clearQueryCacheAndRefresh();
+      })
+      .catch(() => undefined);
+  }, [rows, mapRows, addMany]);
 
   useEffect(() => {
     if (!draftReady.current) return;
@@ -63,69 +96,110 @@ export function ShoppingScreen() {
     return () => clearTimeout(timer);
   }, [name]);
 
-  const openItems = useMemo(() => list.filter((i) => !i.checked), [list]);
-  const doneItems = useMemo(() => list.filter((i) => i.checked), [list]);
+  const openItems = useMemo(() => items.filter((i) => !i.checked), [items]);
+  const doneItems = useMemo(() => items.filter((i) => i.checked), [items]);
+  const sharedCount = useMemo(() => items.filter((i) => i.shared).length, [items]);
 
   const groups = useMemo(() => {
-    const map = new Map<string, LocalShoppingItem[]>();
+    const map = new Map<string, Item[]>();
     for (const item of openItems) {
       const key = String(item.recipeTitle ?? '').trim();
       const bucket = map.get(key);
       if (bucket) bucket.push(item);
       else map.set(key, [item]);
     }
-    return Array.from(map.entries()).map(([title, items]) => ({ title, items }));
+    return Array.from(map.entries()).map(([title, list]) => ({ title, items: list }));
   }, [openItems]);
 
-  const total = list.length;
-  const done = doneItems.length;
-  const pct = total ? Math.round((done / total) * 100) : 0;
+  const total = items.length;
+  const pct = total ? Math.round((doneItems.length / total) * 100) : 0;
 
   const onAdd = () => {
     const value = name.trim();
     if (!value) return;
-    addLocalItem(value);
+    const temp: Item = { id: `tmp-${Date.now()}`, name: value, checked: false, at: Date.now() };
+    setItems((all) => [...all, temp]);
     setName('');
     void clearDraft(INPUT_DRAFT);
+    void addItem({ name: value })
+      .then(() => clearQueryCacheAndRefresh())
+      .catch((e) => {
+        setItems((all) => all.filter((i) => i.id !== temp.id));
+        setError(e instanceof Error ? e.message : t('s.hhError'));
+      });
   };
 
-  const shareToHousehold = () => {
-    if (!household || !openItems.length) return;
-    setSharedOk(true);
-    const snapshot = openItems.map((i) => ({ name: i.name, checked: i.checked }));
-    void shareHouseholdList(t('shopping.title'), snapshot).then((res) => {
-      if (!res.ok) setSharedOk(false);
-    });
+  const onToggle = (item: Item) => {
+    const next = !item.checked;
+    setItems((all) => all.map((i) => (i.id === item.id ? { ...i, checked: next } : i)));
+    void toggleItem({ id: item.id })
+      .then(() => clearQueryCacheAndRefresh())
+      .catch((e) => {
+        setItems((all) => all.map((i) => (i.id === item.id ? { ...i, checked: item.checked } : i)));
+        setError(e instanceof Error ? e.message : t('s.hhError'));
+      });
   };
 
-  const onRemove = useCallback((item: LocalShoppingItem) => {
-    removeLocalItem(item.id);
+  const onRemove = (item: Item) => {
+    setItems((all) => all.filter((i) => i.id !== item.id));
     setRemoved(item);
     if (undoTimer.current) clearTimeout(undoTimer.current);
     undoTimer.current = setTimeout(() => setRemoved(null), UNDO_MS);
-  }, []);
+    void removeItem({ id: item.id })
+      .then(() => clearQueryCacheAndRefresh())
+      .catch((e) => {
+        setItems((all) => (all.some((i) => i.id === item.id) ? all : [...all, item]));
+        setError(e instanceof Error ? e.message : t('s.hhError'));
+      });
+  };
 
   const undoRemove = () => {
     if (!removed) return;
-    restoreLocalItem(removed);
+    const back = removed;
     setRemoved(null);
     if (undoTimer.current) clearTimeout(undoTimer.current);
+    setItems((all) => (all.some((i) => i.id === back.id) ? all : [...all, back]));
+    void addItem({ name: back.name, recipeTitle: back.recipeTitle ?? null })
+      .then(() => clearQueryCacheAndRefresh())
+      .catch(() => undefined);
   };
 
-  const toggle = useCallback((id: string) => {
-    toggleLocalItem(id);
-  }, []);
+  const clearDone = () => {
+    const done = items.filter((i) => i.checked);
+    setItems((all) => all.filter((i) => !i.checked));
+    void clearChecked({})
+      .then(() => clearQueryCacheAndRefresh())
+      .catch((e) => {
+        setItems((all) => [...all, ...done]);
+        setError(e instanceof Error ? e.message : t('s.hhError'));
+      });
+  };
 
   return (
     <Page>
       <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 64 }} keyboardShouldPersistTaps="handled">
         <PageHeader eyebrow={t('shopping.whatYouNeed')} title={t('shopping.title')} subtitle={`${openItems.length} ${t('s.shopOpen')}`} />
 
+        {!synced ? (
+          <View style={{ paddingVertical: 18, alignItems: 'center' }}>
+            <ActivityIndicator color={colors.accent} />
+          </View>
+        ) : null}
+
+        {error ? (
+          <Pressable
+            onPress={() => setError(null)}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, borderRadius: 12, borderWidth: 1, borderColor: rgbaHelper(colors.rose, 0.35), backgroundColor: rgbaHelper(colors.rose, 0.1), paddingHorizontal: 12, paddingVertical: 10 }}
+          >
+            <Text style={{ flex: 1, fontSize: 12.5, color: colors.textPrimary }}>{error}</Text>
+          </Pressable>
+        ) : null}
+
         {total ? (
           <View style={{ marginBottom: 14 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
               <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.textSecondary }}>
-                {done} / {total} {t('common.done')}
+                {doneItems.length} / {total} {t('common.done')}
               </Text>
               <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.accent }}>{pct}%</Text>
             </View>
@@ -135,18 +209,11 @@ export function ShoppingScreen() {
           </View>
         ) : null}
 
-        {household && openItems.length ? (
-          <Pressable
-            onPress={shareToHousehold}
-            accessibilityRole="button"
-            accessibilityLabel={t('s.shopToHousehold')}
-            style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 10, borderRadius: 14, paddingVertical: 11, backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.75 : 1 }]}
-          >
-            <Check size={15} color={colors.accent} />
-            <Text style={{ fontSize: 13, fontWeight: '800', color: colors.textPrimary }}>
-              {sharedOk ? t('s.shopSharedToHh') : t('s.shopToHousehold')}
-            </Text>
-          </Pressable>
+        {sharedCount ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 10, borderRadius: 12, backgroundColor: colors.accentSoft, paddingHorizontal: 12, paddingVertical: 9 }}>
+            <UsersRound size={14} color={colors.accent} />
+            <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.accent }}>{t('s.shopSharedToHh')}</Text>
+          </View>
         ) : null}
 
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
@@ -173,34 +240,21 @@ export function ShoppingScreen() {
             onPress={onAdd}
             accessibilityRole="button"
             accessibilityLabel={t('common.add')}
-            style={({ pressed }) => [
-              {
-                width: 48,
-                borderRadius: 14,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: colors.accent,
-                opacity: pressed ? 0.8 : name.trim() ? 1 : 0.55,
-              },
-            ]}
+            style={({ pressed }) => [{
+              width: 48,
+              borderRadius: 14,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: colors.accent,
+              opacity: pressed ? 0.8 : name.trim() ? 1 : 0.55,
+            }]}
           >
             <Plus size={22} color={colors.accentText} strokeWidth={2.6} />
           </Pressable>
         </View>
 
         {removed ? (
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 10,
-              marginBottom: 12,
-              borderRadius: 12,
-              backgroundColor: colors.surfaceMuted,
-              paddingHorizontal: 12,
-              paddingVertical: 9,
-            }}
-          >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12, borderRadius: 12, backgroundColor: colors.surfaceMuted, paddingHorizontal: 12, paddingVertical: 9 }}>
             <Text numberOfLines={1} style={{ flex: 1, fontSize: 12.5, fontWeight: '600', color: colors.textSecondary }}>
               {t('s.shopRemoved', { name: removed.name })}
             </Text>
@@ -210,22 +264,14 @@ export function ShoppingScreen() {
           </View>
         ) : null}
 
-        {ready && !list.length ? (
+        {synced && !items.length ? (
           <EmptyState icon={<ShoppingCart size={22} color={colors.accent} />} title={t('shopping.emptyList')} body={t('s.shopEmptyBody')} />
         ) : null}
 
         {groups.map((group) => (
           <View
             key={group.title || 'own'}
-            style={{
-              marginBottom: 10,
-              borderRadius: 18,
-              borderWidth: 1,
-              borderColor: colors.cardBorder,
-              backgroundColor: colors.card,
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-            }}
+            style={{ marginBottom: 10, borderRadius: 18, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 12, paddingVertical: 6 }}
           >
             {group.title ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 6, paddingBottom: 2 }}>
@@ -236,7 +282,7 @@ export function ShoppingScreen() {
               </View>
             ) : null}
             {group.items.map((item) => (
-              <ItemRow key={item.id} item={item} onToggle={toggle} onRemove={onRemove} />
+              <ItemRow key={item.id} item={item} onToggle={onToggle} onRemove={onRemove} />
             ))}
           </View>
         ))}
@@ -253,10 +299,10 @@ export function ShoppingScreen() {
             {doneOpen ? (
               <View style={{ paddingHorizontal: 12, paddingBottom: 12 }}>
                 {doneItems.map((item) => (
-                  <ItemRow key={item.id} item={item} onToggle={toggle} onRemove={onRemove} />
+                  <ItemRow key={item.id} item={item} onToggle={onToggle} onRemove={onRemove} />
                 ))}
                 <Pressable
-                  onPress={clearLocalChecked}
+                  onPress={clearDone}
                   style={({ pressed }) => [{ marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, paddingVertical: 10, backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.75 : 1 }]}
                 >
                   <Trash2 size={14} color={colors.textSecondary} />
@@ -271,11 +317,11 @@ export function ShoppingScreen() {
   );
 }
 
-const ItemRow = React.memo(function ItemRow({ item, onToggle, onRemove }: { item: LocalShoppingItem; onToggle: (id: string) => void; onRemove: (item: LocalShoppingItem) => void }) {
+const ItemRow = React.memo(function ItemRow({ item, onToggle, onRemove }: { item: Item; onToggle: (item: Item) => void; onRemove: (item: Item) => void }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
       <Pressable
-        onPress={() => onToggle(item.id)}
+        onPress={() => onToggle(item)}
         accessibilityRole="checkbox"
         accessibilityState={{ checked: !!item.checked }}
         style={({ pressed }) => [{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 11, opacity: pressed ? 0.7 : 1 }]}

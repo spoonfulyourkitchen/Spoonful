@@ -5,6 +5,25 @@ import { ops, rowError, type Op } from './api-core';
 import './api-community';
 import './api-notices';
 
+let shoppingHousehold: { id: string | null; at: number } | null = null;
+
+function forgetShoppingHousehold() {
+  shoppingHousehold = null;
+}
+
+async function shoppingHouseholdId(): Promise<string | null> {
+  if (shoppingHousehold && Date.now() - shoppingHousehold.at < 15000) return shoppingHousehold.id;
+  try {
+    const uid = await requireUserId();
+    const { data } = await supabase.from('users').select('household_id').eq('id', uid).maybeSingle();
+    const id = String((data as any)?.household_id ?? '') || null;
+    shoppingHousehold = { id, at: Date.now() };
+    return id;
+  } catch {
+    return null;
+  }
+}
+
 export type FnKind = 'query' | 'mutation' | 'action';
 export type FnRef = { __spoonfulRef: true; key: string; kind: FnKind };
 
@@ -484,7 +503,9 @@ ops['household.mine'] = {
 };
 ops['household.create'] = {
   async mutation(_ctx, args: any) {
+    forgetShoppingHousehold();
     const { data, error } = await supabase.rpc('create_household', { p_name: args?.name ?? 'My household' });
+    forgetShoppingHousehold();
     if (error) throw rowError(error);
     return data;
   },
@@ -498,14 +519,18 @@ ops['household.invite'] = {
 };
 ops['household.join'] = {
   async mutation(_ctx, args: any) {
+    forgetShoppingHousehold();
     const { data, error } = await supabase.rpc('join_household', { p_code: String(args?.code ?? '').trim() });
+    forgetShoppingHousehold();
     if (error) throw rowError(error);
     return data;
   },
 };
 ops['household.leave'] = {
   async mutation() {
+    forgetShoppingHousehold();
     const { error } = await supabase.rpc('leave_household');
+    forgetShoppingHousehold();
     if (error) throw rowError(error);
     return null;
   },
@@ -570,6 +595,7 @@ ops['shoppingList.add'] = {
       .from('shopping_list_items')
       .insert({
         user_id: uid,
+        household_id: await shoppingHouseholdId(),
         name: args.name ?? '',
         recipe_key: args.recipeKey ?? null,
         recipe_title: args.recipeTitle ?? null,
@@ -599,10 +625,12 @@ ops['shoppingList.addMany'] = {
       const { data: existing } = await supabase.from('shopping_list_items').select('name').eq('checked', false);
       have = new Set((existing ?? []).map((r: any) => String(r?.name ?? '').trim().toLowerCase()));
     } catch {}
+    const householdId = await shoppingHouseholdId();
     const rows = [...wanted.entries()]
       .filter(([key]) => !have.has(key))
       .map(([, it]: any) => ({
         user_id: uid,
+        household_id: householdId,
         name: it?.name ?? '',
         recipe_key: it?.recipeKey ?? null,
         recipe_title: it?.recipeTitle ?? null,
@@ -617,25 +645,25 @@ ops['shoppingList.addMany'] = {
 };
 ops['shoppingList.toggle'] = {
   async mutation({ uid }, args: any) {
-    const cur = await supabase.from('shopping_list_items').select('checked').eq('id', args.id).eq('user_id', uid).maybeSingle();
+    const cur = await supabase.from('shopping_list_items').select('checked').eq('id', args.id).maybeSingle();
     if (cur.error) throw rowError(cur.error);
     const next = !(cur.data?.checked ?? false);
     const { data, error } = await supabase
-      .from('shopping_list_items').update({ checked: next }).eq('id', args.id).eq('user_id', uid).select().single();
+      .from('shopping_list_items').update({ checked: next }).eq('id', args.id).select().single();
     if (error) throw rowError(error);
     return mapShopping(data);
   },
 };
 ops['shoppingList.remove'] = {
-  async mutation({ uid }, args: any) {
-    const { error } = await supabase.from('shopping_list_items').delete().eq('id', args.id).eq('user_id', uid);
+  async mutation(_ctx, args: any) {
+    const { error } = await supabase.from('shopping_list_items').delete().eq('id', args.id);
     if (error) throw rowError(error);
     return null;
   },
 };
 ops['shoppingList.clearChecked'] = {
-  async mutation({ uid }) {
-    const { error } = await supabase.from('shopping_list_items').delete().eq('user_id', uid).eq('checked', true);
+  async mutation() {
+    const { error } = await supabase.from('shopping_list_items').delete().eq('checked', true);
     if (error) throw rowError(error);
     return null;
   },
