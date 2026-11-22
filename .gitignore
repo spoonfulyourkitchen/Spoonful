@@ -62,3 +62,6 @@ tools/recipe-bot/logs/
 
 # Website (eigenes Repository, siehe website/.git)
 website/
+
+# Interne Anleitungen und Zugangsdaten (nicht im Repo)
+INSTRUCTIONS/

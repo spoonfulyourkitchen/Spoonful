@@ -423,6 +423,14 @@ export async function setTaskDone(id: string, done: boolean): Promise<void> {
   if (error && !missing(error)) throw new Error(error.message);
 }
 
+export async function setTaskAssignee(id: string, userId: string | null, name: string | null): Promise<void> {
+  const { error } = await supabase
+    .from('household_tasks')
+    .update({ assigned_to: userId, assigned_name: name })
+    .eq('id', id);
+  if (error && !missing(error)) throw new Error(error.message);
+}
+
 export async function removeTask(id: string): Promise<void> {
   await safe(async () => {
     await supabase.from('household_tasks').delete().eq('id', id);

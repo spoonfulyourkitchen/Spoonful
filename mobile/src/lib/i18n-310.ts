@@ -5,6 +5,7 @@ export const APP_310: Record<string, Record<string, any>> = {
     s: {
       hhTab: 'Haushalt', hhEyebrow: 'Gemeinsam', hhSubtitle: 'Zusammen kochen, planen, einkaufen',
       hhNoneTitle: 'Noch kein Haushalt', hhNoneBody: 'Gründe einen Haushalt und lade deine Familie ein. Liste, Kochstand, Plan und Aufgaben werden geteilt.',
+      hhLeaveNote: 'Beim Verlassen werden deine Beiträge aus dem Haushalt gelöscht. Ist niemand mehr drin, wird der Haushalt mit allen Daten entfernt.',
       hhNamePh: 'Name des Haushalts', hhJoinPh: 'Einladungscode', hhRename: 'Name ändern', hhSave: 'Speichern',
       hhInviteMake: 'Code erzeugen', hhInvite: 'Code', hhMembers: 'Mitglieder', hhYou: 'Du',
       hhRoleAdmin: 'Admin', hhRoleMember: 'Mitglied', hhMakeAdmin: 'Zum Admin machen', hhMakeMember: 'Zum Mitglied machen',
@@ -31,6 +32,7 @@ export const APP_310: Record<string, Record<string, any>> = {
     s: {
       hhTab: 'Household', hhEyebrow: 'Together', hhSubtitle: 'Cook, plan and shop together',
       hhNoneTitle: 'No household yet', hhNoneBody: 'Create a household and invite your family. List, cooking progress, plan and tasks are shared.',
+      hhLeaveNote: 'When you leave, your entries are removed from the household. If nobody is left, the household and all its data are deleted.',
       hhNamePh: 'Household name', hhJoinPh: 'Invite code', hhRename: 'Change name', hhSave: 'Save',
       hhInviteMake: 'Create code', hhInvite: 'Code', hhMembers: 'Members', hhYou: 'You',
       hhRoleAdmin: 'Admin', hhRoleMember: 'Member', hhMakeAdmin: 'Make admin', hhMakeMember: 'Make member',
