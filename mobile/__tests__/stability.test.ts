@@ -1,8 +1,5 @@
-/**
- * 3.2.2: Tests für die Stabilitäts-Helfer (Bildgrößen, Zeitlimits, Zahlen,
- * Absturz-Protokoll). Diese vier Dinge hängen an jeder Liste und jeder
- * Netzwerk-Anfrage — sie müssen einfach stimmen.
- */
+
+
 jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn(async () => null),
   setItem: jest.fn(async () => undefined),

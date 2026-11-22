@@ -4,14 +4,6 @@ import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { colors, usesSolidStyle } from '../theme';
 
-/**
- * 3.2.1: the gradient layer is memoised.
- *
- * Every screen sits inside a WashBackground, so this SVG tree (4 gradients,
- * 12 stops) used to be rebuilt on every single re-render of a screen - which
- * includes every keystroke in a search field and every list re-render. The
- * props are plain color strings, so React can skip it until the theme changes.
- */
 const WashLayers = React.memo(function WashLayers({
   mint,
   sky,
@@ -53,19 +45,12 @@ const WashLayers = React.memo(function WashLayers({
       </Defs>
       <Rect x="0" y="0" width="100%" height="100%" fill="url(#wash1)" />
       <Rect x="0" y="0" width="100%" height="100%" fill="url(#wash2)" />
-      {/* decorative blobs (off-screen like the web amber blob) */}
       <Rect x="-18%" y="-10%" width="45%" height="45%" fill="url(#wash3)" />
       <Rect x="62%" y="42%" width="60%" height="60%" fill="url(#wash4)" />
     </Svg>
   );
 });
 
-/**
- * The Spoonful background stack (section 9.1 of the spec): a warm-cream base
- * color + soft radial gradient washes (mint top-left, sky bottom-right, an
- * amber "blur blob" off-screen) that sit behind every glass panel. Colors are
- * softened on dark themes so panels stay readable.
- */
 export function WashBackground({
   children,
   style,
@@ -79,10 +64,8 @@ export function WashBackground({
   const sky = colors.dark ? '#155e75' : '#bae6fd';
   const amber = colors.dark ? '#b45309' : '#fde68a';
   const soft = colors.dark ? '#7c3aed' : '#f3e8ff';
-  /**
-   * 3.2.3: Das Haupt-Theme ist bewusst clean — keine Farbschleier im
-   * Hintergrund, nur die reine Theme-Fläche.
-   */
+  
+
   const plain = usesSolidStyle();
 
   return (

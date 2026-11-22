@@ -1,10 +1,5 @@
-/**
- * 3.2.0: Kleiner "Übergabe-Kanal" für Scanner-Codes.
- *
- * Das langes Drücken auf den Tracker-Tab öffnet den Barcode-Scanner von
- * überall. Der Code landet hier und wird vom Tracker abgeholt, sobald er
- * sichtbar ist.
- */
+
+
 let pending: string | null = null;
 const listeners = new Set<(code: string) => void>();
 

@@ -17,7 +17,6 @@ import { colors, readableText } from '../theme';
 
 const REASONS = ['Wrong photo', 'Photo is not this dish', 'False information', 'Offensive content', 'Something else'];
 
-/** Native "report this photo" flow - writes to the Supabase image_reports table. */
 export function ReportPhotoButton({ recipeKey, recipeTitle, imageUrl, onDone }: { recipeKey: string; recipeTitle: string; imageUrl?: string; onDone?: (ok: boolean) => void }) {
   const reportImage = useMutation(api.recipes.reportImage);
   const [open, setOpen] = useState(false);
@@ -50,7 +49,7 @@ export function ReportPhotoButton({ recipeKey, recipeTitle, imageUrl, onDone }: 
 
   return (
     <>
-      <Pressable onPress={() => setOpen(true)} hitSlop={6} style={({ pressed }) => [{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.9)', borderWidth: 1, borderColor: colors.cardBorder }, pressed && { opacity: 0.75 }]} accessibilityLabel={t('s.xReportPhoto')}>
+      <Pressable onPress={() => setOpen(true)} hitSlop={6} style={({ pressed }) => [{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder }, pressed && { opacity: 0.75 }]} accessibilityLabel={t('s.xReportPhoto')}>
         <Flag size={16} color={colors.textSecondary} strokeWidth={2} />
       </Pressable>
 

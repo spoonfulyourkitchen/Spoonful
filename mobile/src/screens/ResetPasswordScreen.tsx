@@ -10,10 +10,6 @@ import { SpoonfulLogo as Logo } from '../components/Logo';
 import { WashBackground } from '../components/GlassBackground';
 import { AppButton, GlassCard } from '../components/ui';
 
-/**
- * Shown after a user opens a password-reset link (spoonful://reset).
- * The recovery session is already active; here the user picks a new password.
- */
 export function ResetPasswordScreen() {
   const insets = useSafeAreaInsets();
   const [password, setPassword] = useState('');

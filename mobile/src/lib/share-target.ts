@@ -1,11 +1,6 @@
-/**
- * 3.2.0: Teilen-Ziel (Android).
- *
- * Wird in TikTok/Instagram/YouTube auf "Teilen" getippt, erscheint Spoonful.
- * Der Link kommt über das native Modul `ShareIntent` an; hier wird er
- * zwischengespeichert und im AI Chef automatisch in die Video-Box geladen.
- */
-import { useEffect, useState } from 'react';
+
+
+import { useEffect, useRef, useState } from 'react';
 import { AppState, NativeModules } from 'react-native';
 
 type ShareNative = { getSharedText: () => Promise<string | null>; clear: () => void };
@@ -34,17 +29,16 @@ export function subscribePendingVideoUrl(listener: (url: string) => void): () =>
   };
 }
 
-/** Erste URL aus einem geteilten Text holen. */
 export function firstUrl(text?: string | null): string | null {
   const match = /(https?:\/\/[^\s]+)/i.exec(String(text ?? ''));
   return match ? match[1] : null;
 }
 
-/**
- * Holt einen geteilten Link ab (App-Start und jedes Mal, wenn die App wieder
- * in den Vordergrund kommt - z. B. direkt nach dem Teilen).
- */
 export function useSharedVideoLink(onLink: (url: string) => void): void {
+  
+
+  const onLinkRef = useRef(onLink);
+  onLinkRef.current = onLink;
   useEffect(() => {
     if (!native?.getSharedText) return;
     let alive = true;
@@ -56,11 +50,9 @@ export function useSharedVideoLink(onLink: (url: string) => void): void {
         native.clear?.();
         if (url) {
           setPendingVideoUrl(url);
-          onLink(url);
+          onLinkRef.current(url);
         }
-      } catch {
-        /* kein geteilter Inhalt */
-      }
+      } catch {}
     };
     void check();
     const sub = AppState.addEventListener('change', (state) => {
@@ -70,11 +62,9 @@ export function useSharedVideoLink(onLink: (url: string) => void): void {
       alive = false;
       sub.remove();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 }
 
-/** Kleiner Hook für Screens: liefert den zuletzt geteilten Link. */
 export function usePendingVideoUrl(): string | null {
   const [url, setUrl] = useState<string | null>(pending);
   useEffect(() => subscribePendingVideoUrl(setUrl), []);

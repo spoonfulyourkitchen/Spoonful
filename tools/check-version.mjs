@@ -1,8 +1,5 @@
-/**
- * Prüft, ob die Version überall gleich ist (Punkt 95 der Stabilitäts-Liste).
- *
- * Aufruf:  node tools/check-version.mjs
- */
+
+
 import { readFileSync, existsSync } from 'node:fs';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -13,17 +10,20 @@ const gradleCode = /versionCode\s+(\d+)/.exec(gradle)?.[1] ?? '(fehlt)';
 const config = read('mobile/src/config.ts');
 const appVersion = /APP_VERSION\s*=\s*'([^']+)'/.exec(config)?.[1] ?? '(fehlt)';
 const notes = `RELEASE_NOTES-v${gradleVersion}.md`;
+// Die Notizen liegen je nach Ablage im Repo-Root oder im Ordner `Realeses`.
+const notePaths = [notes, `Realeses/${notes}`, `Releases/${notes}`];
+const notesFound = notePaths.find((p) => existsSync(new URL(`../${p}`, import.meta.url)));
 
 const checks = [
   ['build.gradle versionName == config.ts APP_VERSION', gradleVersion === appVersion],
-  ['Versions-Notizen vorhanden', existsSync(new URL(`../${notes}`, import.meta.url))],
+  ['Versions-Notizen vorhanden', !!notesFound],
   ['versionCode ist eine Zahl', /^\d+$/.test(gradleCode)],
 ];
 
 console.log(`versionName   : ${gradleVersion}`);
 console.log(`versionCode   : ${gradleCode}`);
 console.log(`APP_VERSION   : ${appVersion}`);
-console.log(`Notizen       : ${notes}\n`);
+console.log(`Notizen       : ${notesFound ?? notes + ' (fehlt)'}\n`);
 
 let ok = true;
 for (const [name, passed] of checks) {

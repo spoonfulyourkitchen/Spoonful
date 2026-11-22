@@ -1,11 +1,5 @@
-/**
- * 3.1.0: App-Einstellungen, die den Kochmodus betreffen.
- *
- * `cookingAdvanced` schaltet den ausgebauten Kochmodus an/aus:
- *   an  = alle 3.0.0-Funktionen (Schritt-Titel, Badges, Teilschritte, Notizen,
- *         Fotos, Zweitgericht, Haushalt, "Wo war ich?")
- *   aus = klassischer Kochmodus wie vor 3.0.0 (Coach-Tipps bleiben).
- */
+
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 
@@ -29,9 +23,7 @@ export async function hydrateCookingAdvanced(): Promise<boolean> {
     const raw = await AsyncStorage.getItem(ADVANCED_KEY);
     if (raw === '0' || raw === 'false') advanced = false;
     if (raw === '1' || raw === 'true') advanced = true;
-  } catch {
-    /* Standard bleibt an */
-  }
+  } catch {}
   hydrated = true;
   emit();
   return advanced;
@@ -43,12 +35,9 @@ export async function setCookingAdvanced(next: boolean): Promise<void> {
   emit();
   try {
     await AsyncStorage.setItem(ADVANCED_KEY, next ? '1' : '0');
-  } catch {
-    /* egal, gilt trotzdem für die Sitzung */
-  }
+  } catch {}
 }
 
-/** Reagiert auf Änderungen (Einstellungen ⇄ Kochmodus). */
 export function useCookingAdvanced(): [boolean, (v: boolean) => void] {
   const [value, setValue] = useState(advanced);
   useEffect(() => {
@@ -60,4 +49,52 @@ export function useCookingAdvanced(): [boolean, (v: boolean) => void] {
     };
   }, []);
   return [value, (v: boolean) => void setCookingAdvanced(v)];
+}
+
+const QUICK_REPORT_KEY = 'spoonful:admin-quick-report';
+
+let quickReport = false;
+let quickHydrated = false;
+const quickListeners = new Set<(v: boolean) => void>();
+
+function emitQuick() {
+  for (const l of quickListeners) l(quickReport);
+}
+
+export function getAdminQuickReport(): boolean {
+  return quickReport;
+}
+
+export async function setAdminQuickReport(next: boolean): Promise<void> {
+  quickReport = next;
+  quickHydrated = true;
+  emitQuick();
+  try {
+    await AsyncStorage.setItem(QUICK_REPORT_KEY, next ? '1' : '0');
+  } catch {}
+}
+
+export async function hydrateAdminQuickReport(): Promise<boolean> {
+  if (quickHydrated) return quickReport;
+  try {
+    const raw = await AsyncStorage.getItem(QUICK_REPORT_KEY);
+    if (raw === '1' || raw === 'true') quickReport = true;
+    if (raw === '0' || raw === 'false') quickReport = false;
+  } catch {}
+  quickHydrated = true;
+  emitQuick();
+  return quickReport;
+}
+
+export function useAdminQuickReport(): [boolean, (v: boolean) => void] {
+  const [value, setValue] = useState(quickReport);
+  useEffect(() => {
+    const listener = (v: boolean) => setValue(v);
+    quickListeners.add(listener);
+    void hydrateAdminQuickReport();
+    return () => {
+      quickListeners.delete(listener);
+    };
+  }, []);
+  return [value, (v: boolean) => void setAdminQuickReport(v)];
 }

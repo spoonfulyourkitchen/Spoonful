@@ -1,10 +1,5 @@
-/**
- * 3.2.0: Profil-Editor in den Einstellungen.
- *
- * Ein Popup, in dem alle Profildaten an einer Stelle geändert werden können
- * (Name, Region, Ziel, Ernährung, Allergien, Erfahrung, Wasserziel).
- * Alle Texte kommen über i18n-Keys.
- */
+
+
 import React, { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -16,7 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-/* 3.3.0: Meldungen im App-Design statt System-Dialog */
+
 import { Alert } from '../lib/alert';
 import { Check, X } from 'lucide-react-native';
 

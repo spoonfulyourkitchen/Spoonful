@@ -4,14 +4,6 @@ import { Check, Globe, TriangleAlert, X } from 'lucide-react-native';
 import { colors, fonts } from '../theme';
 import { LANGUAGES, isRtlLanguage, markLanguagePickerShown, useTranslation, type Language } from '../lib/i18n';
 
-/**
- * 2.1.2: language picker as a popup.
- *
- * Used in two places:
- *  - Settings ("Sprache"), opened by the user,
- *  - automatically on the very first start when the phone language is not one
- *    of the supported ones (soft hint instead of a hard fallback).
- */
 export function LanguagePicker({
   visible,
   onClose,
@@ -20,7 +12,7 @@ export function LanguagePicker({
 }: {
   visible: boolean;
   onClose: () => void;
-  /** Extra explanation for the automatic first-start hint. */
+  
   hintBody?: string;
   onPicked?: (lang: Language) => void;
 }) {

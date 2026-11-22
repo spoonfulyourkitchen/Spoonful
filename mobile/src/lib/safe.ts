@@ -1,12 +1,5 @@
-/**
- * 3.2.2: kleine Helfer, damit nichts „ewig hängt".
- *
- * Punkt 13/70 der Stabilitäts-Liste: jede Netzwerk-Anfrage bekommt ein
- * Zeitlimit. Ein hängender Aufruf sieht für den Nutzer aus wie ein Absturz —
- * „die App friert ein" ist in Wahrheit meistens ein Versprechen ohne Ende.
- */
 
-/** Nach `ms` ablehnen, statt unbegrenzt zu warten. */
+
 export function withTimeout<T>(promise: Promise<T>, ms: number, message = 'timeout'): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(message)), ms);
@@ -23,7 +16,6 @@ export function withTimeout<T>(promise: Promise<T>, ms: number, message = 'timeo
   });
 }
 
-/** Text mit Zeitlimit holen (inkl. Abbruch der Verbindung). */
 export async function fetchText(
   url: string,
   init: RequestInit = {},
@@ -40,7 +32,6 @@ export async function fetchText(
   }
 }
 
-/** Zahl aus Text lesen ("1,49", "1.49", " 12 "), sonst `fallback`. */
 export function parseNum(value: unknown, fallback = 0): number {
   if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
   const raw = String(value ?? '').trim().replace(/[^0-9.,-]/g, '');
@@ -57,7 +48,6 @@ export function parseNum(value: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
-/** Sichere Array-Position (Punkt 10: kein Absturz bei leeren Listen). */
 export function at<T>(list: readonly T[] | undefined | null, index: number): T | undefined {
   if (!Array.isArray(list) || index < 0 || index >= list.length) return undefined;
   return list[index];

@@ -1,23 +1,11 @@
-/**
- * AI calls for the AI Chef and the nutrition estimator.
- *
- * Security: the OpenRouter key is NOT part of the app any more. Every request
- * goes through the Supabase Edge Function `ai` (see supabase/functions/ai),
- * which holds the key as a server secret and only answers signed-in users.
- * Deploying that function once is enough — no app update needed afterwards.
- */
+
+
 import { supabase } from './supabase';
 import { withTimeout } from './safe';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-/** 3.2.2: Obergrenze für einen KI-Aufruf. */
 const AI_TIMEOUT_MS = 60000;
 
-/* ── 3.2.3: Tageslimit-Anzeige ───────────────────────────────────────────────
- * Alle drei Chef-Funktionen (Zutaten, Beschreiben, Video) teilen sich ein
- * Tageslimit. Der Server zählt in der Datenbank; die App liest den Stand nur
- * zum Anzeigen und aktualisiert ihn nach jedem Aufruf.
- * ------------------------------------------------------------------------- */
 export type AiUsage = { used: number; limit: number; remaining: number; unlimited: boolean };
 
 let aiUsage: AiUsage | null = null;
@@ -59,7 +47,6 @@ function usageFrom(raw: any): AiUsage | null {
   };
 }
 
-/** Stand vom Server holen (z. B. beim Start und nach jeder Nutzung). */
 export async function refreshAiUsage(): Promise<AiUsage | null> {
   try {
     const { data } = await supabase.rpc('ai_usage_today', { p_limit: 3 });
@@ -81,23 +68,20 @@ function jsonFromText(text: string): any {
   return JSON.parse(cleaned.slice(start, end + 1));
 }
 
-/** Turns an edge-function failure into a message a human can act on. */
 async function functionError(error: any): Promise<string> {
   const status = Number(error?.context?.status ?? error?.status ?? 0);
   let detail = '';
   try {
     const body = await error?.context?.text?.();
     if (body) detail = String(body);
-  } catch {
-    /* body already consumed */
-  }
+  } catch {}
   if (status === 404) {
     return 'AI is not available yet: deploy the Supabase function "ai" (supabase/functions/ai) and set OPENROUTER_API_KEY as its secret.';
   }
   if (status === 401 || status === 403) return 'AI access was denied. Please sign in again.';
   if (status === 429) {
-    /* 3.2.3: 429 heißt jetzt auch „Tageslimit erreicht" — das muss der Nutzer
-       anders lesen als „Server ist gerade beschäftigt". */
+    
+
     if (/daily_limit_reached/i.test(detail)) {
       return 'You have used all 3 AI requests for today. Come back tomorrow.';
     }
@@ -107,8 +91,6 @@ async function functionError(error: any): Promise<string> {
 }
 
 async function chatJSON(system: string, user: string, temperature = 0.7): Promise<any> {
-  // 3.2.2: Zeitlimit (Punkt 13). Ohne das konnte ein hängender KI-Aufruf die
-  // Oberfläche „einfrieren" lassen, weil auf das Versprechen kein Ende kam.
   const { data, error } = await withTimeout(
     supabase.functions.invoke('ai', {
       body: {
@@ -121,8 +103,8 @@ async function chatJSON(system: string, user: string, temperature = 0.7): Promis
     'Die KI hat zu lange gebraucht.',
   );
   if (error) throw new Error(await functionError(error));
-  /* 3.2.3: Der Server schickt den neuen Zählerstand mit — damit ist die
-     Anzeige im Kopf sofort aktuell, ohne zusätzliche Anfrage. */
+  
+
   publishUsage(usageFrom((data as any)?.usage));
   const content = (data as any)?.content;
   if (!content) throw new Error('AI returned no content.');
@@ -137,17 +119,9 @@ const intOr = (v: any, d?: number) => {
 const strList = (v: any): string[] => (Array.isArray(v) ? v.map(String).filter(Boolean) : []);
 const str = (v: any, d = ''): string => (v == null ? d : String(v));
 
-/* ── language mirroring (2.1.2) ─────────────────────────────────────────────
- * The AI must answer in the language the USER wrote in - not in the language
- * of the app settings. Example: the app runs in German, the user describes the
- * recipe in Turkish -> the recipe comes back in Turkish.
- *
- * Detection is deliberately local and cheap (script ranges + stopword voting),
- * so it costs no extra request and works offline.
- */
-
 const SCRIPT_LANGUAGES: [RegExp, { code: string; name: string }][] = [
   [/[\u0600-\u06FF\u0750-\u077F]/, { code: 'ar', name: 'Arabic' }],
+  [/[іїєґІЇЄҐ]/, { code: 'uk', name: 'Ukrainian' }],
   [/[\u0400-\u04FF]/, { code: 'ru', name: 'Russian' }],
   [/[\u0590-\u05FF]/, { code: 'he', name: 'Hebrew' }],
   [/[\u0370-\u03FF]/, { code: 'el', name: 'Greek' }],
@@ -166,10 +140,13 @@ const LATIN_STOPWORDS: Record<string, { name: string; words: string[]; chars?: s
   pt: { name: 'Portuguese', words: ['e', 'com', 'para', 'uma', 'os', 'não', 'nao', 'do', 'da', 'como', 'mais', 'muito', 'sem'] },
   nl: { name: 'Dutch', words: ['en', 'met', 'voor', 'een', 'het', 'niet', 'van', 'op', 'is', 'ook', 'maar', 'zonder', 'meer'] },
   tr: { name: 'Turkish', words: ['ve', 'ile', 'için', 'icin', 'bir', 'çok', 'cok', 'değil', 'degil', 'olarak', 'bu', 'şu', 'su'], chars: 'ığşçöüİĞŞÇÖÜ' },
+  uk: { name: 'Ukrainian', words: ['і', 'та', 'для', 'що', 'це', 'як', 'без', 'молоко', 'йогурт', 'сир'], chars: 'іїєґІЇЄҐ' },
+  
+
+  pl: { name: 'Polish', words: ['i', 'z', 'do', 'na', 'nie', 'to', 'jak', 'oraz', 'dla', 'czy', 'jest', 'się', 'sie', 'bez', 'mleko', 'jogurt', 'ser'], chars: 'ąćęłńóśźżĄĆĘŁŃÓŚŹŻ' },
   en: { name: 'English', words: ['and', 'with', 'for', 'the', 'not', 'this', 'that', 'some', 'have', 'from', 'make', 'without', 'more'] },
 };
 
-/** Language of a free-text input; `null` when it cannot be told. */
 export function detectInputLanguage(text?: string): { code: string; name: string } | null {
   const raw = String(text ?? '').trim();
   if (raw.length < 2) return null;
@@ -192,10 +169,6 @@ export function detectInputLanguage(text?: string): { code: string; name: string
   return best && best.score > 0 ? { code: best.code, name: best.name } : null;
 }
 
-/**
- * Instruction for the model: mirror the user's language.
- * `samples` are the free-text inputs of the request (prompt, ingredients, …).
- */
 function languageRule(samples: Array<string | undefined>): string {
   const detected = samples.map((s) => detectInputLanguage(s)).find(Boolean);
   const base =
@@ -205,40 +178,47 @@ function languageRule(samples: Array<string | undefined>): string {
     : `${base} Keep every text field in the language of the user's message.`;
 }
 
-/** AI Chef — builds a full recipe from ingredients OR a free-text description. */
 export type AiRecipeArgs = {
   availableIngredients?: string;
   dietaryPreferences?: string;
   prompt?: string;
-  /** Cooking experience - controls how detailed the steps are written. */
+  
   experience?: string;
-  /** lose | keep | gain - balances the recipe towards the goal. */
+  
   goal?: string;
-  /** vegetarian | vegan | halal | ... */
+  
   diet?: string;
-  /** hard exclusions from the onboarding (nuts, milk, gluten, ...) */
+  
   allergies?: string[];
-  /** 1) how many servings the recipe should be written for */
+  
   servings?: number;
-  /** 2) preferred cuisine (italian, thai, ...) */
+
+  targets?: { calories: number; protein: number; carbs: number; fat: number };
+
+  weight?: number;
+
+  targetWeight?: number;
+
+  favoriteCuisines?: string[];
+  
   cuisine?: string;
-  /** 3) hard time budget in minutes (prep + cook) */
+  
   maxMinutes?: number;
-  /** 4) difficulty cap: easy | medium | hard */
+  
   difficulty?: string;
-  /** 5) spice level: mild | medium | hot */
+  
   spice?: string;
-  /** 6) make it lighter (fewer calories, less fat) */
+  
   lighter?: boolean;
-  /** 7) kid friendly (no alcohol, no chili, less salt) */
+  
   kidFriendly?: boolean;
-  /** 8) only these tools are available */
+  
   equipment?: string;
-  /** 9) titles to avoid so a reroll gives something new */
+  
   avoidTitles?: string[];
-  /** 10) let the model explain in one sentence why the recipe fits */
+  
   explain?: boolean;
-  /** variation knob for rerolls */
+  
   temperature?: number;
 };
 
@@ -261,6 +241,20 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
     ? `NEVER use these allergens or any derivative of them: ${allergyTags.join(', ')}. If the request needs them, replace them with a safe alternative and say so in the description.`
     : '';
   const servings = Math.max(1, Math.min(12, Number(args.servings ?? 4))) || 4;
+  const goalTargets = args.targets;
+  const targetRule = goalTargets
+    ? `Per serving, hit these targets: about ${Math.round(goalTargets.calories)} kcal, ` +
+      `${Math.round(goalTargets.protein)} g protein, ${Math.round(goalTargets.carbs)} g carbs, ` +
+      `${Math.round(goalTargets.fat)} g fat. Size the ingredient amounts so one serving lands within 10 percent of them.`
+    : '';
+  const targetWeightRule =
+    Number(args.targetWeight) > 0
+      ? `The cook weighs ${Math.round(Number(args.weight) || 0)} kg and wants to reach ${Math.round(Number(args.targetWeight))} kg. Keep that direction in mind for portion size and calorie density.`
+      : '';
+  const favoriteCuisines = (args.favoriteCuisines ?? []).filter(Boolean).slice(0, 4);
+  const favoriteRule = favoriteCuisines.length
+    ? `The cook usually makes ${favoriteCuisines.join(', ')}. Prefer one of those unless the request says otherwise.`
+    : '';
   const timeRule = args.maxMinutes
     ? `The whole recipe must fit in ${Number(args.maxMinutes)} minutes (prepTime + cookTime <= ${Number(args.maxMinutes)}).`
     : '';
@@ -300,14 +294,19 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
     (args.explain ? ', note' : '') +
     '. ' +
     'Rules: realistic amounts, correct cooking technique, no invented exotic equipment, no brand names, ' +
-    /* 3.3.0: Rezepte müssen ausführlich sein — mindestens 8 Schritte, auch bei
-       einfachen Gerichten (Vorbereitung, Zwischenschritte, Finish). */
+    
+
     'max 12 ingredients, AT LEAST 8 steps (never fewer than 8), metric units. ' +
+    'For dairy ingredients, specify the exact type and fat percentage in the ingredient name. ' +
+    'Use lactose-free dairy when requested. Do not replace a user-specified type or fat content. ' +
     'Write every step so it can be followed without thinking: one action per step, ' +
     'with amounts and times inside the step. ' +
     detailRule +
     ' ' +
     goalRule +
+    (targetRule ? ' ' + targetRule : '') +
+    (favoriteRule ? ' ' + favoriteRule : '') +
+    (targetWeightRule ? ' ' + targetWeightRule : '') +
     (allergyRule ? ' ' + allergyRule : '') +
     (timeRule ? ' ' + timeRule : '') +
     (difficultyRule ? ' ' + difficultyRule : '') +
@@ -318,7 +317,7 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
     equipmentRule +
     (avoidRule ? ' ' + avoidRule : '') +
     (noteRule ? ' ' + noteRule : '') +
-    /* 2.1.2: mirror the language of the user's request */
+    
     ' ' +
     languageRule([args.prompt, args.availableIngredients, args.dietaryPreferences]);
   const user = [
@@ -330,12 +329,11 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
     allergyTags.length ? `Allergies (must be excluded): ${allergyTags.join(', ')}.` : '',
     args.cuisine ? `Cuisine: ${args.cuisine}.` : '',
     `Write it for exactly ${servings} servings and make the nutrition values realistic for that portion.`,
+    goalTargets ? `Daily goal of the cook: ${goalTargets.calories} kcal, ${goalTargets.protein} g protein, ${goalTargets.carbs} g carbs.` : '',
     'Keep the description appetising but factual.',
   ]
     .filter(Boolean)
     .join('\n');
-  // 20) robust answer handling: one retry, warm-up temperature for rerolls,
-  // plus tips and the short "why it fits" note from the model.
   let raw: any = null;
   let lastError: unknown = null;
   for (let attempt = 0; attempt < 2 && !raw; attempt += 1) {
@@ -371,7 +369,6 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
   };
 }
 
-/** 11) Rewrites an existing recipe with a goal (lighter, cheaper, faster, vegan…). */
 export async function aiImproveRecipe(args: {
   title: string;
   ingredients: string[];
@@ -417,7 +414,6 @@ export async function aiImproveRecipe(args: {
   };
 }
 
-/** 12) Suggests replacements for one ingredient that is missing or unwanted. */
 export async function aiSubstituteIngredient(args: {
   ingredient: string;
   dish?: string;
@@ -446,13 +442,6 @@ export async function aiSubstituteIngredient(args: {
   };
 }
 
-/**
- * 3.2.1: Ordnet einen Video-Text (Beschreibung/Untertitel) zu einem Rezept.
- *
- * Wird nur als **Notfall** benutzt, wenn die lokale Erkennung nichts findet.
- * Läuft über die Supabase-Funktion `ai`, die Gratis-Modelle benutzt - es wird
- * also kein Guthaben verbraucht. Bei Fehlern kommt `null` zurück.
- */
 export async function aiRecipeFromText(args: {
   title?: string;
   text: string;
@@ -462,20 +451,19 @@ export async function aiRecipeFromText(args: {
   const system =
     'You turn the description or the subtitles of a cooking video into a clean, complete recipe. ' +
     'Answer with valid JSON only: {"title": string, "ingredients": string[], "steps": string[]}. ' +
-    /* 3.3.1: Der Titel wird gebaut, nicht kopiert. Videotitel sind oft Clickbait
-       oder enthalten Kanalnamen, Emojis und Hashtags. */
+    
+
     'CRAFT the title yourself: a clean, appetising dish name (max 6 words, no emojis, no hashtags, ' +
     'no channel or creator name, no "recipe", no clickbait, no ALL CAPS). Only keep the video title ' +
     'if it already is a proper dish name. ' +
-    /* 3.3.0: Videos enthalten viel Müll (Abo-Aufrufe, Links, Hashtags, Werbung,
-       „bewertet das Video") — der gehört nicht in ein Rezept. Fehlende Schritte
-       ergänzt die KI aus dem, was im Video steht. */
+    
+
     'REMOVE everything that is not part of the recipe: subscribe/follow/like/share requests, ' +
     'channel or social media names, links and URLs, hashtags, emojis, giveaways, sponsor mentions, ' +
     '"watch the full video", timestamps and any sentence that is only talking to the audience. ' +
     'Split longer narration into individual short imperative steps, in the correct cooking order. ' +
     'If the video gives fewer than 8 steps but enough information, ADD the missing obvious steps ' +
-    '(preparation, heating, resting, seasoning, plating) so the recipe has AT LEAST 8 steps — ' +
+    '(preparation, heating, resting, seasoning, plating) so the recipe has AT LEAST 8 steps - ' +
     'but never invent ingredients or amounts that are not in the text. ' +
     'Keep the original language of the text and keep every amount (e.g. "500 g Mehl"). ' +
     'If the text contains no recipe at all, answer {"title":"","ingredients":[],"steps":[]}.';
@@ -495,18 +483,8 @@ export async function aiRecipeFromText(args: {
   return { title: str(parsed?.title, args.title ?? ''), ingredients, steps };
 }
 
-/** Nutrition estimator used on the recipe form. */
-/* ── 3.3.1: Nährwerte ────────────────────────────────────────────────────────
- * „KI schätzen" lieferte bei jedem Klick eine andere Zahl (1000 / 800 / 400 kcal
- * für dasselbe Rezept). Das ist unbrauchbar. Jetzt gilt:
- *   1. eine kleine, feste Nährwert-Tabelle rechnet aus den Mengen der Zutaten,
- *   2. die KI schätzt zusätzlich mit Temperatur 0 (also stabil),
- *   3. weichen beide stark ab, wird gemittelt — und das Ergebnis gemerkt, damit
- *      dasselbe Rezept immer dieselben Werte ergibt.
- * ------------------------------------------------------------------------- */
-const NUTRITION_CACHE_KEY = 'spoonful:nutrition-cache:v1';
+const NUTRITION_CACHE_KEY = 'spoonful:nutrition-cache:v2';
 
-/** Grobe Werte je 100 g: [kcal, Protein, Kohlenhydrate, Fett]. */
 const FOOD_TABLE: [RegExp, [number, number, number, number]][] = [
   [/oil|olive oil|öl|olivenöl|butter|margarine|ghee|schmalz/, [890, 0, 0, 100]],
   [/sugar|zucker|honey|honig|syrup|sirup|jam|marmelade/, [330, 0, 82, 0]],
@@ -530,38 +508,60 @@ const FOOD_TABLE: [RegExp, [number, number, number, number]][] = [
 
 const DEFAULT_FOOD: [number, number, number, number] = [110, 4, 12, 4];
 
-/** Menge einer Zutatenzeile in Gramm (null wenn unklar). */
 function gramsFromIngredient(line: string): number | null {
   const text = String(line ?? '').toLowerCase().replace(',', '.');
-  const match = /(\d+(?:\.\d+)?)\s*(kg|g|gramm|ml|l|liter|cl|dl|tbsp|el|esslöffel|tsp|tl|teelöffel|cup|tasse|stück|stk|piece|pcs|zehe|clove)?/.exec(text);
-  if (!match) return null;
-  const value = Number(match[1]);
-  if (!Number.isFinite(value) || value <= 0) return null;
-  const unit = match[2] ?? '';
-  if (unit === 'kg') return value * 1000;
-  if (unit === 'l' || unit === 'liter') return value * 1000;
-  if (unit === 'ml') return value;
-  if (unit === 'cl') return value * 10;
-  if (unit === 'dl') return value * 100;
-  if (unit === 'g' || unit === 'gramm') return value;
-  if (['tbsp', 'el', 'esslöffel'].includes(unit)) return value * 15;
-  if (['tsp', 'tl', 'teelöffel'].includes(unit)) return value * 5;
-  if (['cup', 'tasse'].includes(unit)) return value * 200;
-  if (['stück', 'stk', 'piece', 'pcs'].includes(unit)) return value * 90;
-  if (['zehe', 'clove'].includes(unit)) return value * 4;
-  /* ohne Einheit: kleine Zahl = Stück, große Zahl = Gramm */
-  return value > 25 ? value : value * 90;
+  const pattern = /(\d+(?:\.\d+)?)\s*(kg|g|gramm|ml|l|liter|cl|dl|tbsp|el|esslöffel|tsp|tl|teelöffel|cup|tasse|stück|stk|piece|pcs|zehe|clove)?/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(text))) {
+    const end = text.slice(pattern.lastIndex).match(/^\s*(?:%|percent(?:age)?|prozent|pour cent|por ciento|per cento|procent|процент(?:ів|а|ов)?|відсот(?:ка|ків)?)/i);
+    if (end) continue;
+    const value = Number(match[1]);
+    if (!Number.isFinite(value) || value <= 0) continue;
+    const unit = match[2] ?? '';
+    if (unit === 'kg') return value * 1000;
+    if (unit === 'l' || unit === 'liter') return value * 1000;
+    if (unit === 'ml') return value;
+    if (unit === 'cl') return value * 10;
+    if (unit === 'dl') return value * 100;
+    if (unit === 'g' || unit === 'gramm') return value;
+    if (['tbsp', 'el', 'esslöffel'].includes(unit)) return value * 15;
+    if (['tsp', 'tl', 'teelöffel'].includes(unit)) return value * 5;
+    if (['cup', 'tasse'].includes(unit)) return value * 200;
+    if (['stück', 'stk', 'piece', 'pcs'].includes(unit)) return value * 90;
+    if (['zehe', 'clove'].includes(unit)) return value * 4;
+    if (!unit) return value > 25 ? value : value * 90;
+  }
+  return null;
 }
 
 function foodRow(ingredient: string): [number, number, number, number] {
   const text = String(ingredient ?? '').toLowerCase();
+  const fatMatch = /(\d+(?:[.,]\d+)?)\s*(?:%|percent(?:age)?|prozent|pour cent|por ciento|per cento|procent|процент(?:ів|а|ов)?|відсот(?:ка|ків)?)/i.exec(text);
+  const fatPercent = fatMatch ? Number(fatMatch[1].replace(',', '.')) : null;
+  const greekWord = 'greek|griech|grec|griego|greca|greco|yunan|грецьк|грец|يوناني';
+  const yogurtWord = 'yogurt|yoghurt|joghurt|йогурт|زبادي';
+  const milkWord = 'milk|milch|lait|leche|latte|süt|leite|melk|молок|молочк|حليب';
+  const creamWord = 'cream|sahne|crème|crema|panna|kaymak|сливк|вершк|قشطة|كريمة|natas';
+  const cheeseWord = 'cheese|käse|fromage|queso|formaggio|peynir|queijo|kaas|сыр|сир|جبن';
+  const isGreekYogurt = new RegExp(`(${greekWord}).*(${yogurtWord})|(${yogurtWord}).*(${greekWord})`, 'i').test(text);
+  const isYogurt = new RegExp(yogurtWord, 'i').test(text);
+  const isMilk = new RegExp(milkWord, 'i').test(text);
+  const isCream = new RegExp(creamWord, 'i').test(text);
+  const isCheese = new RegExp(cheeseWord, 'i').test(text);
+  if (isGreekYogurt || isYogurt || isMilk || isCream || isCheese) {
+    const fat = fatPercent ?? (isGreekYogurt ? 10 : isYogurt ? 3.5 : isMilk ? 3.5 : isCream ? 30 : 27);
+    if (isGreekYogurt) return [Math.round((3.5 * 4 + 4 * 4 + fat * 9) * 10) / 10, 3.5, 4, fat];
+    if (isYogurt) return [Math.round((3.5 * 4 + 4.7 * 4 + fat * 9) * 10) / 10, 3.5, 4.7, fat];
+    if (isMilk) return [Math.round((3.3 * 4 + 4.8 * 4 + fat * 9) * 10) / 10, 3.3, 4.8, fat];
+    if (isCream) return [Math.round((2 * 4 + 3 * 4 + fat * 9) * 10) / 10, 2, 3, fat];
+    return [Math.round((25 * 4 + 2 * 4 + fat * 9) * 10) / 10, 25, 2, fat];
+  }
   for (const [re, values] of FOOD_TABLE) {
     if (re.test(text)) return values;
   }
   return DEFAULT_FOOD;
 }
 
-/** Nährwerte aus den Zutaten-Mengen (pro Portion), null wenn nichts zu rechnen ist. */
 export function estimateNutritionLocally(
   ingredients: string[] | undefined,
   servings = 4,
@@ -616,21 +616,48 @@ async function readNutritionCache(key: string) {
 async function writeNutritionCache(key: string, value: object) {
   try {
     await AsyncStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    /* Zwischenspeicher ist Komfort */
-  }
+  } catch {}
+}
+
+export type DairyAssumption = { kind: 'greekYogurt' | 'yogurt' | 'milk' | 'cream' | 'cheese'; ingredient: string };
+
+const DAIRY_WORDS = {
+  greek: 'greek|griech|grec|griego|greca|greco|yunan|грецьк|грец|يوناني',
+  yogurt: 'yogurt|yoghurt|joghurt|йогурт|زبادي',
+  milk: 'milk|milch|lait|leche|latte|süt|leite|melk|молок|молочк|حليب',
+  cream: 'cream|sahne|crème|crema|panna|kaymak|сливк|вершк|قشطة|كريمة|natas',
+  cheese: 'cheese|käse|fromage|queso|formaggio|peynir|queijo|kaas|сыр|сир|جبن',
+};
+
+function hasExplicitDairyFat(text: string): boolean {
+  return /(\d+(?:[.,]\d+)?)\s*(?:%|percent(?:age)?|prozent|pour cent|por ciento|per cento|procent|процент(?:ів|а|ов)?|відсот(?:ка|ків)?)/i.test(text);
+}
+
+export function dairyAssumptions(ingredients: string[] | undefined): DairyAssumption[] {
+  return (ingredients ?? []).flatMap((raw) => {
+    const ingredient = String(raw ?? '').trim();
+    if (!ingredient || hasExplicitDairyFat(ingredient)) return [];
+    const text = ingredient.toLowerCase();
+    const greek = new RegExp(`(${DAIRY_WORDS.greek}).*(${DAIRY_WORDS.yogurt})|(${DAIRY_WORDS.yogurt}).*(${DAIRY_WORDS.greek})`, 'i').test(text);
+    const kind: DairyAssumption['kind'] | null = greek ? 'greekYogurt'
+      : new RegExp(DAIRY_WORDS.yogurt, 'i').test(text) ? 'yogurt'
+        : new RegExp(DAIRY_WORDS.milk, 'i').test(text) ? 'milk'
+          : new RegExp(DAIRY_WORDS.cream, 'i').test(text) ? 'cream'
+            : new RegExp(DAIRY_WORDS.cheese, 'i').test(text) ? 'cheese' : null;
+    return kind ? [{ kind, ingredient }] : [];
+  });
 }
 
 export async function aiEstimateNutrition(args: {
   title?: string;
   ingredients?: string[];
   steps?: string[];
-  /** Portionen, für die gerechnet wird (Standard 4). */
+  
   servings?: number;
 }): Promise<{ calories?: number; protein?: number; carbs?: number; fat?: number }> {
   const servings = Math.max(1, Number(args.servings ?? 4) || 4);
   const key = nutritionKey(args);
-  /* 3.3.1: Gleiches Rezept → gleiche Werte (Zwischenspeicher). */
+  
   const cached = await readNutritionCache(key);
   if (cached && typeof cached.calories === 'number') return cached;
 
@@ -640,7 +667,9 @@ export async function aiEstimateNutrition(args: {
     'ingredient list. Answer with valid JSON only: ' +
     '{"calories": number, "protein": number, "carbs": number, "fat": number}. ' +
     'Rules: use realistic values for the given amounts, count oil, butter, sugar and nuts fully, ' +
-    'and keep the numbers consistent (calories is about 4x protein + 4x carbs + 9x fat).';
+    'and keep the numbers consistent (calories is about 4x protein + 4x carbs + 9x fat). ' +
+    'When dairy fat percentages are missing, assume regular yogurt and milk at 3.5%, Greek yogurt at 10%, cream at 30%, and semi-hard cheese at about 27 g fat per 100 g. ' +
+    'Use an explicit fat percentage when present. The app will disclose any standard assumptions to the user.';
   const user =
     `Recipe: ${args.title || 'Untitled'}\n\nIngredients:\n${(args.ingredients ?? []).join('\n')}\n\n` +
     `Steps:\n${(args.steps ?? []).join('\n')}\n\n` +
@@ -649,7 +678,7 @@ export async function aiEstimateNutrition(args: {
 
   let ai: { calories?: number; protein?: number; carbs?: number; fat?: number } | null = null;
   try {
-    /* Temperatur 0: gleiche Frage → gleiche Antwort. */
+    
     const raw = await chatJSON(system, user, 0);
     ai = {
       calories: intOr(raw.calories),
@@ -665,7 +694,7 @@ export async function aiEstimateNutrition(args: {
   let result: { calories?: number; protein?: number; carbs?: number; fat?: number } | null = null;
 
   if (local && ai?.calories) {
-    /* Weichen beide stark ab, wird gemittelt statt zu springen. */
+    
     const diff = Math.abs(ai.calories - local.calories) / Math.max(1, local.calories);
     const calories = diff > 0.45 ? Math.round((ai.calories + local.calories) / 2 / 10) * 10 : local.calories;
     result = {

@@ -1,6 +1,4 @@
--- 3.2.3: KI-Tageslimit für die App (3 Nutzungen pro Tag für alle Nutzer,
--- Moderatoren und Admins ausgenommen). Alle drei Chef-Funktionen zählen
--- zusammen, weil jede von ihnen hier durchläuft.
+
 
 create table if not exists public.ai_usage (
   user_id uuid not null,
@@ -12,15 +10,12 @@ create table if not exists public.ai_usage (
 
 alter table public.ai_usage enable row level security;
 
--- Lesen darf jeder nur seine eigene Zeile; geschrieben wird ausschließlich
--- über die Funktionen unten (security definer).
 drop policy if exists ai_usage_read_own on public.ai_usage;
 create policy ai_usage_read_own on public.ai_usage
   for select using (auth.uid() = user_id);
 
 create index if not exists ai_usage_day_idx on public.ai_usage (day);
 
--- Moderatoren/Admins haben kein Limit.
 create or replace function public.spoonful_ai_is_staff(p_uid uuid)
 returns boolean
 language sql
@@ -36,7 +31,6 @@ as $$
   );
 $$;
 
--- Eine Nutzung verbrauchen: allowed=false, wenn das Tageslimit erreicht ist.
 create or replace function public.ai_usage_consume(p_limit integer default 3)
 returns jsonb
 language plpgsql
@@ -49,7 +43,7 @@ declare
   v_used integer;
 begin
   if v_uid is null then
-    -- ohne Anmeldung nicht zählbar: die App verlangt ohnehin ein Konto
+    
     return jsonb_build_object('allowed', true, 'used', 0, 'limit', v_limit, 'remaining', v_limit, 'unlimited', true);
   end if;
 
@@ -77,7 +71,7 @@ begin
   end if;
 
   if v_used > v_limit then
-    /* zwei Anfragen gleichzeitig: nie über das Limit hinausrechnen */
+    
     update public.ai_usage set used = v_limit
      where user_id = v_uid and day = current_date;
     return jsonb_build_object('allowed', false, 'used', v_limit, 'limit', v_limit, 'remaining', 0, 'unlimited', false);
@@ -93,7 +87,6 @@ begin
 end;
 $$;
 
--- Zählerstand für die Anzeige im App-Kopf (ohne etwas zu verbrauchen).
 create or replace function public.ai_usage_today(p_limit integer default 3)
 returns jsonb
 language plpgsql

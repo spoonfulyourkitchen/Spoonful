@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, Text, View } from 'react-native';
-/* 3.3.0: Meldungen im App-Design statt System-Dialog */
+
 import { Alert } from '../lib/alert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MailCheck, RefreshCw, Send } from 'lucide-react-native';
@@ -18,13 +18,6 @@ import {
   type VerifyState,
 } from '../lib/verify';
 
-/**
- * Email confirmation guard.
- *
- * Grace mode  (email could not be delivered yet): small banner, app usable.
- * Locked mode (email went out, address unconfirmed): the app is blocked with a
- *              resend button, an "I confirmed" check and a sign-out escape.
- */
 export function VerifyGate() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
@@ -47,7 +40,6 @@ export function VerifyGate() {
     };
   }, []);
 
-  // remember a fresh sign-up so the confirmation can be offered later
   useEffect(() => {
     const email = (user as any)?.email;
     if (!user || !email) return;
@@ -95,7 +87,6 @@ export function VerifyGate() {
     setBusy(false);
   }, []);
 
-  // while locked, keep checking by itself (the user confirms in the mail app)
   useEffect(() => {
     if (!pending || !state?.sentAt) return;
     const id = setInterval(() => {

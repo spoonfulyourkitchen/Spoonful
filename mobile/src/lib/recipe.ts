@@ -1,3 +1,5 @@
+import { translate } from './i18n';
+
 export type LibraryRecipe = {
   id: string;
   title: string;
@@ -26,8 +28,20 @@ export function formatCuisine(code: string): string {
     .join(' ');
 }
 
+const DIET_KEYS: Record<string, string> = {
+  vegetarian: 'onb.vegetarian',
+  vegan: 'onb.vegan',
+  pescatarian: 'onb.pescatarian',
+  halal: 'onb.halal',
+  kosher: 'onb.kosher',
+  'gluten-free': 'onb.glutenFree',
+  'dairy-free': 'onb.lactoseFree',
+};
+
 export function formatDiet(tag: string): string {
-  return tag.replace(/_/g, '-').toLowerCase();
+  const key = tag.replace(/_/g, '-').toLowerCase();
+  const mapped = DIET_KEYS[key];
+  return mapped ? translate(mapped) : key;
 }
 
 export function totalMinutes(recipe: Pick<LibraryRecipe, 'prepTime' | 'cookTime'>): number {
@@ -35,14 +49,9 @@ export function totalMinutes(recipe: Pick<LibraryRecipe, 'prepTime' | 'cookTime'
 }
 
 export function difficultyLabel(level: string): string {
-  switch (level) {
-    case 'easy':
-      return 'Easy';
-    case 'hard':
-      return 'Hard';
-    default:
-      return 'Medium';
-  }
+  if (level === 'easy') return translate('recipe.easy');
+  if (level === 'hard') return translate('recipe.hard');
+  return translate('recipe.medium');
 }
 
 export function nutritionParts(recipe: LibraryRecipe): string[] {
@@ -54,13 +63,6 @@ export function nutritionParts(recipe: LibraryRecipe): string[] {
   return parts;
 }
 
-/**
- * 2.0.0: recipes that were written by another tool/AI sometimes store an
- * ingredient or a step as an object instead of a plain string, e.g.
- * `{ amount: '200 g', name: 'flour' }` or `{ text: 'Stir well.' }`. Rendering
- * those directly showed "[object Object]" and could even break style layouts.
- * `recipeLine` accepts every shape we have seen and always returns a string.
- */
 export function recipeLine(value: unknown): string {
   if (value == null) return '';
   if (typeof value === 'string') return value.trim();
@@ -71,7 +73,6 @@ export function recipeLine(value: unknown): string {
     for (const key of ['text', 'line', 'step', 'instruction', 'description', 'name', 'title', 'item', 'ingredient', 'value']) {
       if (typeof o[key] === 'string' && o[key].trim()) return o[key].trim();
     }
-    // { amount: '200', unit: 'g', name: 'flour' } -> "200 g flour"
     const amount = o.amount ?? o.quantity ?? o.qty;
     const unit = o.unit ?? o.measure;
     const name = o.name ?? o.item ?? o.ingredient ?? o.title;
@@ -89,14 +90,12 @@ export function recipeLine(value: unknown): string {
   return String(value);
 }
 
-/** Normalizes an ingredient/step list of any shape into clean strings. */
 export function recipeLines(value: unknown): string[] {
   if (Array.isArray(value)) return value.map(recipeLine).filter((s) => s.length > 0);
   if (typeof value === 'string') return value.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
   return [];
 }
 
-/** Normalize a stored user doc (mine / saved / shared / community) to a LibraryRecipe. */
 export function asRecipeFromDoc(doc: any, id?: string): LibraryRecipe {
   return {
     id: id ?? doc.recipeKey ?? doc._id,
@@ -117,8 +116,6 @@ export function asRecipeFromDoc(doc: any, id?: string): LibraryRecipe {
   };
 }
 
-/** Search synonyms: a German/Arabic/French/… dish word should find the English
-    catalog entries too (the catalog titles are English). */
 const SEARCH_SYNONYMS: Record<string, string> = {
   aubergine: 'eggplant', melanzane: 'eggplant', باذنجان: 'eggplant',
   kichererbse: 'chickpea', kichererbsen: 'chickpeas', حمص: 'chickpea',
@@ -173,15 +170,10 @@ const SEARCH_SYNONYMS: Record<string, string> = {
   auflauf: 'casserole', curry: 'curry',
 };
 
-/**
- * Maps a search term to the English catalog term when we know the pair, so
- * "Aubergine", "melanzane" or "berenjena" find the same recipes as "eggplant".
- */
 export function translateSearchTerm(term: string): string {
   const q = term.trim().toLowerCase();
   if (!q) return term.trim();
   if (SEARCH_SYNONYMS[q]) return SEARCH_SYNONYMS[q];
-  // multi word: translate the first word and keep the rest
   const [head, ...rest] = q.split(/\s+/);
   if (SEARCH_SYNONYMS[head]) return [SEARCH_SYNONYMS[head], ...rest].join(' ');
   return term.trim();

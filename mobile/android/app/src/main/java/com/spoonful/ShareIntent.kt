@@ -9,11 +9,6 @@ import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule
 import com.facebook.react.uimanager.ViewManager
 
-/**
- * 3.2.0: Teilen-Ziel — wenn in TikTok/Instagram/YouTube auf "Teilen" getippt
- * wird, taucht Spoonful auf. Der Link landet in EXTRA_TEXT und wird hier an
- * die App (JS) weitergegeben.
- */
 class ShareIntentModule(private val ctx: ReactApplicationContext) : ReactContextBaseJavaModule(ctx) {
   override fun getName(): String = "ShareIntent"
 
@@ -32,7 +27,7 @@ class ShareIntentModule(private val ctx: ReactApplicationContext) : ReactContext
     }
   }
 
-  /** Nach dem Verarbeiten den Extra entfernen, damit er nicht doppelt kommt. */
+  
   @ReactMethod
   fun clear() {
     try {

@@ -1,16 +1,5 @@
-/**
- * Live-Prüfskript für „Video-Link -> Rezept".
- *
- * Aufruf:  node tools/video-check.mjs "https://www.youtube.com/watch?v=..."
- *
- * Es zeigt genau das, was die App braucht:
- *  - kommt die Seite überhaupt an?
- *  - wie lang ist die Beschreibung (dort steht bei Kochvideos das Rezept)?
- *  - gibt es Untertitel-Spuren und liefert die Untertitel-Adresse Text?
- *
- * Hinweis: Große Videodienste drosseln Server-Netze. Eine leere Untertitel-
- * Antwort hier bedeutet nicht, dass es am Handy auch so ist.
- */
+
+
 const UA =
   'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Mobile Safari/537.36';
 

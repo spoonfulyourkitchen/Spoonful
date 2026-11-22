@@ -3,10 +3,6 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config';
 
-/**
- * Spoonful → Supabase client (React Native edition).
- * Session persistence goes through AsyncStorage.
- */
 export const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     storage: AsyncStorage,
@@ -18,7 +14,6 @@ export const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON
 
 export type { SupabaseClient, Session, User } from '@supabase/supabase-js';
 
-/** Throws when there is no signed-in user. */
 export async function requireUserId(): Promise<string> {
   const { data } = await supabase.auth.getSession();
   const id = data.session?.user?.id;
@@ -39,7 +34,6 @@ export function toError(e: unknown): Error {
 
 const now = () => Date.now();
 
-/** Column <-> convex-style document helpers (camelCase + `_id`). */
 export const ts = now;
 
 export function mapRecipe(row: any): any {

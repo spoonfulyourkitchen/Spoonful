@@ -1,11 +1,5 @@
 import { useSyncExternalStore } from 'react';
 
-/**
- * Global AI generation task state. Mirrors the web app's `lib/aiTask.ts`:
- * the header chip shows a spinner while the AI Chef works, then a clickable
- * "recipe ready" chip (recipe title) from any page, or an error chip.
- */
-
 export type AiTaskState =
   | { status: 'idle' }
   | { status: 'running' }
@@ -51,7 +45,6 @@ export function getAiTask(): AiTaskState {
   return task;
 }
 
-/** Subscribe a component to the current AI task state. */
 export function useAiTask(): AiTaskState {
   return useSyncExternalStore(subscribe, getAiTask, getAiTask);
 }

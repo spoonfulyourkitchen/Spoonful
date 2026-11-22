@@ -1,13 +1,10 @@
-/**
- * 3.2.3: Codemod — packt den Inhalt jedes <Modal> in eine KeyboardAvoidingView,
- * damit Textfelder mit der Tastatur hochgehen und der Nutzer sieht, was er
- * schreibt. Läuft einmal über alle Screens/Komponenten mit Modal + TextInput.
- */
+
+
 import { readFileSync, writeFileSync } from 'node:fs';
 import { readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-const ROOT = new URL('../mobile/src', import.meta.url).pathname.replace(/^\//, '');
+const ROOT = new URL('../mobile/src', import.meta.url).pathname.replace(/^\
 const KAV = "<KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>";
 
 function walk(dir) {
@@ -20,7 +17,6 @@ function walk(dir) {
   return out;
 }
 
-/** Ende eines JSX-Tags finden (klick- und string-sicher, weil ``=>`` in Props). */
 function tagEnd(source, start) {
   let depth = 0;
   let quote = null;
@@ -54,7 +50,7 @@ for (const file of walk(ROOT)) {
       index = source.indexOf('<Modal', open);
       continue;
     }
-    /* passendes </Modal> finden (auch bei verschachtelten Modals) */
+    
     let depth = 1;
     let cursor = open + 1;
     let close = -1;
@@ -87,7 +83,7 @@ for (const file of walk(ROOT)) {
 
   if (!changed) continue;
 
-  /* Import ergänzen, falls nötig */
+  
   const importLine = /import \{([^}]*)\} from 'react-native';/.exec(source);
   if (importLine) {
     const names = importLine[1].split(',').map((n) => n.trim()).filter(Boolean);

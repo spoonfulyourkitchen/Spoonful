@@ -5,20 +5,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SUPABASE_URL } from '../config';
 import { convexClient } from './convex-auth';
 import { api } from './api';
+import { uploadPhotoToServer } from './photo';
 import { useTranslation } from './i18n';
-
-/**
- * Spoonful offline support.
- *
- * Architecture:
- *  - The app keeps a tiny mirror of the *user's own* data in AsyncStorage:
- *      my recipes, saved recipes, tracker entries and the shopping list.
- *  - While online, every successful query result is written into that cache.
- *  - While offline, screens read from the cache, so everything you saved or
- *    logged before stays fully usable (opening recipes, cooking mode, etc.).
- *  - Library (server catalog), Community and the AI Chef need the internet and
- *    show an offline screen instead.
- */
 
 export type ConnState = 'unknown' | 'online' | 'offline';
 
@@ -41,7 +29,7 @@ export function getConn(): ConnState {
 const PROBE_TIMEOUT_MS = 4500;
 const PROBE_INTERVAL_ONLINE_MS = 20000;
 const PROBE_INTERVAL_OFFLINE_MS = 6000;
-/** 3.2.1: no probing while the app is in the background (saves battery + data). */
+
 const PROBE_INTERVAL_BACKGROUND_MS = 30000;
 
 let appActive = true;
@@ -56,12 +44,9 @@ function watchAppState() {
       const nowActive = state === 'active';
       const wasActive = appActive;
       appActive = nowActive;
-      // Back in the foreground: check right away instead of waiting for the loop.
       if (nowActive && !wasActive) void probeNow();
     });
-  } catch {
-    /* AppState is optional - the loop keeps running then */
-  }
+  } catch {}
 }
 
 async function probeNow(): Promise<boolean> {
@@ -84,7 +69,6 @@ async function probeNow(): Promise<boolean> {
   }
 }
 
-/** Force an immediate reachability check (used by "Retry" buttons). */
 export async function retryConnectivity() {
   await probeNow();
   return conn;
@@ -98,7 +82,6 @@ function startMonitoring() {
   (async () => {
     await probeNow();
     const loop = async () => {
-      // In the background the probe is only a slow keep-alive.
       if (!appActive) {
         setTimeout(loop, PROBE_INTERVAL_BACKGROUND_MS);
         return;
@@ -120,8 +103,6 @@ export function useConnectivity(): ConnState {
   );
 }
 
-/* ── Offline query cache ─────────────────────────────────────────────── */
-
 const CACHE_PREFIX = 'spoonful:cache:';
 const memCache = new Map<string, unknown>();
 
@@ -133,15 +114,13 @@ export async function cacheWrite<T>(key: string, value: T) {
   memCache.set(key, value);
   try {
     await AsyncStorage.setItem(CACHE_PREFIX + key, JSON.stringify(value));
-  } catch { /* cache is best-effort */ }
+  } catch {  }
 }
-
-/* ── Offline action queue (changes made offline sync later) ──────────── */
 
 export type PendingOp = { id: string; kind: string; at: number; payload: any; tries?: number };
 
 const PENDING_KEY = 'spoonful:cache:pending';
-/** Hard cap so a long offline session can never grow storage without end. */
+
 const MAX_PENDING_OPS = 500;
 let pendingOps: PendingOp[] = [];
 
@@ -149,12 +128,10 @@ export function listPendingOps(): PendingOp[] {
   return [...pendingOps];
 }
 
-/** 3.2.2: Anzahl der Änderungen, die noch nicht auf dem Server sind. */
 export function pendingOpsCount(): number {
   return pendingOps.length;
 }
 
-/** Abo für die Anzahl (Badge in der Oberfläche). */
 const pendingListeners = new Set<() => void>();
 
 export function subscribePendingOps(listener: () => void): () => void {
@@ -171,19 +148,27 @@ function emitPending() {
 async function persistPendingOps() {
   try {
     await AsyncStorage.setItem(PENDING_KEY, JSON.stringify(pendingOps));
-  } catch { /* best-effort */ }
+  } catch {  }
 }
 
-/** Record an action that should be replayed on the server once online. */
 export async function addPendingOp(kind: string, payload: any) {
   const p: any = payload ?? {};
 
-  // Collapse repeated toggles/removals of the same row: replaying both would
-  // flip the item twice on the server ("done" would end up wrong).
   if (kind === 'shopping.toggle' && typeof p.id === 'string') {
     const already = pendingOps.some((op) => op.kind === 'shopping.toggle' && op.payload?.id === p.id);
     if (already) return;
   }
+  
+
+  const identical = pendingOps.some((op) => {
+    if (op.kind !== kind) return false;
+    try {
+      return JSON.stringify(op.payload ?? {}) === JSON.stringify(p);
+    } catch {
+      return false;
+    }
+  });
+  if (identical) return;
   if (kind === 'shopping.remove' && typeof p.id === 'string' && !String(p.id).startsWith('tmp-')) {
     pendingOps = pendingOps.filter((op) => !(op.kind === 'shopping.toggle' && op.payload?.id === p.id));
   }
@@ -196,7 +181,6 @@ export async function addPendingOp(kind: string, payload: any) {
     tries: 0,
   });
 
-  // drop the oldest entries when the queue gets unreasonably long
   if (pendingOps.length > MAX_PENDING_OPS) {
     pendingOps = pendingOps.slice(pendingOps.length - MAX_PENDING_OPS);
   }
@@ -212,8 +196,6 @@ export async function removePendingOps(ids: string[]) {
   await persistPendingOps();
 }
 
-/* ── Global sync: replay queued actions as soon as we are back online ── */
-
 let flushingGlobal = false;
 
 async function runPendingOp(op: PendingOp) {
@@ -225,8 +207,62 @@ async function runPendingOp(op: PendingOp) {
       });
       return;
     case 'tracker.remove':
-      if (typeof p.id === 'string' && p.id.startsWith('tmp-')) return; // never existed on the server
+      if (typeof p.id === 'string' && p.id.startsWith('tmp-')) return;
       await convexClient.mutation(api.calorieEntries.remove as any, { id: p.id });
+      return;
+    
+
+    case 'tracker.water.add':
+      await convexClient.mutation(api.tracker.addWater as any, { ml: p.ml ?? 250 });
+      return;
+    case 'tracker.water.undo':
+      await convexClient.mutation(api.tracker.removeWater as any, {});
+      return;
+    case 'tracker.weight.add':
+      await convexClient.mutation(api.tracker.addWeight as any, { weightKg: p.kg, at: p.at });
+      return;
+    case 'profile.save':
+      await convexClient.mutation(api.users.saveProfile as any, {
+        goal: p.goal,
+        diet: p.diet,
+        allergies: p.allergies,
+        cookingExperience: p.cookingExperience,
+        onboardedAt: p.onboardedAt,
+        waterGoalMl: p.waterGoalMl,
+      });
+      return;
+    case 'recipe.remove':
+      await convexClient.mutation(api.recipes.remove as any, { id: p.id });
+      return;
+    case 'saved.save':
+      await convexClient.mutation(api.savedRecipes.save as any, p);
+      return;
+    case 'saved.remove':
+      await convexClient.mutation(api.savedRecipes.remove as any, { id: p.id });
+      return;
+    case 'saved.update':
+      await convexClient.mutation(api.savedRecipes.update as any, {
+        id: p.id,
+        favorite: p.favorite,
+        notes: p.notes ?? '',
+        collectionIds: p.collectionIds ?? [],
+      });
+      return;
+    case 'community.like':
+      await convexClient.mutation(api.sharing.like as any, { shareId: p.shareId });
+      return;
+    case 'community.unlike':
+      await convexClient.mutation(api.sharing.unlike as any, { shareId: p.shareId });
+      return;
+    case 'community.comment':
+      await convexClient.mutation(api.sharing.addComment as any, {
+        sharedRecipeId: p.sharedRecipeId,
+        text: p.text,
+        userName: p.userName ?? null,
+      });
+      return;
+    case 'community.comment.remove':
+      await convexClient.mutation(api.sharing.deleteComment as any, { id: p.id });
       return;
     case 'shopping.add':
       await convexClient.mutation(api.shoppingList.add as any, { name: p.name });
@@ -235,7 +271,7 @@ async function runPendingOp(op: PendingOp) {
       await convexClient.mutation(api.shoppingList.toggle as any, { id: p.id });
       return;
     case 'shopping.remove':
-      if (typeof p.id === 'string' && p.id.startsWith('tmp-')) return; // never existed on the server
+      if (typeof p.id === 'string' && p.id.startsWith('tmp-')) return;
       await convexClient.mutation(api.shoppingList.remove as any, { id: p.id });
       return;
     case 'shopping.clearChecked':
@@ -261,12 +297,20 @@ async function runPendingOp(op: PendingOp) {
       await convexClient.mutation(api.shoppingList.setCheckedMany as any, { ids, checked: !!p.checked });
       return;
     }
+    case 'photo.upload': {
+      
+      const url = await uploadPhotoToServer(p.base64, p.mime);
+      if (!url) throw new Error('photo upload failed');
+      if (typeof p.recipeId === 'string' && p.recipeId) {
+        await convexClient.mutation(api.recipes.update as any, { id: p.recipeId, imageUrl: url });
+      }
+      return;
+    }
     default:
       return;
   }
 }
 
-/** Replays every queued offline action in order against the server. */
 export async function flushPendingOps() {
   if (flushingGlobal) return;
   flushingGlobal = true;
@@ -277,8 +321,6 @@ export async function flushPendingOps() {
         await runPendingOp(op);
         await removePendingOps([op.id]);
       } catch {
-        // One broken action must never block the whole queue: count the
-        // attempts and drop it after a few rounds instead of retrying forever.
         const tries = (op.tries ?? 0) + 1;
         if (tries >= 5) {
           await removePendingOps([op.id]);
@@ -287,7 +329,7 @@ export async function flushPendingOps() {
         const stored = pendingOps.find((o) => o.id === op.id);
         if (stored) stored.tries = tries;
         await persistPendingOps();
-        break; // still offline or an auth hiccup — retry on the next reconnect
+        break;
       }
     }
   } finally {
@@ -305,7 +347,7 @@ export async function hydrateOfflineCaches(keys: string[]) {
       try {
         const raw = await AsyncStorage.getItem(CACHE_PREFIX + key);
         if (raw) memCache.set(key, JSON.parse(raw));
-      } catch { /* ignore corrupted entry */ }
+      } catch {  }
     }),
   );
   try {
@@ -314,18 +356,9 @@ export async function hydrateOfflineCaches(keys: string[]) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) pendingOps = parsed.filter((o) => o && typeof o.id === 'string');
     }
-  } catch { /* ignore */ }
+  } catch {  }
 }
 
-/**
- * Drop-in list hook: keeps a list query usable offline.
- *
- *   const live = useQuery(api.recipes.list);
- *   const { data: mine, offline } = useCachedList('mine', live);
- *
- * While online the live result is used (and mirrored to storage). While
- * offline the last mirror is shown instead of an endless spinner.
- */
 export function useCachedList<T>(key: string, live: T[] | undefined) {
   const conn = useConnectivity();
   const [cached, setCached] = useState<T[] | undefined>(cacheRead<T[]>(key));
@@ -348,7 +381,6 @@ export function useCachedList<T>(key: string, live: T[] | undefined) {
   return { data: conn === 'offline' ? cached : live ?? cached, offline: conn === 'offline', apply };
 }
 
-/** Small guard used by screens that allow editing while offline is allowed for reading only. */
 export function useOfflineGuard() {
   const conn = useConnectivity();
   return {
@@ -361,24 +393,15 @@ export function useOfflineGuard() {
   };
 }
 
-/* Connectivity probe starts automatically once the module is imported. */
 startMonitoring();
 
-/* Export a tiny offline badge for screens that stay usable while offline. */
 export function OfflineBadge({ style }: { style?: object }) {
   const conn = useConnectivity();
-  /**
-   * 3.2.2: „Offline" allein sagt nichts über die Arbeit, die noch wartet.
-   * Jetzt steht die Anzahl dabei ("Offline · 3 Änderungen warten") — so weiß
-   * man, dass nichts verloren ist (Punkt 71 der Stabilitäts-Liste).
-   */
   const { t } = useTranslation();
-  const pending = useSyncExternalStore(subscribePendingOps, pendingOpsCount, pendingOpsCount);
   if (conn !== 'offline') return null;
-  const label = pending > 0 ? `Offline · ${t('s.offlinePending', { n: pending })}` : 'Offline';
   return (
-    <Text style={[{ fontSize: 11, fontWeight: '700', color: '#fff', backgroundColor: '#b45309', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, overflow: 'hidden', alignSelf: 'flex-start', marginBottom: 6 }, style]}>
-      {label}
+    <Text style={[{ fontSize: 10.5, fontWeight: '800', letterSpacing: 0.3, color: '#b45309', backgroundColor: 'rgba(180,83,9,0.14)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, overflow: 'hidden', alignSelf: 'flex-start', marginBottom: 6 }, style]}>
+      {t('s.offlineLabel')}
     </Text>
   );
 }

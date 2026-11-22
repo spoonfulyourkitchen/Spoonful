@@ -1,23 +1,6 @@
-/**
- * 3.2.1: Rezept aus einem Video-Link ziehen.
- *
- * Warum es vorher **nie** funktioniert hat (echte Ursachen, gefunden + behoben):
- *
- * 1. Die Untertitel-Adresse im YouTube-HTML ist **relativ**
- *    (`/api/timedtext?...`). Die App hat sie direkt geladen -> in React Native
- *    ergibt das "Network request failed", die Untertitel kamen also nie an.
- *    Jetzt wird die Adresse auf `https://www.youtube.com` ergänzt.
- * 2. „Zutaten/Schritte" wurde nur **zeilenweise** gesucht. Untertitel sind aber
- *    ein einziger langer Text (und Beschreibungen oft ein Absatz) -> 0 Zutaten,
- *    0 Schritte -> "kein Rezept". Jetzt wird zusätzlich nach **Sätzen**,
- *    **Abschnitten** ("Zutaten:", "Zubereitung:") und **Komma-Listen** getrennt.
- * 3. Es mussten **mindestens 2 Zutaten UND 2 Schritte** gefunden werden, sonst
- *    kam `null`. Jetzt reicht deutlich weniger, und wenn gar nichts passt,
- *    darf einmal die **KI (Gratis-Modelle)** den Text ordnen.
- *
- * Reihenfolge pro Video:
- *   Beschreibung + Untertitel holen -> lokal ordnen -> notfalls KI ordnen.
- */
+
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { aiRecipeFromText } from './ai';
 
 export type VideoRecipe = {
@@ -26,13 +9,12 @@ export type VideoRecipe = {
   steps: string[];
   source: string;
   language: string;
-  /** 3.2.1: woher der Text kam (für die Hinweiszeile in der App). */
+  
   textSource?: 'description' | 'captions' | 'mixed' | 'ai' | 'ai-captions';
-  /** true = bitte einmal drüberschauen (Text war unklar). */
+  
   needsReview?: boolean;
 };
 
-/** YouTube-ID aus allen üblichen Linkformen. */
 export function youtubeId(url: string): string | null {
   const value = String(url ?? '').trim();
   const patterns = [
@@ -76,7 +58,6 @@ function decodeEntities(text: string): string {
     .replace(/&#(\d+);/g, (_m, d) => String.fromCharCode(Number(d)));
 }
 
-/** Text aus einer JSON-Zeichenkette befreien (\n, \uXXXX, \" ...). */
 function unescapeJson(raw: string): string {
   let out = String(raw ?? '')
     .replace(/\\n/g, '\n')
@@ -88,10 +69,6 @@ function unescapeJson(raw: string): string {
   return out;
 }
 
-/**
- * Schneidet ein ausbalanciertes JSON-Objekt/-Array ab `fromIndex` heraus
- * (Anführungszeichen und Escapes werden beachtet).
- */
 function sliceBalanced(text: string, fromIndex: number, open: string, close: string): string | null {
   const start = text.indexOf(open, fromIndex);
   if (start < 0) return null;
@@ -128,16 +105,13 @@ function parseJsonAt<T>(text: string, marker: string, open: string, close: strin
   }
 }
 
-/** Untertitel-Adresse absolut machen und JSON-Escapes auflösen. */
 export function absoluteCaptionUrl(rawUrl: string): string {
-  let url = unescapeJson(String(rawUrl ?? '').replace(/\\u0026/g, '&').replace(/\\\//g, '/'));
+  let url = unescapeJson(String(rawUrl ?? '').replace(/\\(u0026|\/)/g, (_m: string, code: string) => (code === 'u0026' ? '&' : '/')));
   if (!url) return '';
   if (url.startsWith('//')) url = `https:${url}`;
   else if (url.startsWith('/')) url = `https://www.youtube.com${url}`;
   return url;
 }
-
-/* ── YouTube: Beschreibung + Untertitel ──────────────────────────────────── */
 
 type CaptionTrack = { baseUrl?: string; languageCode?: string; kind?: string; name?: any };
 
@@ -153,7 +127,6 @@ function trackName(track: CaptionTrack): string {
   return String(track?.name?.simpleText ?? track?.name?.runs?.[0]?.text ?? '');
 }
 
-/** Beste Spur wählen: gewünschte Sprachen, sonst erste (keine Automatik bevorzugt). */
 function pickTrack(tracks: CaptionTrack[], langs: string[]): CaptionTrack | null {
   if (!tracks.length) return null;
   for (const lang of langs) {
@@ -164,7 +137,6 @@ function pickTrack(tracks: CaptionTrack[], langs: string[]): CaptionTrack | null
   return manual ?? tracks[0];
 }
 
-/** Untertitel (json3 bevorzugt, XML als Reserve) in reinen Text wandeln. */
 export async function captionText(track: CaptionTrack): Promise<string> {
   const base = absoluteCaptionUrl(String(track?.baseUrl ?? ''));
   if (!base) return '';
@@ -178,9 +150,7 @@ export async function captionText(track: CaptionTrack): Promise<string> {
       if (!body) continue;
       const text = attempt.fmt === 'json3' ? textFromJson3(body) : textFromTimedText(body);
       if (text.trim()) return text;
-    } catch {
-      /* nächster Versuch */
-    }
+    } catch {}
   }
   return '';
 }
@@ -208,11 +178,6 @@ export function textFromTimedText(xml: string): string {
     .join('\n');
 }
 
-/**
- * Video-Daten von YouTube holen.
- * Der HTML-Weg ist der einzige, der ohne Schlüssel und ohne Konto funktioniert
- * (youtubei/timedtext sind für Server-Netze gesperrt).
- */
 export async function fetchYouTube(id: string, langs: string[] = ['de', 'en']): Promise<YouTubeData | null> {
   let html = '';
   try {
@@ -249,9 +214,7 @@ export async function fetchYouTube(id: string, langs: string[] = ['de', 'en']): 
       try {
         const parsed = JSON.parse(unescapeJson(slice).replace(/\\u0026/g, '&'));
         if (Array.isArray(parsed)) tracks = parsed as CaptionTrack[];
-      } catch {
-        /* Regex-Reserve unten */
-      }
+      } catch {}
     }
   }
   if (!tracks.length) {
@@ -270,9 +233,7 @@ export async function fetchYouTube(id: string, langs: string[] = ['de', 'en']): 
   };
 }
 
-/* ── TikTok / Instagram ───────────────────────────────────────────────────── */
 
-/** TikTok: oEmbed liefert die Bildunterschrift ohne Login. */
 async function tiktokText(url: string): Promise<{ text: string; title: string }> {
   let title = '';
   let text = '';
@@ -282,7 +243,6 @@ async function tiktokText(url: string): Promise<{ text: string; title: string }>
     title = String(json?.title ?? '');
     text = [title, String(json?.author_name ?? '')].filter(Boolean).join('\n');
   } catch {
-    /* unten Meta-Tags */
   }
   if (!text.trim()) {
     const og = await openGraphText(url);
@@ -291,7 +251,6 @@ async function tiktokText(url: string): Promise<{ text: string; title: string }>
   return { text, title };
 }
 
-/** Beschreibung + Titel aus den Meta-Tags einer beliebigen Seite. */
 async function openGraphText(url: string): Promise<{ text: string; title: string }> {
   try {
     const html = await fetch(url, { headers: BROWSER_HEADERS }).then((r) => r.text());
@@ -315,10 +274,6 @@ export function textFromHtml(html: string): { text: string; title: string } {
   return { text, title: decodeEntities(unescapeJson(String(ogTitle?.[1] ?? ''))) };
 }
 
-/**
- * Instagram: `/embed/captioned/` ist ohne Login abrufbar und enthält die
- * Bildunterschrift - bei Rezept-Videos steht dort der ganze Text.
- */
 async function instagramText(url: string): Promise<{ text: string; title: string }> {
   const match = /\/(p|reel|reels|tv)\/([A-Za-z0-9_-]+)/.exec(url);
   if (match) {
@@ -333,60 +288,80 @@ async function instagramText(url: string): Promise<{ text: string; title: string
         const text = decodeEntities(unescapeJson(String(caption[1]).replace(/<br\s*\/?>/gi, '\n')));
         if (text.trim()) return { text, title: '' };
       }
-    } catch {
-      /* Meta-Tags unten */
-    }
+    } catch {}
   }
   return openGraphText(url);
 }
-
-/* ── Text -> Rezept ──────────────────────────────────────────────────────── */
 
 const UNIT_WORDS =
   '(g|kg|mg|ml|l|cl|dl|gramm|kilo|liter|milliliter|tl|el|tsp|tbsp|cup|cups|tasse|tassen|stück|stueck|stk|prise|prisen|bund|dose|dosen|packung|päckchen|paekchen|packl|becher|scheiben|scheibe|zehen|zehe|cloves?|handful|pinch|esslöffel|teelöffel|el\\.|tl\\.)';
 
 const AMOUNT_AT_START = new RegExp(
-  `^(?:\\d+(?:[.,]\\d+)?|\\d+\\/\\d+|ein(?:e|en)?|zwei|drei|vier|fünf|fuenf|sechs|halb(?:e)?|half)\\s*` +
-    `(?:\\d+\\/\\d+\\s*)?(?:${UNIT_WORDS}\\b\\.?\\s*)?`,
+  `^(?:\\d+(?:[.,]\\d+)?(?:\\s*(?:-|–|bis|to)\\s*\\d+(?:[.,]\\d+)?)?|\\d+\\/\\d+|ein(?:e|en)?|zwei|drei|vier|fünf|fuenf|sechs|halb(?:e)?|half)\\s*` +
+    `(?:${UNIT_WORDS}\\b\\.?\\s*)?`,
   'i',
 );
 
 const COOKING_VERB =
   /(hinzu|dazugeben|dazugeb|misch|rühr|ruehr|koch|brat|back|schneid|wasch|schäl|schael|anbrat|dünst|duenst|gar|servier|zumisch|hinzugeb|erhitz|abschmeck|bestreu|verteil|gieß|giess|leg|stell|füll|fuell|knet|mix|pürier|puerier|würz|wuerz|abkühl|abkuehl|ziehen lassen|durchziehen|vermeng|verrühr|verruehr|tropf|tupf|röste|roeste|dampf|frittier|reduzier|ablösch|abloesch|streu|schöp|schoep|wende|grill|marinier|auftrag|bestreich|garnier|zerkleiner|zerdrück|zerdrueck|schwenk|zufüg|zufueg|add|mix|stir|cook|fry|bake|chop|heat|simmer|serve|pour|whisk|season|place|combine|sauté|saute|drain|fold|preheat|transfer|cover|pour|repeat|sprinkle|caramelize|reduce|remove|knead|wrap|chill|assemble|dust|brush)/i;
 
-const INGREDIENT_HEADING = /^(zutaten|zutatenliste|ingredients|ingredient|was du brauchst|du brauchst|you need|für den teig|fuer den teig|teig|füllung|fuellung|filling|topping|guss|glasur|sauce|soße|sosse|marinade|dressing)/i;
-const STEP_HEADING = /^(zubereitung|anleitung|schritte|arbeitsschritte|so geht'?s|so gehst du vor|methode|method|instructions?|steps?|directions?|vorgehen|rezept|recipe|preparation|how to)/i;
+const INGREDIENT_HEADING =
+  /^(zutaten|zutatenliste|ingredients|ingredient|was du brauchst|du brauchst|you need|für den teig|fuer den teig|teig|für die füllung|für die fuellung|für die sauce|für das dressing|für den belag|für den boden|füllung|fuellung|filling|topping|belag|guss|glasur|streusel|sauce|soße|sosse|marinade|dressing|crust|boden|für den guss)/i;
+const STEP_HEADING =
+  /^(zubereitung|anleitung|schritte|arbeitsschritte|so geht'?s|so wird'?s|so gehst du vor|los geht'?s|schritt für schritt|methode|method|instructions?|steps?|directions?|vorgehen|rezept|recipe|preparation|how to|how i make|cooking)/i;
 
-/** Absätze/Zeilen/Sätze/Komma-Stücke in einzelne Kandidaten zerlegen. */
+const FRACTIONS: Record<string, string> = {
+  '½': '1/2',
+  '¼': '1/4',
+  '¾': '3/4',
+  '⅓': '1/3',
+  '⅔': '2/3',
+  '⅛': '1/8',
+  '⅜': '3/8',
+  '⅝': '5/8',
+  '⅞': '7/8',
+};
+
+export function normalizeQuantities(text: string): string {
+  let out = String(text ?? '');
+  out = out.replace(/(\d)\s*([½¼¾⅓⅔⅛⅜⅝⅞])/g, (_m, whole: string, frac: string) => `${whole} ${FRACTIONS[frac]}`);
+  out = out.replace(/[½¼¾⅓⅔⅛⅜⅝⅞]/g, (f) => FRACTIONS[f]);
+  out = out.replace(/(\d+)\s+(\d+)\/(\d+)/g, (m, whole: string, num: string, den: string) => {
+    const value = Number(whole) + Number(num) / Number(den);
+    return Number.isFinite(value) && Number(den) ? String(Math.round(value * 100) / 100) : m;
+  });
+  out = out.replace(/(\d+)\/(\d+)/g, (m, num: string, den: string) => {
+    const value = Number(num) / Number(den);
+    return Number.isFinite(value) && Number(den) ? String(Math.round(value * 100) / 100) : m;
+  });
+  return out.replace(/(\d)\s+(?:bis|to)\s+(\d)\s*(?=[A-Za-zÄÖÜäöüß])/g, '$1-$2');
+}
+
 export function toSegments(text: string): string[] {
-  return String(text ?? '')
+  return normalizeQuantities(text)
     .replace(/\r/g, '\n')
     .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/[•●▪·*]/g, '\n')
+    .replace(/[•●▪·*▢◻□✓✔→]/g, '\n')
+    .replace(/\s*\|\s*/g, '\n')
     .replace(/([.!?])\s+(?=[A-ZÄÖÜ0-9])/g, '$1\n')
-    // Automatik-Untertitel haben oft keine Satzzeichen - Übergangswörter helfen.
-    .replace(/\s+(?:dann|danach|anschließend|anschliessend|zum schluss|nun|daraufhin|zuerst|now|then|next|finally|afterwards|first)\s+/gi, '\n')
+    .replace(
+      /\s+(?:und dann|und danach|und anschließend|und anschliessend|dann|danach|anschließend|anschliessend|zum schluss|nun|daraufhin|zuerst|als nächstes|now|then|next|finally|afterwards|first|and then|after that)\s+/gi,
+      '\n',
+    )
     .split('\n')
     .map((line) =>
       line
-        .replace(/\s*[–—]\s*/g, ' ')
+        .replace(/(^|\D)\s*[-–]\s*(?=\D|$)/g, '$1 ')
         .replace(/\(\s*(?:ca\.?|approx\.?)?\s*\d+[^)]*\)/gi, ' ')
         .trim(),
     )
     .flatMap((line) => (line.length > 90 && line.includes(',') ? line.split(/,\s*(?=[\dA-ZÄÖÜ])/g) : [line]))
-    .map((line) => line.replace(/\s+/g, ' ').replace(/^[-–—:]+/, '').trim())
+    .map((line) => line.replace(/\s+/g, ' ').replace(/^[-–:]+/, '').trim())
     .filter((line) => line.length > 1);
 }
 
 const hasAmount = (segment: string) => AMOUNT_AT_START.test(segment) || new RegExp(`\\b\\d+([.,]\\d+)?\\s*${UNIT_WORDS}\\b`, 'i').test(segment);
 
-/**
- * Zutaten und Schritte aus Beschreibung/Untertiteln holen.
- *
- * Neu in 3.2.1: Abschnitte ("Zutaten:", "Zubereitung:"), Sätze und
- * Komma-Listen werden erkannt - vorher wurde nur zeilenweise gesucht und
- * Untertitel bestehen aus einer einzigen langen Zeile.
- */
 export function parseRecipeFromText(text: string): { ingredients: string[]; steps: string[] } {
   const segments = toSegments(text);
   const ingredients: string[] = [];
@@ -396,7 +371,7 @@ export function parseRecipeFromText(text: string): { ingredients: string[]; step
   let section: 'none' | 'ingredients' | 'steps' = 'none';
 
   const pushIngredient = (raw: string) => {
-    const clean = raw.replace(/\s+/g, ' ').replace(/^[-–—:]+/, '').replace(/[.!]+$/, '').trim();
+    const clean = raw.replace(/\s+/g, ' ').replace(/^[-–:]+/, '').replace(/[.!]+$/, '').trim();
     if (clean.length < 2 || clean.length > 70) return;
     if (COOKING_VERB.test(clean)) return;
     const key = clean.toLowerCase();
@@ -431,8 +406,6 @@ export function parseRecipeFromText(text: string): { ingredients: string[]; step
     const words = segment.split(/\s+/).length;
     const verb = COOKING_VERB.test(segment);
 
-    /* Zutaten-Stücke auch mitten im Satz herausfischen
-       ("... zuerst 500 g Mehl in eine Schüssel ...", "250 ml Wasser dazugeben"). */
     if (segment.length > 25) {
       const snippets = segment.match(
         new RegExp(`\\d+(?:[.,]\\d+)?\\s*${UNIT_WORDS}\\s+[A-Za-zÄÖÜäöüß][A-Za-zÄÖÜäöüß0-9-]{2,20}`, 'gi'),
@@ -460,43 +433,28 @@ export function parseRecipeFromText(text: string): { ingredients: string[]; step
   return { ingredients: ingredients.slice(0, 40), steps: steps.slice(0, 30) };
 }
 
-/* ── Ablauf: Link -> Rezept ──────────────────────────────────────────────── */
 
 const isUsable = (found: { ingredients: string[]; steps: string[] }) =>
   (found.ingredients.length >= 2 && found.steps.length >= 1) ||
   (found.ingredients.length >= 1 && found.steps.length >= 2);
 
-/**
- * 3.3.0: Typische „Video-Müll"-Zeilen erkennen — Abo-Aufrufe, Links, Hashtags,
- * Werbung, Zeitstempel. Solche Zeilen dürfen nicht als Zutat oder Schritt im
- * Rezept landen (das war der Hauptgrund, warum die Video-Erkennung „tot" wirkte).
- */
 export function isJunkLine(line: string): boolean {
   const s = String(line ?? '').trim();
   if (!s) return true;
   if (/https?:\/\/|www\.|\.com|\.de\b|\.net|bit\.ly|youtu\.be/i.test(s)) return true;
   if (/(^|\s)#[^\s#]+/.test(s)) return true;
-  if (/^\s*\d{1,2}:\d{2}/.test(s)) return true;                       /* 00:42 Zeitstempel */
-  if (/[❤️🔥👌😍👇🙏✅💯]/u.test(s)) return true;
+  if (/^\s*\d{1,2}:\d{2}/.test(s)) return true;  if (/[❤️🔥👌😍👇🙏✅💯]/u.test(s)) return true;
   return /(subscribe|abonnier|abonniert|kanal|channel|follow (me|us)|folge mir|like (this|the) video|daumen hoch|teile das video|share (this|the) video|bewert|kommentier|comment below|schreib.*kommentar|glocke|bell icon|benachrichtigung|notification|link in (the )?bio|link in der beschreibung|bio|patreon|sponsor|werbung|ad\b|giveaway|gewinnspiel|rabattcode|discount code|watch (the )?full|ganzes video|thanks for watching|danke f.rs zuschauen|bis zum n.chsten|see you (next|in)|new video|playlist)/i.test(s);
 }
 
-/** Zutaten-/Schritt-Zeilen von Video-Müll befreien. */
 export function cleanJunkLines(lines: string[]): string[] {
   return lines.map((l) => String(l ?? '').trim()).filter((l) => l && !isJunkLine(l));
 }
 
-/**
- * 3.3.1: Titel aus einem Videotitel bauen (Fallback, wenn die KI nicht lief).
- *
- * Videotitel sind selten Gerichtnamen: „MEIN BESTES REZEPT!! 😍 | Folge mir",
- * „Schnelles Abendessen #shorts". Hier bleibt nur der Teil übrig, der wie ein
- * Gericht klingt — ohne Emojis, Hashtags, Kanäle, Schreien und Werbung.
- */
 export function craftTitle(raw: string, fallback = ''): string {
   const source = String(raw ?? '');
   const parts = source
-    .split(/[|•·–—>»«]|\s{2,}|\s-\s/)
+    .split(/[|•·>»«–-]|\s{2,}|\s-\s/)
     .map((p) => p.trim())
     .filter(Boolean);
   const cleaned = parts
@@ -514,27 +472,28 @@ export function craftTitle(raw: string, fallback = ''): string {
   const best = cleaned.find((part) => !isJunkLine(part)) ?? cleaned[0] ?? '';
   const tidy = best.replace(/\s{2,}/g, ' ').trim();
   if (!tidy) return String(fallback ?? '').trim();
-  /* Schreien in normale Schreibweise bringen: „MEIN BESTES REZEPT" → „Mein bestes Rezept" */
   const letters = tidy.replace(/[^A-Za-z\u00C0-\u024F]/g, '');
   const shouty = letters.length > 6 && letters === letters.toUpperCase();
   const normal = shouty ? tidy.charAt(0).toUpperCase() + tidy.slice(1).toLowerCase() : tidy.charAt(0).toUpperCase() + tidy.slice(1);
   return normal.slice(0, 70);
 }
 
-/**
- * 3.2.3: Zutaten aus dem Video und von der KI zusammenführen — die Video-Angaben
- * gewinnen, die KI füllt nur auf, was dort fehlt.
- */
 export function mergeIngredients(video: string[], ai: string[]): string[] {
   const out: string[] = [];
-  const seen = new Set<string>();
-  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9äöüß ]/g, ' ').replace(/\s+/g, ' ').trim();
+  const norm = (s: string) =>
+    s.toLowerCase().replace(/\d+([.,]\d+)?/g, ' ').replace(/[^a-z0-9äöüß ]/g, ' ').replace(/\s+/g, ' ').trim();
   const add = (raw: string) => {
-    const value = raw.trim();
+    const value = String(raw ?? '').trim();
     const key = norm(value);
-    if (!key || seen.has(key)) return;
-    if (out.some((existing) => norm(existing).includes(key) || key.includes(norm(existing)))) return;
-    seen.add(key);
+    if (!key) return;
+    const near = out.findIndex((existing) => {
+      const other = norm(existing);
+      return other === key || (other && (other.includes(key) || key.includes(other)));
+    });
+    if (near >= 0) {
+      if (!hasAmount(out[near]) && hasAmount(value)) out[near] = value;
+      return;
+    }
     out.push(value);
   };
   video.forEach(add);
@@ -542,19 +501,147 @@ export function mergeIngredients(video: string[], ai: string[]): string[] {
   return out.slice(0, 40);
 }
 
-/**
- * Rezept aus einem Video-Link ziehen.
- *
- * `null` gibt es nur noch, wenn wirklich kein Text zu holen war (Link falsch,
- * Video ohne Beschreibung/Untertitel). Sonst kommt immer ein Ergebnis zurück -
- * notfalls als „bitte prüfen" (`needsReview`).
- */
+export type VideoFailure = 'no-link' | 'no-text' | 'no-recipe';
+
+export type VideoResult = { recipe: VideoRecipe | null; reason?: VideoFailure; cached?: boolean };
+
+const CACHE_PREFIX = 'spoonful:video-recipe:';
+
+export const VIDEO_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
+
+export function videoCacheKey(link: string): string {
+  const value = String(link ?? '').trim();
+  const id = youtubeId(value);
+  if (id) return `${CACHE_PREFIX}yt:${id}`;
+  const clean = value.toLowerCase().replace(/[?#].*$/, '').replace(/\/+$/, '');
+  return CACHE_PREFIX + clean;
+}
+
+export async function readVideoCache(link: string): Promise<VideoRecipe | null> {
+  try {
+    const raw = await AsyncStorage.getItem(videoCacheKey(link));
+    if (!raw) return null;
+    const hit = JSON.parse(raw) as { at?: number; recipe?: VideoRecipe };
+    if (!hit || typeof hit.at !== 'number' || Date.now() - hit.at > VIDEO_CACHE_TTL) return null;
+    const recipe = hit.recipe;
+    if (!recipe || !Array.isArray(recipe.ingredients) || !Array.isArray(recipe.steps)) return null;
+    if (!recipe.ingredients.length || !recipe.steps.length) return null;
+    return recipe;
+  } catch {
+    return null;
+  }
+}
+
+export async function writeVideoCache(link: string, recipe: VideoRecipe): Promise<void> {
+  try {
+    await AsyncStorage.setItem(videoCacheKey(link), JSON.stringify({ at: Date.now(), recipe }));
+  } catch {}
+}
+
+type ComposeInput = {
+  text: string;
+  title: string;
+  source: string;
+  language: string;
+  origin: 'description' | 'captions' | 'mixed';
+};
+
+async function composeRecipe(input: ComposeInput, allowAi: boolean): Promise<VideoRecipe | null> {
+  const text = String(input.text ?? '');
+  const local = parseRecipeFromText(text);
+  const cleaned = {
+    ingredients: cleanJunkLines(local.ingredients),
+    steps: cleanJunkLines(local.steps),
+  };
+  const junkFound =
+    cleaned.ingredients.length !== local.ingredients.length || cleaned.steps.length !== local.steps.length;
+  const tooFewSteps = cleaned.ingredients.length >= 2 && cleaned.steps.length < 3;
+  const aiAvailable = allowAi && text.trim().length >= 120;
+  const tag = { source: input.source, language: input.language };
+
+  if ((tooFewSteps || junkFound) && aiAvailable) {
+    const structured = await aiRecipeFromText({ title: input.title, text }).catch(() => null);
+    if (structured && structured.steps.length >= 2) {
+      const ingredients = mergeIngredients(cleaned.ingredients, structured.ingredients);
+      return {
+        title:
+          structured.title ||
+          craftTitle(input.title, ingredients[0] ?? '') ||
+          structured.steps[0].slice(0, 60),
+        ingredients,
+        steps: structured.steps,
+        ...tag,
+        textSource: 'ai',
+        needsReview: ingredients.length < 3,
+      };
+    }
+  }
+
+  if (isUsable(cleaned)) {
+    return {
+      title: craftTitle(input.title, cleaned.ingredients[0] ?? '') || cleaned.steps[0].slice(0, 60),
+      ingredients: cleaned.ingredients,
+      steps: cleaned.steps,
+      ...tag,
+      textSource: input.origin,
+      needsReview: cleaned.ingredients.length < 3,
+    };
+  }
+
+  if (allowAi && text.trim().length >= 200) {
+    const structured = await aiRecipeFromText({ title: input.title, text }).catch(() => null);
+    if (structured && structured.ingredients.length && structured.steps.length) {
+      return {
+        title: structured.title || craftTitle(input.title, structured.ingredients[0] ?? ''),
+        ingredients: structured.ingredients,
+        steps: structured.steps,
+        ...tag,
+        textSource: 'ai',
+        needsReview: true,
+      };
+    }
+  }
+
+  const lines = toSegments(text)
+    .filter((line) => line.length >= 12 && line.length <= 200)
+    .slice(0, 25);
+  if (lines.length >= 4) {
+    return {
+      title: craftTitle(input.title, lines[0]) || lines[0].slice(0, 60),
+      ingredients: local.ingredients,
+      steps: local.steps.length ? local.steps : lines,
+      ...tag,
+      textSource: input.origin,
+      needsReview: true,
+    };
+  }
+
+  return null;
+}
+
+export async function recipeFromText(args: {
+  text: string;
+  title?: string;
+  allowAi?: boolean;
+}): Promise<VideoRecipe | null> {
+  const raw = String(args?.text ?? '').trim();
+  if (raw.length < 20) return null;
+  return composeRecipe(
+    { text: raw, title: String(args?.title ?? ''), source: 'pasted-text', language: '', origin: 'description' },
+    args?.allowAi !== false,
+  );
+}
+
 export async function recipeFromVideo(
   url: string,
-  opts: { languages?: string[]; allowAi?: boolean } = {},
+  opts: { languages?: string[]; allowAi?: boolean; reason?: { value?: VideoFailure } } = {},
 ): Promise<VideoRecipe | null> {
+  const fail = (reason: VideoFailure): null => {
+    if (opts.reason) opts.reason.value = reason;
+    return null;
+  };
   const link = String(url ?? '').trim();
-  if (!link) return null;
+  if (!link) return fail('no-link');
   const platform = platformOf(link);
   const langs = (opts.languages ?? []).filter(Boolean);
   const languagePrefs = langs.length ? langs : ['de', 'en'];
@@ -569,10 +656,10 @@ export async function recipeFromVideo(
   try {
     if (platform === 'youtube') {
       const id = youtubeId(link);
-      if (!id) return null;
+      if (!id) return fail('no-link');
       source = `https://www.youtube.com/watch?v=${id}`;
       const data = await fetchYouTube(id, languagePrefs);
-      if (!data) return null;
+      if (!data) return fail('no-text');
       title = data.title;
       language = data.language;
       const hasDescription = !!data.description.trim();
@@ -593,94 +680,30 @@ export async function recipeFromVideo(
       title = og.title;
     }
   } catch {
-    return null;
+    return fail('no-text');
   }
 
-  if (!text.trim()) return null;
+  if (!text.trim()) return fail('no-text');
 
-  const local = parseRecipeFromText(text);
-
-  /**
-   * 3.3.0: Video-Text sauber machen. Beschreibungen enthalten fast immer Dinge,
-   * die kein Rezept sind (Abo-Aufrufe, Links, Hashtags, Werbung). Diese Zeilen
-   * fliegen raus, und wenn etwas gefunden wurde, ordnet die KI den Text noch
-   * einmal komplett — so landen keine Fremdsätze als Zutat/Schritt im Rezept.
-   */
-  const cleaned = {
-    ingredients: cleanJunkLines(local.ingredients),
-    steps: cleanJunkLines(local.steps),
-  };
-  const junkFound = cleaned.ingredients.length !== local.ingredients.length || cleaned.steps.length !== local.steps.length;
-  const tooFewSteps = cleaned.ingredients.length >= 2 && cleaned.steps.length < 3;
-  const aiAvailable = allowAi && text.trim().length >= 120;
-
-  /**
-   * 3.2.3/3.3.0: Die KI ergänzt zu kurze Rezepte (typisch bei Reels) und räumt
-   * Text auf. Die Zutaten aus dem Video bleiben dabei erhalten.
-   */
-  if ((tooFewSteps || junkFound) && aiAvailable) {
-    const structured = await aiRecipeFromText({ title, text }).catch(() => null);
-    if (structured && structured.steps.length >= 2) {
-      const ingredients = mergeIngredients(cleaned.ingredients, structured.ingredients);
-      return {
-        title: structured.title || craftTitle(title, ingredients[0] ?? '') || structured.steps[0].slice(0, 60),
-        ingredients,
-        steps: structured.steps,
-        source,
-        language,
-        textSource: 'ai',
-        needsReview: ingredients.length < 3,
-      };
-    }
-  }
-
-  if (isUsable(cleaned)) {
-    return {
-      title: craftTitle(title, cleaned.ingredients[0] ?? '') || cleaned.steps[0].slice(0, 60),
-      ingredients: cleaned.ingredients,
-      steps: cleaned.steps,
-      source,
-      language,
-      textSource: origin,
-      needsReview: cleaned.ingredients.length < 3,
-    };
-  }
-
-  /* Notfall: die KI (Gratis-Modelle) ordnet den Text. */
-  if (allowAi && text.trim().length >= 200) {
-    const structured = await aiRecipeFromText({ title, text }).catch(() => null);
-    if (structured && structured.ingredients.length && structured.steps.length) {
-      return {
-        title: structured.title || craftTitle(title, structured.ingredients[0] ?? ''),
-        ingredients: structured.ingredients,
-        steps: structured.steps,
-        source,
-        language,
-        textSource: 'ai',
-        needsReview: true,
-      };
-    }
-  }
-
-  /* Immer noch nichts? Dann wenigstens den Text zeigen statt "kein Rezept". */
-  const lines = toSegments(text)
-    .filter((line) => line.length >= 12 && line.length <= 200)
-    .slice(0, 25);
-  if (lines.length >= 4) {
-    return {
-      title: craftTitle(title, lines[0]) || lines[0].slice(0, 60),
-      ingredients: local.ingredients,
-      steps: local.steps.length ? local.steps : lines,
-      source,
-      language,
-      textSource: origin,
-      needsReview: true,
-    };
-  }
-
-  return null;
+  const recipe = await composeRecipe({ text, title, source, language, origin }, allowAi);
+  return recipe ?? fail('no-recipe');
 }
 
-
-
-
+export async function recipeFromVideoDetailed(
+  url: string,
+  opts: { languages?: string[]; allowAi?: boolean; useCache?: boolean } = {},
+): Promise<VideoResult> {
+  const link = String(url ?? '').trim();
+  if (!link) return { recipe: null, reason: 'no-link' };
+  if (opts.useCache !== false) {
+    const hit = await readVideoCache(link);
+    if (hit) return { recipe: hit, cached: true };
+  }
+  const reason: { value?: VideoFailure } = {};
+  const recipe = await recipeFromVideo(link, { ...opts, reason });
+  if (recipe) {
+    void writeVideoCache(link, recipe);
+    return { recipe };
+  }
+  return { recipe: null, reason: reason.value ?? 'no-recipe' };
+}

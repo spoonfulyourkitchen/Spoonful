@@ -2,17 +2,10 @@ import React from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
 import { colors, fonts } from '../theme';
 
-/**
- * 2.1.1: one popup for the whole app.
- *
- * Everything that used to unfold further down the page (goal suggestion,
- * product lookups, list extras, confirmations) opens in this centred card
- * instead - the user never has to scroll to find what just happened.
- */
 export type PopupAction = {
   label: string;
   onPress: () => void;
-  /** primary = filled, ghost = quiet, danger = destructive. */
+  
   variant?: 'primary' | 'ghost' | 'danger';
 };
 

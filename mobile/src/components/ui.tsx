@@ -12,13 +12,9 @@ import {
 } from 'react-native';
 import { Search } from 'lucide-react-native';
 
-import { colors, fonts, glassShadow, readableText, usesSolidStyle } from '../theme';
-
-/* ============================================================================
-   Spoonful design-system primitives (light glassmorphism).
-   Rebuild of the web app's .glass / .glass-card / .solid-card / .glass-input
-   / .glass-btn surfaces for React Native.
-   ========================================================================== */
+import { colors, fonts, glassShadow, readableText } from '../theme';
+import { useConnectivity } from '../lib/offline';
+import { useTranslation } from '../lib/i18n';
 
 type Radius = number | 'full';
 
@@ -26,11 +22,6 @@ function radiusOf(r: Radius): number {
   return r === 'full' ? 999 : r;
 }
 
-/* ---------------------------------------------------------------------------
-   Glass surface — translucent frosty panel (light) or theme-card (dark).
-   RN has no backdrop-blur, so light panels use a translucent white that is
-   visually close to bg-white/45 while keeping a white top highlight + border.
-   ------------------------------------------------------------------------- */
 export function GlassCard({
   children,
   variant = 'glass',
@@ -44,24 +35,16 @@ export function GlassCard({
   pad?: number;
   radius?: Radius;
   style?: StyleProp<ViewStyle>;
-  /** 3.2.0: false = Karte ist eingeklappt (z. B. hinter einem Collapsible) */
+
   visible?: boolean;
 }) {
   if (!visible) return null;
-  /**
-   * 3.2.3: Im Haupt-Theme gibt es keinen Glasmorphismus mehr — Karten sind
-   * flächig in der Theme-Farbe mit sichtbarem Rahmen.
-   */
-  const solid = usesSolidStyle();
-  const bg =
-    solid || variant === 'solid' ? colors.card
-      : variant === 'glassDark' ? (colors.dark ? colors.card : 'rgba(30,41,59,0.9)')
-        : colors.dark ? colors.card
-          : 'rgba(255,255,255,0.55)';
-  const highlight =
-    solid ? 'transparent' : colors.dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.9)';
-  const border =
-    solid ? colors.cardBorder : colors.dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.9)';
+
+  
+
+  const bg = variant === 'glassDark' && !colors.dark ? '#1e293b' : colors.card;
+  const highlight = 'transparent';
+  const border = colors.cardBorder;
   return (
     <View
       style={[
@@ -83,9 +66,6 @@ export function GlassCard({
   );
 }
 
-/* ---------------------------------------------------------------------------
-   Press scale — mimics the web "btn-press" (scale 0.97) on every pressable.
-   ------------------------------------------------------------------------- */
 export function PressScale({
   children,
   onPress,
@@ -121,13 +101,6 @@ export function PressScale({
   );
 }
 
-/* ---------------------------------------------------------------------------
-   Buttons.
-   - variant "dark"   → bg-slate-950 (near-black) like the web auth CTAs
-   - variant "accent" → amber/orange fill (theme accent)
-   - variant "ghost"  → translucent white with border
-   - variant "danger" → rose ghost
-   ------------------------------------------------------------------------- */
 export function AppButton({
   label,
   onPress,
@@ -150,7 +123,7 @@ export function AppButton({
   const palettes: Record<string, { bg: string; fg: string; border?: string; pressedBg: string }> = {
     accent: { bg: colors.accent, fg: colors.accentText, pressedBg: colors.darkButtonPressed },
     dark: { bg: colors.darkButton, fg: colors.darkButtonText, pressedBg: colors.darkButtonPressed },
-    ghost: { bg: colors.dark ? colors.card : 'rgba(255,255,255,0.6)', fg: colors.textPrimary, border: colors.cardBorder, pressedBg: colors.surfaceMuted },
+    ghost: { bg: colors.card, fg: colors.textPrimary, border: colors.cardBorder, pressedBg: colors.surfaceMuted },
     danger: { bg: 'rgba(225,29,72,0.1)', fg: colors.rose, border: colors.roseBg, pressedBg: colors.roseBg },
   };
   const p = palettes[variant];
@@ -195,9 +168,6 @@ export function PrimaryButton({ label, onPress, disabled, style }: { label: stri
   return <AppButton label={label} onPress={onPress} disabled={disabled} variant="dark" style={style} />;
 }
 
-/* ---------------------------------------------------------------------------
-   Chip / pill — fully rounded selectable chip.
-   ------------------------------------------------------------------------- */
 export function Chip({
   label,
   active,
@@ -216,7 +186,6 @@ export function Chip({
   style?: StyleProp<ViewStyle>;
 }) {
   const activeBg = tone === 'rose' ? colors.rose : tone === 'green' ? colors.success : colors.accent;
-  // contrast is picked automatically, so the chip stays readable in every theme
   const activeFg = tone === 'accent' ? colors.accentText : readableText(activeBg);
   const chip = (
     <View
@@ -230,7 +199,7 @@ export function Chip({
           paddingVertical: 7,
           borderWidth: 1,
           borderColor: active ? 'transparent' : colors.cardBorder,
-          backgroundColor: active ? activeBg : colors.dark ? colors.card : 'rgba(255,255,255,0.7)',
+          backgroundColor: active ? activeBg : colors.card,
         },
         style,
       ]}
@@ -257,19 +226,15 @@ export function Chip({
 
 export const Pill = Chip;
 
-/* ---------------------------------------------------------------------------
-   Text field — the web .glass-input look (light surface, accent focus ring).
-   ------------------------------------------------------------------------- */
 export function TextField(
   props: TextInputProps & { label?: string; icon?: React.ReactNode; inputStyle?: object },
 ) {
   const { label, icon, inputStyle, style, ...rest } = props;
   return (
     <View style={[{ marginBottom: 14 }, style as StyleProp<ViewStyle>]}>
-      {/* 3.3.1: Die Beschriftung bekommt eine feste Zeilenhöhe und schrumpft bei
-          langen Wörtern (z. B. „VORBEREITUNGSZEIT (MIN)"), statt umzubrechen.
-          Vorher wurden dadurch nebeneinander liegende Felder unterschiedlich
-          hoch und die Reihe sah verschoben aus. */}
+      {
+
+}
       <View style={{ height: 17, justifyContent: 'center' }}>
         {label ? (
           <Text
@@ -285,7 +250,7 @@ export function TextField(
       <View
         style={[
           styles.inputWrap,
-          { backgroundColor: colors.dark ? colors.card : 'rgba(255,255,255,0.7)', borderColor: colors.cardBorder },
+          { backgroundColor: colors.card, borderColor: colors.cardBorder },
         ]}
       >
         {icon ? <View style={{ marginRight: 8 }}>{icon}</View> : null}
@@ -323,7 +288,7 @@ export function SearchField({
           flexDirection: 'row',
           alignItems: 'center',
           gap: 8,
-          backgroundColor: colors.dark ? colors.card : 'rgba(255,255,255,0.7)',
+          backgroundColor: colors.card,
           borderWidth: 1,
           borderColor: colors.cardBorder,
           borderRadius: 14,
@@ -350,10 +315,9 @@ export function SearchField({
   );
 }
 
-/* ---------------------------------------------------------------------------
-   Page header (eyebrow + display title + optional subtitle).
-   ------------------------------------------------------------------------- */
 export function PageHeader({ eyebrow, title, subtitle, style }: { eyebrow?: string; title: string; subtitle?: string; style?: StyleProp<ViewStyle> }) {
+  const conn = useConnectivity();
+  const { t } = useTranslation();
   return (
     <View style={[{ marginBottom: 16 }, style]}>
       {eyebrow ? (
@@ -361,9 +325,16 @@ export function PageHeader({ eyebrow, title, subtitle, style }: { eyebrow?: stri
           {eyebrow}
         </Text>
       ) : null}
-      <Text style={{ fontSize: 30, fontWeight: '700', color: colors.textPrimary, letterSpacing: -0.5, fontFamily: fonts.display }}>
-        {title}
-      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        <Text style={{ fontSize: 30, fontWeight: '700', color: colors.textPrimary, letterSpacing: -0.5, fontFamily: fonts.display }}>
+          {title}
+        </Text>
+        {conn === 'offline' ? (
+          <View style={{ borderRadius: 999, backgroundColor: 'rgba(180,83,9,0.14)', paddingHorizontal: 8, paddingVertical: 3 }}>
+            <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 0.4, color: '#b45309' }}>{t('s.offlineLabel')}</Text>
+          </View>
+        ) : null}
+      </View>
       {subtitle ? (
         <Text style={{ fontSize: 15, lineHeight: 23, color: colors.textSecondary, marginTop: 6 }}>{subtitle}</Text>
       ) : null}
@@ -371,9 +342,6 @@ export function PageHeader({ eyebrow, title, subtitle, style }: { eyebrow?: stri
   );
 }
 
-/* ---------------------------------------------------------------------------
-   Segmented control (web segmented pill toggle).
-   ------------------------------------------------------------------------- */
 export function Segmented<T extends string>({
   options,
   value,
@@ -390,7 +358,7 @@ export function Segmented<T extends string>({
         borderRadius: 12,
         borderWidth: 1,
         borderColor: colors.cardBorder,
-        backgroundColor: colors.dark ? colors.card : 'rgba(255,255,255,0.55)',
+        backgroundColor: colors.card,
         padding: 3,
       }}
     >
@@ -415,9 +383,6 @@ export function Segmented<T extends string>({
   );
 }
 
-/* ---------------------------------------------------------------------------
-   Empty state block.
-   ------------------------------------------------------------------------- */
 export function EmptyState({
   icon,
   title,
@@ -467,9 +432,6 @@ export function SectionLabel({ children, style }: { children: React.ReactNode; s
   );
 }
 
-/* ---------------------------------------------------------------------------
-   Value cell inside nutrition grids etc.
-   ------------------------------------------------------------------------- */
 export function InfoBox({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
     <View style={{ flex: 1, alignItems: 'center', paddingVertical: 10 }}>
@@ -486,8 +448,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 14,
     paddingHorizontal: 14,
-    /* 3.3.1: feste Höhe — so stehen nebeneinander liegende Felder immer auf
-       gleicher Höhe, egal wie lang die Beschriftung ist. */
+    
+
     minHeight: 46,
   },
   input: {

@@ -1,10 +1,5 @@
-/**
- * Arabic (ar) interface dictionary.
- *
- * Kept in its own module so the main i18n file stays readable; i18n.tsx merges
- * it like every other language. Layout direction is handled by
- * applyLayoutDirection() in i18n.tsx (RTL for Arabic).
- */
+
+
 export const AR: Record<string, Record<string, string>> = {
   nav: {
     home: 'الرئيسية', discover: 'اكتشف', kitchen: 'مطبخي', ai: 'الشيف الذكي', saved: 'المحفوظات',
@@ -41,7 +36,7 @@ export const AR: Record<string, Record<string, string>> = {
   },
   dialog: {
     editRecipe: 'تعديل الوصفة', photoLabel: 'صورة', tapUpload: 'اضغط لرفع صورة',
-    photoHint: 'JPG، PNG — من الكاميرا أو المعرض', removePhoto: 'إزالة الصورة', addPhotoFirst: 'أضف صورة أولًا',
+    photoHint: 'JPG، PNG - من الكاميرا أو المعرض', removePhoto: 'إزالة الصورة', addPhotoFirst: 'أضف صورة أولًا',
     cuisinePlaceholder: 'إيطالي، مكسيكي، كوري...', dietaryTags: 'وسوم النظام الغذائي', onePerLine: '(واحد لكل سطر)',
     calories: 'السعرات', proteinG: 'بروتين (غ)', carbsG: 'كربوهيدرات (غ)', fatG: 'دهون (غ)',
     uploadCommunity: 'انشر للمجتمع', uploadedCommunity: 'تم النشر في المجتمع', addToList: 'أضف للقائمة',
@@ -65,7 +60,6 @@ export const AR: Record<string, Record<string, string>> = {
     doneBody: 'لقد اطّلعت على كل شيء. يمكنك إعادة الجولة من الإعدادات، المساعدة.',
   },
 
-
   saved: {
     title: 'الوصفات المحفوظة', desc: 'احتفظ بالمفضلة واجعل كل وصفة خاصة بك.', allSaved: 'كل المحفوظات',
     favorites: 'المفضلة', collections: 'المجموعات', newCollection: 'مجموعة جديدة', nothingSaved: 'لا شيء محفوظ هنا بعد',
@@ -76,7 +70,7 @@ export const AR: Record<string, Record<string, string>> = {
     privateShelf: 'رفّك الخاص', create: 'إنشاء', loadingSaved: 'جارٍ تحميل المحفوظات...',
   },
   tracker: {
-    title: 'المتابعة', desc: 'السعرات والعناصر الكبرى من كل طبق تطبخه — أو سجّل وجبة يدويًا.', today: 'اليوم',
+    title: 'المتابعة', desc: 'السعرات والعناصر الكبرى من كل طبق تطبخه - أو سجّل وجبة يدويًا.', today: 'اليوم',
     logMeal: 'سجّل وجبة', logMealManual: 'تسجيل وجبة', trackDishHint: 'سجّل طبقًا لم يُطبخ في وضع الطبخ.',
     caloriesToday: 'سعرات اليوم', proteinToday: 'بروتين اليوم', carbsToday: 'كربوهيدرات اليوم',
     fatToday: 'دهون اليوم', recentMeals: 'الوجبات الأخيرة', noMeals: 'لا وجبات مسجّلة بعد',
@@ -156,21 +150,11 @@ export const AR: Record<string, Record<string, string>> = {
     enterCodeAndPass: 'أدخل الرمز وكلمة المرور الجديدة.', enterEmailAssociated: 'أدخل البريد المرتبط بحسابك.',
     resend: 'إعادة الإرسال', didntReceive: 'لم تستلم الرمز؟', verifyYourEmail: 'أكّد بريدك الإلكتروني.',
     weSentCode: 'أرسلنا رمزًا من ٦ أرقام إلى', signInWithCode: 'الدخول برمز',
-    signInWithCodeInstead: 'الدخول برمز بدلًا من ذلك', wellEmailCode: 'سنرسل لك رمزًا — دون كلمة مرور.',
+    signInWithCodeInstead: 'الدخول برمز بدلًا من ذلك', wellEmailCode: 'سنرسل لك رمزًا - دون كلمة مرور.',
     wellSendCode: 'سنرسل لك رمزًا.', tailorsHint: 'يساعدنا هذا على تخصيص الوصفات لمستواك.',
     keepClose: 'أبقِ الجيد قريبًا.', backToSignIn: 'رجوع لتسجيل الدخول', backToSpoonful: 'رجوع لصفحة Spoonful',
     emailPassword: 'البريد وكلمة المرور', signInKitchen: 'سجّل الدخول إلى مطبخك.',
     signInDescFull: 'سجّل الدخول بكلمة المرور أو استخدم رمزًا يُرسل إلى بريدك.',
   },
-  landing: {
-    tagline: 'مطبخ أكثر هدوءًا', headline1: 'أفسح مكانًا لـ', headline2: 'طعام لذيذ',
-    headlineDesc: 'البيت الهادئ لوصفاتك — احفظ ما تحب، واستعن بالذكاء الاصطناعي بما لديك في مطبخك، ودع العشاء يجهز بسهولة.',
-    createSpace: 'أنشئ مساحتك', yours: 'ملكك من البداية', everything: 'كل ما تحتاجه',
-    cookSmarter: 'اطبخ بذكاء، لا بمشقة.', cookDesc: 'مكان هادئ للوصفات والتغذية والتسوّق والطبخ — مبني على طريقة أكلك الحقيقية.',
-    howItWorks: 'كيف يعمل', threeSteps: 'ثلاث خطوات لوجبة رائعة.', whatPeople: 'ماذا يقول الناس',
-    madeFor: 'مصنوع لمطابخ حقيقية.', startCooking: 'ابدأ الطبخ في ٣٠ ثانية.',
-    startDesc: 'بدون بطاقة بنكية. بدون إعداد معقّد. سجّل الدخول وابدأ بحفظ وصفاتك المفضلة.',
-    getStarted: 'ابدأ مجانًا', openSpoonful: 'افتح Spoonful', signIn: 'تسجيل الدخول', workspace: 'مساحة العمل',
-    aPlaceToBegin: 'مكان للبدء.', yourKitchen: 'مطبخك',
-  },
+  landing: { tagline: 'وصفات، تغذية، تسوّق', headline1: 'وصفاتك،', headline2: 'مطبخك', headlineDesc: 'احفظ الوصفات، سجّل الوجبات، وأبقِ قائمة التسوّق بجانبها.', createSpace: 'إنشاء حساب', getStarted: 'إنشاء حساب', signIn: 'تسجيل الدخول', howItWorks: 'كيف يعمل', startCooking: 'ابدأ بوصفة', startDesc: 'سجّل الدخول، احفظ وصفة، وستجدها في المرة القادمة.' },
 };

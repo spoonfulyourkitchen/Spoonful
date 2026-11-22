@@ -1,21 +1,17 @@
-import { supabase, requireUserId, toError, ts, mapRecipe, mapSaved, mapUser, mapShopping, mapCalorie, mapCollection, mapShared, mapReport, mapFeedback, mapLibrary } from './supabase';
+import { supabase, requireUserId, ts, mapRecipe, mapSaved, mapUser, mapShopping, mapCalorie, mapCollection, mapShared, mapReport, mapFeedback, mapLibrary } from './supabase';
 import { aiGenerateRecipe, aiEstimateNutrition, aiImproveRecipe, aiSubstituteIngredient } from './ai';
 import { translateRecipeContentOnline } from './recipe-translate';
-
-/**
- * Spoonful data layer — Convex-style API refs backed by Supabase.
- * Screens keep calling `useQuery(api.recipes.list)` / `useMutation(api.X.y)`
- * exactly like they did with Convex. Each leaf is a lightweight function
- * reference; the hooks in `convex-auth.tsx` resolve it against the operation
- * registry below.
- */
+import { ops, rowError, type Op } from './api-core';
+import './api-community';
+import './api-notices';
 
 export type FnKind = 'query' | 'mutation' | 'action';
 export type FnRef = { __spoonfulRef: true; key: string; kind: FnKind };
 
 const R = (key: string, kind: FnKind): FnRef => ({ __spoonfulRef: true, key, kind });
 
-/* ─── API namespace (mirrors the old convex/api surface used by the app) ─── */
+export const SHARE_RETRY_WAIT_MS = 3 * 24 * 60 * 60 * 1000;
+
 export const api = {
   recipes: {
     list: R('recipes.list', 'query'),
@@ -24,7 +20,7 @@ export const api = {
     remove: R('recipes.remove', 'mutation'),
     reportImage: R('recipes.reportImage', 'mutation'),
     libraryMeta: R('recipes.libraryMeta', 'query'),
-    /** 3.2.3: echte Rezeptzahl der Bibliothek (für Landing/Dashboard). */
+    
     libraryCount: R('recipes.libraryCount', 'query'),
     libraryPage: R('recipes.libraryPage', 'query'),
     random: R('recipes.random', 'query'),
@@ -37,6 +33,9 @@ export const api = {
   },
   collections: {
     list: R('collections.list', 'query'),
+    create: R('collections.create', 'mutation'),
+    update: R('collections.update', 'mutation'),
+    remove: R('collections.remove', 'mutation'),
   },
   shoppingList: {
     list: R('shoppingList.list', 'query'),
@@ -96,6 +95,7 @@ export const api = {
     like: R('sharing.like', 'mutation'),
     unlike: R('sharing.unlike', 'mutation'),
     comments: R('sharing.comments', 'query'),
+    commentCounts: R('sharing.commentCounts', 'query'),
     addComment: R('sharing.addComment', 'mutation'),
     deleteComment: R('sharing.deleteComment', 'mutation'),
     resultPhotos: R('sharing.resultPhotos', 'query'),
@@ -139,7 +139,7 @@ export const api = {
     join: R('household.join', 'mutation'),
     leave: R('household.leave', 'mutation'),
   },
-  /* 3.0.0: Kochmodus im Haushalt teilen (wer ist bei welchem Schritt?) */
+  
   householdCooking: {
     state: R('householdCooking.state', 'query'),
     set: R('householdCooking.set', 'mutation'),
@@ -151,7 +151,7 @@ export const api = {
     send: R('announcement.send', 'mutation'),
     deactivate: R('announcement.deactivate', 'mutation'),
   },
-  /** 2.1.4: version-gated "new update" notices (only older versions see them). */
+  
   updates: {
     latest: R('updates.latest', 'query'),
     status: R('updates.status', 'query'),
@@ -165,21 +165,6 @@ export function isRef(v: any): v is FnRef {
   return !!v && v.__spoonfulRef === true;
 }
 
-/* ─── Operation registry ─────────────────────────────────────────────────── */
-
-type Op = {
-  query?: (ctx: { uid: string }, args: any) => Promise<any>;
-  mutation?: (ctx: { uid: string }, args: any) => Promise<any>;
-  action?: (ctx: { uid: string }, args: any) => Promise<any>;
-};
-
-const ops: Record<string, Op> = {};
-
-function rowError(e: any): Error {
-  return toError(e);
-}
-
-/* ---------- recipes ---------- */
 ops['recipes.list'] = {
   async query({ uid }) {
     const { data, error } = await supabase
@@ -268,22 +253,17 @@ ops['recipes.reportImage'] = {
     return mapReport(data);
   },
 };
-/**
- * 3.2.3: Die Landing-/Dashboard-Zahlen sind jetzt echt: die Bibliothek wird
- * direkt gezählt (Head-Request, keine Rezeptdaten übertragen).
- */
+
 ops['recipes.libraryCount'] = {
   async query() {
     try {
-      /* 3.3.1: über eine Funktion — die funktioniert auch ohne Anmeldung, damit
-         die Landing-Seite die echte Zahl zeigt statt einer festen Angabe. */
+      
+
       const { data, error } = await supabase.rpc('library_count');
       if (error) throw error;
       const total = typeof data === 'number' ? data : Number(data ?? 0);
       if (Number.isFinite(total) && total > 0) return { total };
-    } catch {
-      /* Funktion noch nicht da → zweiter Versuch direkt auf der Tabelle */
-    }
+    } catch {}
     try {
       const { count, error } = await supabase
         .from('recipes')
@@ -291,7 +271,7 @@ ops['recipes.libraryCount'] = {
       if (error) throw error;
       return { total: count ?? 0 };
     } catch {
-      /* offline oder ohne Rechte: einfach keine Zahl anzeigen */
+      
       return { total: 0 };
     }
   },
@@ -337,14 +317,8 @@ ops['recipes.libraryPage'] = {
       total: obj?.total ?? items.length,
       hasMore: !!obj?.hasMore,
       offset: obj?.offset ?? 0,
-      /**
-       * 2.0.0 fix: the library screen sends a token that identifies the exact
-       * filter set of the request and gets it back here. While a query is
-       * loading the cache still holds the previous filter set, and applying
-       * that data made the counter and the grid disagree (e.g. "2 recipes"
-       * above ten tiles). With the token the screen simply ignores responses
-       * that belong to an older filter set.
-       */
+      
+
       token: args?.token ?? null,
     };
   },
@@ -358,7 +332,6 @@ ops['recipes.random'] = {
   },
 };
 
-/* ---------- saved recipes / collections ---------- */
 ops['savedRecipes.list'] = {
   async query({ uid }) {
     const { data, error } = await supabase
@@ -389,7 +362,7 @@ ops['savedRecipes.save'] = {
       carbs: args.carbs ?? null,
       fat: args.fat ?? null,
       notes: args.notes ?? '',
-      favorite: args.favorite ?? true,
+      favorite: args.favorite ?? false,
       collection_ids: args.collectionIds ?? [],
       updated_at: t,
     };
@@ -435,11 +408,37 @@ ops['collections.list'] = {
     return (data ?? []).map(mapCollection);
   },
 };
+ops['collections.create'] = {
+  async mutation({ uid }, args: any) {
+    const name = String(args?.name ?? '').trim().slice(0, 60);
+    if (name.length < 2) throw new Error('Collection names must contain at least 2 characters.');
+    const { data, error } = await supabase
+      .from('collections').insert({ user_id: uid, name, created_at: ts() }).select().single();
+    if (error) throw rowError(error);
+    return mapCollection(data);
+  },
+};
+ops['collections.update'] = {
+  async mutation({ uid }, args: any) {
+    const name = String(args?.name ?? '').trim().slice(0, 60);
+    if (name.length < 2) throw new Error('Collection names must contain at least 2 characters.');
+    const { data, error } = await supabase
+      .from('collections').update({ name }).eq('id', args.id).eq('user_id', uid).select().single();
+    if (error) throw rowError(error);
+    return mapCollection(data);
+  },
+};
+ops['collections.remove'] = {
+  async mutation({ uid }, args: any) {
+    const id = args.id;
+    const { error } = await supabase.from('collections').delete().eq('id', id).eq('user_id', uid);
+    if (error) throw rowError(error);
+    return null;
+  },
+};
 
-/* ---------- shopping list ---------- */
 ops['shoppingList.list'] = {
   async query(_ctx) {
-    // RLS returns the user's own items plus everything shared in the household.
     const { data, error } = await supabase
       .from('shopping_list_items')
       .select('*')
@@ -449,7 +448,6 @@ ops['shoppingList.list'] = {
   },
 };
 
-/** 2.0.0: price, "have it at home", category and course can be edited inline. */
 ops['shoppingList.update'] = {
   async mutation(_ctx, args: any) {
     const patch: any = {};
@@ -466,7 +464,6 @@ ops['shoppingList.update'] = {
   },
 };
 
-/** Check off several items at once (shopping run mode). */
 ops['shoppingList.setCheckedMany'] = {
   async mutation(_ctx, args: any) {
     const ids: string[] = Array.isArray(args.ids) ? args.ids : [];
@@ -477,7 +474,6 @@ ops['shoppingList.setCheckedMany'] = {
   },
 };
 
-/* ---------- household (shared shopping list) ---------- */
 ops['household.mine'] = {
   async query() {
     const { data, error } = await supabase.rpc('my_household');
@@ -515,8 +511,6 @@ ops['household.leave'] = {
   },
 };
 
-/* ---------- 3.0.0: gemeinsam kochen im Haushalt ---------- */
-/** True, wenn die Haushalts-Funktionen noch nicht installiert sind. */
 function missingHouseholdCooking(error: any): boolean {
   const code = String((error as any)?.code ?? '');
   const text = `${(error as any)?.message ?? ''} ${(error as any)?.details ?? ''}`;
@@ -527,7 +521,7 @@ ops['householdCooking.state'] = {
   async query() {
     const { data, error } = await supabase.rpc('household_cooking_state');
     if (error) {
-      if (missingHouseholdCooking(error)) return []; // SQL noch nicht eingespielt
+      if (missingHouseholdCooking(error)) return [];
       throw rowError(error);
     }
     return (Array.isArray(data) ? data : []).map((r: any) => ({
@@ -552,7 +546,6 @@ ops['householdCooking.set'] = {
       p_total: Number(args?.total ?? 1),
       p_done: Number(args?.done ?? 0),
     });
-    // Ohne Haushalt oder ohne SQL: kein Fehler für den Nutzer
     if (error) {
       if (missingHouseholdCooking(error) || /no household|sign in required/i.test(String(error.message ?? ''))) return null;
       throw rowError(error);
@@ -593,8 +586,6 @@ ops['shoppingList.addMany'] = {
   async mutation({ uid }, args: any) {
     const items: any[] = Array.isArray(args.items) ? args.items : [];
     const t = ts();
-    // 3.2.2: gleiche Zutat nicht doppelt anlegen (Punkt 82 der Stabilitäts-Liste).
-    // Doppelte innerhalb der Anfrage und gegenüber der offenen Liste fallen raus.
     const wanted = new Map<string, any>();
     for (const it of items) {
       const name = String(it?.name ?? '').trim();
@@ -607,9 +598,7 @@ ops['shoppingList.addMany'] = {
     try {
       const { data: existing } = await supabase.from('shopping_list_items').select('name').eq('checked', false);
       have = new Set((existing ?? []).map((r: any) => String(r?.name ?? '').trim().toLowerCase()));
-    } catch {
-      /* Wenn die Liste nicht lesbar ist, wird trotzdem eingetragen */
-    }
+    } catch {}
     const rows = [...wanted.entries()]
       .filter(([key]) => !have.has(key))
       .map(([, it]: any) => ({
@@ -658,7 +647,7 @@ ops['shoppingList.clearAll'] = {
     return null;
   },
 };
-/* ---------- calorie entries ---------- */
+
 ops['calorieEntries.list'] = {
   async query({ uid }) {
     const { data, error } = await supabase
@@ -705,7 +694,6 @@ ops['calorieEntries.remove'] = {
   },
 };
 
-/* ---------- users ---------- */
 ops['users.currentUser'] = {
   async query({ uid }) {
     const { data, error } = await supabase.from('users').select('*').eq('id', uid).maybeSingle();
@@ -719,7 +707,6 @@ ops['users.saveProfile'] = {
     if (args.name !== undefined) patch.name = args.name;
     if (args.cookingExperience !== undefined) patch.cooking_experience = args.cookingExperience;
     if (args.image !== undefined) patch.image = args.image;
-    // onboarding profile (2.0.0)
     if (args.goal !== undefined) patch.goal = args.goal;
     if (args.diet !== undefined) patch.diet = args.diet;
     if (args.allergies !== undefined) patch.allergies = args.allergies ?? [];
@@ -731,7 +718,7 @@ ops['users.saveProfile'] = {
     return data ? mapUser(data) : null;
   },
 };
-/* ---------- sharing / community ---------- */
+
 ops['sharing.community'] = {
   async query({ uid }) {
     const { data, error } = await supabase
@@ -762,7 +749,7 @@ ops['sharing.myShares'] = {
     return (data ?? []).map(mapShared);
   },
 };
-/* ---------- community extras (2.0.0) ---------- */
+
 ops['sharing.challenges'] = {
   async query() {
     const { data, error } = await supabase
@@ -888,7 +875,7 @@ ops['sharing.blocked'] = {
     return (data ?? []).map((r: any) => r.blocked_id);
   },
 };
-/** Community feed with server side sorting (newest / rating / likes / near me). */
+
 ops['sharing.feed'] = {
   async query(_ctx, args: any) {
     const { data, error } = await supabase.rpc('community_page', {
@@ -944,7 +931,7 @@ ops['sharing.create'] = {
     if (existing.error) throw rowError(existing.error);
 
     const now = ts();
-    const RETRY_WAIT_MS = 3 * 24 * 60 * 60 * 1000;
+    const RETRY_WAIT_MS = SHARE_RETRY_WAIT_MS;
     const shareKey = `sp-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
     const baseRow: any = {
@@ -978,7 +965,6 @@ ops['sharing.create'] = {
       if (prev.status === 'approved') {
         throw new Error('This recipe is already in the community.');
       }
-      // Previously rejected → enforce a cooldown before it can be submitted again.
       if (prev.reviewed_at && now - prev.reviewed_at < RETRY_WAIT_MS) {
         const wait = RETRY_WAIT_MS - (now - prev.reviewed_at);
         const days = Math.max(1, Math.ceil(wait / 86400000));
@@ -1036,7 +1022,7 @@ ops['sharing.reviewShare'] = {
     return data;
   },
 };
-/* ---------- likes ---------- */
+
 ops['sharing.like'] = {
   async mutation(_ctx, args: any) {
     const { data, error } = await supabase.rpc('share_like', { target: args.shareId ?? args.id });
@@ -1051,7 +1037,7 @@ ops['sharing.unlike'] = {
     return data;
   },
 };
-/* ---------- admin ---------- */
+
 async function rpcValue<T>(fn: string, params?: any): Promise<T> {
   const { data, error } = params ? await supabase.rpc(fn, params) : await supabase.rpc(fn);
   if (error) throw rowError(error);
@@ -1074,7 +1060,6 @@ ops['admin.getAllUsers'] = {
       const rows = await rpcValue<any[]>('admin_list_users');
       return (rows ?? []).map(mapUser);
     } catch (e) {
-      // non-admins (mods) cannot list users
       console.warn('[spoonful] getAllUsers denied', e instanceof Error ? e.message : e);
       return [];
     }
@@ -1103,7 +1088,6 @@ ops['admin.myRole'] = {
     const role = data?.role;
     if (role === 'admin') return 'admin';
     if (role === 'mod') {
-      // email-based admins are also admins even if their row says "user"
       const isAdm = await rpcValue<any>('is_admin');
       const v: any = isAdm;
       const admin = typeof v === 'boolean' ? v : !!(v && v.is_admin);
@@ -1188,13 +1172,12 @@ ops['admin.dismissImageReport'] = {
   },
 };
 
-/* ---------- media / image uploads ---------- */
 ops['media.generateUploadUrl'] = {
   async mutation() {
     throw new Error('Photo uploads are handled through Supabase Storage now (see lib/photo.ts).');
   },
 };
-/* ---------- AI (OpenRouter) ---------- */
+
 ops['ai.generateRecipe'] = {
   async action(_ctx, args: any) {
     return aiGenerateRecipe({
@@ -1252,8 +1235,6 @@ ops['ai.estimateNutrition'] = {
   },
 };
 
-/* ---------- tracker: weight log ---------- */
-/* ---------- water tracking (2.0.0) ---------- */
 ops['tracker.waterToday'] = {
   async query({ uid }) {
     const start = new Date();
@@ -1326,8 +1307,6 @@ ops['tracker.addWeight'] = {
   },
 };
 
-/* ---------- recipe translation (no AI, server-cached) ---------- */
-/** 2.0.0 (102): users can report a better translation for a specific recipe. */
 ops['translate.reportCorrection'] = {
   async mutation({ uid }, args: any) {
     const { error } = await supabase.from('translation_corrections').insert({
@@ -1372,8 +1351,6 @@ ops['translate.translateRecipe'] = {
       lang,
     );
 
-    // Caching must never break the feature: if the write fails (offline,
-    // RPC hiccup) the user still gets the translation right away.
     try {
       const { error: saveErr } = await supabase.rpc('save_translation', {
         p: {
@@ -1394,7 +1371,6 @@ ops['translate.translateRecipe'] = {
   },
 };
 
-/* ---------- feedback (in-app) ---------- */
 ops['feedback.submit'] = {
   async mutation({ uid }, args: any) {
     const rating = args.rating != null ? Number(args.rating) : null;
@@ -1415,333 +1391,6 @@ ops['feedback.submit'] = {
     return mapFeedback(data);
   },
 };
-/* ---------- community extras: comments, result photos, reports, follows ---------- */
-
-function mapComment(row: any, uid: string | null) {
-  return {
-    _id: row.id,
-    sharedRecipeId: row.shared_recipe_id,
-    userId: row.user_id,
-    userName: row.user_name ?? 'Spoonful cook',
-    text: row.text,
-    createdAt: row.created_at,
-    mine: !!uid && row.user_id === uid,
-  };
-}
-
-ops['sharing.comments'] = {
-  async query({ uid }, args: any) {
-    const id = String(args?.sharedRecipeId ?? '');
-    if (!id) return [];
-    const { data, error } = await supabase
-      .from('share_comments')
-      .select('*')
-      .eq('shared_recipe_id', id)
-      .order('created_at', { ascending: true })
-      .limit(200);
-    if (error) throw rowError(error);
-    return (data ?? []).map((row: any) => mapComment(row, uid));
-  },
-};
-
-/** Comment counts for the whole feed in one request (no N+1 round trips). */
-ops['sharing.commentCounts'] = {
-  async query() {
-    const { data, error } = await supabase.from('share_comments').select('shared_recipe_id').limit(5000);
-    if (error) throw rowError(error);
-    const counts: Record<string, number> = {};
-    (data ?? []).forEach((row: any) => {
-      const key = String(row.shared_recipe_id);
-      counts[key] = (counts[key] ?? 0) + 1;
-    });
-    return counts;
-  },
-};
-
-ops['sharing.addComment'] = {
-  async mutation({ uid }, args: any) {
-    const id = String(args?.sharedRecipeId ?? '');
-    const text = String(args?.text ?? '').trim();
-    if (!id) throw new Error('Missing recipe.');
-    if (!text) throw new Error('Please write something first.');
-    if (text.length > 600) throw new Error('That comment is a bit too long (max 600 characters).');
-    const { data, error } = await supabase
-      .from('share_comments')
-      .insert({ shared_recipe_id: id, user_id: uid, user_name: args?.userName ?? null, text, created_at: ts() })
-      .select('*')
-      .single();
-    if (error) throw rowError(error);
-    return mapComment(data, uid);
-  },
-};
-
-ops['sharing.deleteComment'] = {
-  async mutation({ uid }, args: any) {
-    const id = String(args?.id ?? '');
-    if (!id) throw new Error('Missing comment.');
-    const { error } = await supabase.from('share_comments').delete().eq('id', id).eq('user_id', uid);
-    if (error) throw rowError(error);
-    return true;
-  },
-};
-
-ops['sharing.resultPhotos'] = {
-  async query(_ctx, args: any) {
-    const id = String(args?.sharedRecipeId ?? '');
-    if (!id) return [];
-    const { data, error } = await supabase
-      .from('share_photos')
-      .select('*')
-      .eq('shared_recipe_id', id)
-      .order('created_at', { ascending: false })
-      .limit(30);
-    if (error) throw rowError(error);
-    return (data ?? []).map((row: any) => ({
-      _id: row.id,
-      sharedRecipeId: row.shared_recipe_id,
-      userName: row.user_name ?? 'Spoonful cook',
-      imageUrl: row.image_url,
-      createdAt: row.created_at,
-    }));
-  },
-};
-
-ops['sharing.addResultPhoto'] = {
-  async mutation({ uid }, args: any) {
-    const id = String(args?.sharedRecipeId ?? '');
-    const url = String(args?.imageUrl ?? '');
-    if (!id || !/^https?:\/\//i.test(url)) throw new Error('Could not attach that photo.');
-    const { error } = await supabase
-      .from('share_photos')
-      .insert({ shared_recipe_id: id, user_id: uid, user_name: args?.userName ?? null, image_url: url, created_at: ts() });
-    if (error) throw rowError(error);
-    return true;
-  },
-};
-
-const REPORT_REASONS = ['spam', 'offensive', 'wrong', 'other'];
-
-ops['sharing.report'] = {
-  async mutation({ uid }, args: any) {
-    const targetType = String(args?.targetType ?? 'recipe');
-    const targetId = String(args?.targetId ?? '');
-    const reason = String(args?.reason ?? 'other');
-    if (!targetId) throw new Error('Missing target.');
-    if (!REPORT_REASONS.includes(reason)) throw new Error('Please pick a reason.');
-    const { error } = await supabase
-      .from('content_reports')
-      .insert({
-        target_type: targetType,
-        target_id: targetId,
-        reporter_id: uid,
-        reason,
-        note: args?.note ? String(args.note).slice(0, 500) : null,
-        status: 'open',
-        created_at: ts(),
-      });
-    // 23505 = already reported by this user
-    if (error && (error as any).code !== '23505') throw rowError(error);
-    return true;
-  },
-};
-
-ops['sharing.followedCooks'] = {
-  async query({ uid }) {
-    const { data, error } = await supabase.from('cook_follows').select('following_id').eq('follower_id', uid).limit(500);
-    if (error) throw rowError(error);
-    return (data ?? []).map((row: any) => String(row.following_id));
-  },
-};
-
-ops['sharing.follow'] = {
-  async mutation({ uid }, args: any) {
-    const id = String(args?.userId ?? '');
-    if (!id || id === uid) throw new Error('You cannot follow yourself.');
-    const { error } = await supabase
-      .from('cook_follows')
-      .upsert({ follower_id: uid, following_id: id, created_at: ts() }, { onConflict: 'follower_id,following_id' });
-    if (error) throw rowError(error);
-    return true;
-  },
-};
-
-ops['sharing.unfollow'] = {
-  async mutation({ uid }, args: any) {
-    const id = String(args?.userId ?? '');
-    if (!id) throw new Error('Missing user.');
-    const { error } = await supabase.from('cook_follows').delete().eq('follower_id', uid).eq('following_id', id);
-    if (error) throw rowError(error);
-    return true;
-  },
-};
-
-/* ---------- admin broadcast (2.0.0): one popup for everyone ---------- */
-ops['announcement.latest'] = {
-  async query() {
-    const { data, error } = await supabase.rpc('latest_announcement');
-    if (error) throw rowError(error);
-    const v: any = data;
-    return v && typeof v === 'object' && 'latest_announcement' in v ? v.latest_announcement : v;
-  },
-};
-ops['announcement.list'] = {
-  async query() {
-    const { data, error } = await supabase
-      .from('announcements')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(20);
-    if (error) throw rowError(error);
-    return (data ?? []).map((r: any) => ({
-      _id: r.id,
-      title: r.title,
-      body: r.body,
-      active: !!r.active,
-      createdAt: r.created_at,
-    }));
-  },
-};
-ops['announcement.send'] = {
-  async mutation(_ctx, args: any) {
-    const { data, error } = await supabase.rpc('send_announcement', {
-      p_title: String(args?.title ?? '').trim(),
-      p_body: String(args?.body ?? '').trim(),
-    });
-    if (error) throw rowError(error);
-    return data;
-  },
-};
-ops['announcement.deactivate'] = {
-  async mutation(_ctx, args: any) {
-    const { error } = await supabase.from('announcements').update({ active: false }).eq('id', args?.id);
-    if (error) throw rowError(error);
-    return null;
-  },
-};
-
-/* ---------- 2.1.4: update notices (only users on an older version see them) ---------- */
-
-/**
- * True when the database function (or its table) is not there yet — e.g. when
- * `db/2.1.4-update-notices.sql` has not been run in the Supabase project.
- * PostgREST answers with PGRST202 and "…in the schema cache".
- */
-function isMissingRpc(error: any): boolean {
-  const code = String((error as any)?.code ?? '');
-  const text = `${(error as any)?.message ?? ''} ${(error as any)?.details ?? ''} ${(error as any)?.hint ?? ''}`;
-  return (
-    code === 'PGRST202' ||
-    code === '42P01' ||
-    code === '42883' ||
-    /could not find the function|schema cache|does not exist/i.test(text)
-  );
-}
-
-ops['updates.latest'] = {
-  async query(_ctx, args: any) {
-    const clientVersion = String(args?.version ?? '0');
-    const { data, error } = await supabase.rpc('latest_update_notice', { p_client_version: clientVersion });
-    // not deployed yet → simply no notice, never an error for the user
-    if (error) {
-      if (isMissingRpc(error)) return null;
-      throw rowError(error);
-    }
-    const rows = Array.isArray(data) ? data : data ? [data] : [];
-    const row: any = rows[0];
-    if (!row) return null;
-    return {
-      _id: row.id,
-      version: row.version,
-      title: row.title,
-      body: row.body,
-      url: row.release_url,
-      createdAt: row.created_at,
-    };
-  },
-};
-
-/** Is the update-notice feature installed in the database? */
-ops['updates.status'] = {
-  async query() {
-    const { error } = await supabase.rpc('list_update_notices');
-    if (error) {
-      if (isMissingRpc(error)) return { ready: false, reason: String((error as any)?.message ?? '') };
-      return { ready: true, reason: '' };
-    }
-    return { ready: true, reason: '' };
-  },
-};
-
-ops['updates.list'] = {
-  async query() {
-    const { data, error } = await supabase.rpc('list_update_notices');
-    // keep the admin panel usable while the SQL is still missing
-    if (error) {
-      if (isMissingRpc(error)) return [];
-      throw rowError(error);
-    }
-    return (Array.isArray(data) ? data : []).map((r: any) => ({
-      _id: r.id,
-      version: r.version,
-      title: r.title,
-      body: r.body,
-      url: r.release_url,
-      active: !!r.active,
-      createdAt: r.created_at,
-    }));
-  },
-};
-
-ops['updates.post'] = {
-  async mutation(_ctx, args: any) {
-    const { data, error } = await supabase.rpc('post_update_notice', {
-      p_version: String(args?.version ?? '').trim(),
-      p_url: String(args?.url ?? '').trim(),
-      p_title: String(args?.title ?? '').trim() || 'New update',
-      p_body: String(args?.body ?? '').trim(),
-    });
-    if (error) {
-      if (isMissingRpc(error)) {
-        throw new Error(
-          'The update functions are not installed yet. Run db/2.1.4-update-notices.sql in the Supabase SQL editor, then reload the schema cache (Project Settings → API).',
-        );
-      }
-      throw rowError(error);
-    }
-    return data;
-  },
-};
-
-ops['updates.deactivate'] = {
-  async mutation(_ctx, args: any) {
-    const { error } = await supabase.rpc('deactivate_update_notice', { p_id: Number(args?.id) });
-    if (error) {
-      if (isMissingRpc(error)) return null;
-      throw rowError(error);
-    }
-    return null;
-  },
-};
-
-/* ---------- GDPR: export / delete my account ---------- */
-
-ops['account.exportData'] = {
-  async action() {
-    const { data, error } = await supabase.rpc('export_my_data');
-    if (error) throw rowError(error);
-    return data ?? {};
-  },
-};
-
-ops['account.deleteAccount'] = {
-  async mutation() {
-    const { error } = await supabase.rpc('delete_my_account');
-    if (error) throw rowError(error);
-    return true;
-  },
-};
-
-/* ─── Registry helpers used by the hooks in convex-auth.tsx ─────────────── */
 export function getOp(refOrKey: FnRef | string): Op | undefined {
   const key = typeof refOrKey === 'string' ? refOrKey : refOrKey?.key;
   return ops[key];
@@ -1763,7 +1412,13 @@ export async function runOp(
   return fn(ctx, args ?? {});
 }
 
-/** Validate that every registered ref has a matching implementation. */
+export async function runPublicQuery(refOrKey: FnRef | string, args: any = {}): Promise<any> {
+  const key = typeof refOrKey === 'string' ? refOrKey : refOrKey?.key;
+  const op = key ? ops[key] : undefined;
+  if (!op?.query) throw new Error(`Function ${key} is not a query`);
+  return op.query({ uid: '' } as any, args ?? {});
+}
+
 export function assertOpsRegistered() {
   const missing: string[] = [];
   const walk = (node: any) => {
@@ -1779,13 +1434,7 @@ export function assertOpsRegistered() {
   };
   walk(api);
   if (missing.length) {
-    // Non-fatal — listed functions are simply not available in this build.
     console.warn('[spoonful] unimplemented ops:', missing.join(', '));
   }
 }
-
-
-
-
-
 

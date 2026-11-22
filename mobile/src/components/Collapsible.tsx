@@ -1,8 +1,5 @@
-/**
- * 3.2.0: Aufklappbarer Abschnitt (wie bei den Community-Challenges).
- *
- * Kopfzeile: Symbol + Titel + Linie + Pfeil (unten = zu, oben = offen).
- */
+
+
 import React from 'react';
 import { Pressable, StyleProp, Text, View, ViewStyle } from 'react-native';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
@@ -30,7 +27,7 @@ export function Collapsible({
   children?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   tone?: 'default' | 'accent';
-  /** true = nur die Kopfzeile (für Abschnitte, die ihre eigene Karte mitbringen) */
+  
   bare?: boolean;
 }) {
   const accent = tone === 'accent';

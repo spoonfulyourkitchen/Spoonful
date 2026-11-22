@@ -1,11 +1,4 @@
--- Spoonful 3.2.0 — geteilte Einkaufslisten im Haushalt (max. 2)
---
--- Eine Person tippt in ihrer Einkaufsliste auf "Zum Haushalt": ihre Posten
--- wandern in eine Haushalts-Liste, die alle sehen und abhaken können. Pro
--- Haushalt sind höchstens ZWEI solche Listen erlaubt.
---
--- Einmal im Supabase SQL Editor ausführen. Fehlt das SQL, bleibt die App
--- benutzbar - "Zum Haushalt" meldet dann nur, dass es nicht geklappt hat.
+
 
 create table if not exists public.household_lists (
   id           uuid primary key default gen_random_uuid(),
@@ -13,7 +6,7 @@ create table if not exists public.household_lists (
   user_id      uuid not null references auth.users(id) on delete cascade,
   owner_name   text not null default '',
   title        text not null default '',
-  -- [{ "name": "Milch", "checked": false }, ...]
+  
   items        jsonb not null default '[]'::jsonb,
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()
@@ -29,7 +22,6 @@ create policy household_lists_hh_all on public.household_lists
   using (household_id = public.my_household_id() or user_id = auth.uid())
   with check (user_id = auth.uid() and household_id = public.my_household_id());
 
-/* ── Liste teilen (prüft das Limit von 2) ─────────────────────────────────── */
 create or replace function public.share_household_list(p_title text, p_items jsonb)
 returns uuid
 language plpgsql
@@ -67,7 +59,6 @@ $$;
 
 grant execute on function public.share_household_list(text, jsonb) to authenticated;
 
-/* ── Alle Listen des Haushalts ───────────────────────────────────────────── */
 create or replace function public.household_lists_state()
 returns table (id uuid, user_id uuid, owner_name text, title text, items jsonb, created_at timestamptz)
 language plpgsql
@@ -86,7 +77,6 @@ $$;
 
 grant execute on function public.household_lists_state() to authenticated;
 
-/* ── Liste ändern (abhaken / löschen) ────────────────────────────────────── */
 create or replace function public.update_household_list(p_id uuid, p_items jsonb)
 returns void
 language plpgsql

@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
-/* 3.3.0: Meldungen im App-Design statt System-Dialog */
+
 import { Alert } from '../lib/alert';
 import { ChefHat, Pencil, Plus, Trash2 } from 'lucide-react-native';
 import { useMutation, useQuery } from '../lib/convex-auth';
@@ -11,7 +11,7 @@ import { navigate } from '../navigation/rootRef';
 import { AppButton, EmptyState, GlassCard, PageHeader } from '../components/ui';
 import { RecipeImage } from '../components/RecipeImage';
 import { formatCuisine } from '../lib/recipe';
-import { useCachedList, useOfflineGuard, OfflineBadge } from '../lib/offline';
+import { useCachedList, addPendingOp, getConnNow } from '../lib/offline';
 import { useTranslation } from '../lib/i18n';
 
 function asLibrary(r: any) {
@@ -27,24 +27,40 @@ function asLibrary(r: any) {
 
 export function MyRecipesScreen() {
   const live = useQuery(api.recipes.list);
-  const { data: mine, offline } = useCachedList('mine', live);
-  const { requireOnline } = useOfflineGuard();
+  const { data: mine, apply } = useCachedList('mine', live);
   const { t } = useTranslation();
   const removeRecipe = useMutation(api.recipes.remove);
   const openEditor = () => navigate('RecipeForm', {});
 
+  
+
   const confirmDelete = (recipe: any) => {
-    if (!requireOnline('You are offline')) return;
     Alert.alert(t('recipe.deleteConfirm'), t('recipe.deleteDesc'), [
       { text: t('recipe.keepRecipe'), style: 'cancel' },
-      { text: t('recipe.deleteRecipe'), style: 'destructive', onPress: () => { try { removeRecipe({ id: recipe._id }); } catch { /* reactive */ } } },
+      {
+        text: t('recipe.deleteRecipe'),
+        style: 'destructive',
+        onPress: () => {
+          apply((prev: any[]) => prev.filter((r: any) => r._id !== recipe._id));
+          void (async () => {
+            if (getConnNow() === 'offline') {
+              await addPendingOp('recipe.remove', { id: recipe._id });
+              return;
+            }
+            try {
+              await removeRecipe({ id: recipe._id });
+            } catch {
+              await addPendingOp('recipe.remove', { id: recipe._id });
+            }
+          })();
+        },
+      },
     ]);
   };
 
   return (
     <Page>
       <View style={{ paddingHorizontal: 18, paddingTop: 12 }}>
-        {offline ? <OfflineBadge /> : null}
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10 }}>
           <View style={{ flex: 1 }}>
             <PageHeader eyebrow={t('s.mineEyebrow')} title={t('s.mineTitle')} />

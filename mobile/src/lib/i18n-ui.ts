@@ -1,16 +1,8 @@
 import type { Language } from './i18n';
 
-/**
- * Spoonful 2.1.2 `ui` namespace.
- *
- * Small screen labels that used to be hardcoded English in the JSX: notification
- * preferences, the help/danger sections of the settings screen and the account
- * rows. Every language carries the same keys (English is the last fallback
- * instance only).
- */
 export type UiDict = Record<string, string>;
 
-export const UI_L10N: Record<Language, UiDict> = {
+export const UI_L10N: Partial<Record<Language, UiDict>> = {
   en: {
     notifTitle: 'Notifications', notifMeal: 'Meal reminders', notifMealDesc: 'Lunch 13:00 · Dinner 19:00',
     notifDrink: 'Drink reminders', notifDrinkDesc: '10:00 · 14:00 · 17:30', notifAi: 'AI Chef done',
@@ -18,6 +10,7 @@ export const UI_L10N: Record<Language, UiDict> = {
     help: 'Help', contact: 'Contact support', exportData: 'Export my data', danger: 'Danger zone',
     deleteAccount: 'Delete my account', deleteAccountBody: 'This removes your account and all your recipes.',
     tutorialSection: 'Tour', name: 'Name', email: 'Email', offlineNoNet: 'You are offline',
+    notifAdmin: 'New users & sign-ins', notifAdminDesc: 'Admins only: get a notification when somebody creates an account or signs in.',
   },
   de: {
     notifTitle: 'Benachrichtigungen', notifMeal: 'Essens-Erinnerungen', notifMealDesc: 'Mittag 13:00 · Abend 19:00',
@@ -84,11 +77,62 @@ export const UI_L10N: Record<Language, UiDict> = {
     tutorialSection: 'Tour', name: 'Naam', email: 'E-mail', offlineNoNet: 'Je bent offline',
   },
   ru: {
-    notifTitle: 'Уведомления', notifMeal: 'Напоминания о еде', notifMealDesc: 'Обед 13:00 · Ужин 19:00',
-    notifDrink: 'Напоминания о воде', notifDrinkDesc: '10:00 · 14:00 · 17:30', notifAi: 'ИИ-повар готов',
+    notifTitle: 'Уведомления', notifMeal: 'Напоминания о еде', notifMealDesc: 'Обед 13:00 · Ужин 19:00', notifDrink: 'Напоминания о воде', notifDrinkDesc: '10:00 · 14:00 · 17:30', notifAi: 'ИИ-повар готов',
     notifAiDesc: 'Когда рецепт от ИИ готов', notifAdded: 'Рецепт добавлен', notifAddedDesc: 'Когда вы добавляете рецепт',
     help: 'Помощь', contact: 'Связаться с поддержкой', exportData: 'Экспорт моих данных', danger: 'Опасная зона',
     deleteAccount: 'Удалить аккаунт', deleteAccountBody: 'Удаляет аккаунт и все ваши рецепты.',
     tutorialSection: 'Тур', name: 'Имя', email: 'Почта', offlineNoNet: 'Вы не в сети',
+  },
+  uk: {
+    notifTitle: 'Сповіщення', notifMeal: 'Нагадування про їжу', notifMealDesc: 'Обід 13:00 · Вечеря 19:00', notifDrink: 'Нагадування про воду', notifDrinkDesc: '10:00 · 14:00 · 17:30', notifAi: 'Шеф-кухар ШІ завершив',
+    notifAiDesc: 'Коли рецепт ШІ буде готовий', notifAdded: 'Рецепт додано', notifAddedDesc: 'Коли ви додаєте рецепт',
+    help: 'Допомога', contact: 'Зв’язатися з підтримкою', exportData: 'Експортувати мої дані', danger: 'Небезпечна зона',
+    deleteAccount: 'Видалити обліковий запис', deleteAccountBody: 'Видаляє ваш обліковий запис і всі рецепти.',
+    tutorialSection: 'Огляд', name: 'Ім’я', email: 'Електронна пошта', offlineNoNet: 'Немає інтернету',
+  },
+  zh: {
+    notifTitle: '通知', notifMeal: '用餐提醒', notifMealDesc: '午餐 13:00 · 晚餐 19:00',
+    notifDrink: '饮水提醒', notifDrinkDesc: '10:00 · 14:00 · 17:30', notifAi: 'AI 主厨完成',
+    notifAiDesc: '当你的 AI 食谱准备好时', notifAdded: '食谱已添加', notifAddedDesc: '当你添加食谱时',
+    help: '帮助', contact: '联系支持', exportData: '导出我的数据', danger: '危险区',
+    deleteAccount: '删除我的账户', deleteAccountBody: '这会删除你的账户和所有食谱。',
+    tutorialSection: '导览', name: '姓名', email: '电子邮箱', offlineNoNet: '当前离线',
+    notifAdmin: '新用户与登录', notifAdminDesc: '仅管理员：有人注册或登录时收到通知。',
+  },
+  ja: {
+    notifTitle: '通知', notifMeal: '食事リマインダー', notifMealDesc: '昼食 13:00 · 夕食 19:00',
+    notifDrink: '水分リマインダー', notifDrinkDesc: '10:00 · 14:00 · 17:30', notifAi: 'AIシェフ完了',
+    notifAiDesc: 'AIレシピの準備ができたとき', notifAdded: 'レシピを追加しました', notifAddedDesc: 'レシピを追加したとき',
+    help: 'ヘルプ', contact: 'サポートに連絡', exportData: 'データをエクスポート', danger: '危険な操作',
+    deleteAccount: 'アカウントを削除', deleteAccountBody: 'アカウントとすべてのレシピが削除されます。',
+    tutorialSection: 'ツアー', name: '名前', email: 'メール', offlineNoNet: 'オフラインです',
+    notifAdmin: '新規ユーザーとサインイン', notifAdminDesc: '管理者のみ：誰かが登録またはサインインしたときに通知します。',
+  },
+  ko: {
+    notifTitle: '알림', notifMeal: '식사 알림', notifMealDesc: '점심 13:00 · 저녁 19:00',
+    notifDrink: '물 알림', notifDrinkDesc: '10:00 · 14:00 · 17:30', notifAi: 'AI 셰프 완료',
+    notifAiDesc: 'AI 레시피가 준비되었을 때', notifAdded: '레시피 추가됨', notifAddedDesc: '레시피를 추가했을 때',
+    help: '도움말', contact: '지원 문의', exportData: '내 데이터 내보내기', danger: '위험 구역',
+    deleteAccount: '내 계정 삭제', deleteAccountBody: '계정과 모든 레시피가 삭제됩니다.',
+    tutorialSection: '투어', name: '이름', email: '이메일', offlineNoNet: '오프라인 상태입니다',
+    notifAdmin: '신규 사용자 및 로그인', notifAdminDesc: '관리자 전용: 누군가 가입하거나 로그인하면 알림을 받습니다.',
+  },
+  hi: {
+    notifTitle: 'सूचनाएं', notifMeal: 'भोजन अनुस्मारक', notifMealDesc: 'दोपहर 13:00 · रात 19:00',
+    notifDrink: 'पानी अनुस्मारक', notifDrinkDesc: '10:00 · 14:00 · 17:30', notifAi: 'AI शेफ पूर्ण',
+    notifAiDesc: 'जब आपकी AI रेसिपी तैयार हो', notifAdded: 'रेसिपी जोड़ी गई', notifAddedDesc: 'जब आप रेसिपी जोड़ें',
+    help: 'सहायता', contact: 'सहायता से संपर्क करें', exportData: 'मेरा डेटा निर्यात करें', danger: 'खतरे का क्षेत्र',
+    deleteAccount: 'मेरा खाता हटाएं', deleteAccountBody: 'इससे आपका खाता और सभी रेसिपी हट जाएंगी।',
+    tutorialSection: 'टूर', name: 'नाम', email: 'ईमेल', offlineNoNet: 'आप ऑफ़लाइन हैं',
+    notifAdmin: 'नए उपयोगकर्ता और साइन-इन', notifAdminDesc: 'केवल एडमिन: जब कोई खाता बनाए या साइन इन करे तो सूचना मिले।',
+  },
+  pl: {
+    notifTitle: 'Powiadomienia', notifMeal: 'Przypomnienia o posiłkach', notifMealDesc: 'Obiad 13:00 · Kolacja 19:00',
+    notifDrink: 'Przypomnienia o piciu', notifDrinkDesc: '10:00 · 14:00 · 17:30', notifAi: 'Szef AI gotowy',
+    notifAiDesc: 'Gdy Twój przepis AI będzie gotowy', notifAdded: 'Przepis dodany', notifAddedDesc: 'Gdy dodasz przepis',
+    help: 'Pomoc', contact: 'Kontakt z pomocą', exportData: 'Eksportuj moje dane', danger: 'Strefa ryzyka',
+    deleteAccount: 'Usuń moje konto', deleteAccountBody: 'To usuwa Twoje konto i wszystkie przepisy.',
+    tutorialSection: 'Przewodnik', name: 'Imię', email: 'E-mail', offlineNoNet: 'Jesteś offline',
+    notifAdmin: 'Nowi użytkownicy i logowania', notifAdminDesc: 'Tylko admini: powiadomienie, gdy ktoś utworzy konto lub się zaloguje.',
   },
 };

@@ -1,9 +1,5 @@
-/**
- * Fügt einen einzelnen i18n-Schlüssel in alle Sprachen von
- * `i18n-texts-extra.ts` ein (kompakte Zeilen).
- *
- * Aufruf: node tools/add-i18n-key.mjs xReadyToServe [--write]
- */
+
+
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const KEY = process.argv[2] ?? 'xReadyToServe';
@@ -34,7 +30,7 @@ const TABLES = {
     nl: 'geldig tot {date}',
     ru: 'действует до {date}',
   },
-  /** 3.2.3: KI-Tageslimit (3 Nutzungen, alle Chef-Funktionen zusammen). */
+  
   aiQuotaA11y: {
     de: '{n} von {limit} KI-Nutzungen heute übrig',
     en: '{n} of {limit} AI requests left today',
@@ -47,7 +43,7 @@ const TABLES = {
     nl: '{n} van {limit} AI-gebruiken vandaag over',
     ru: 'Осталось {n} из {limit} запросов к ИИ на сегодня',
   },
-  /** 3.2.3: Landing-Zahlen mit echten Werten. */
+  
   statRecipesLive: {
     de: '{n}+ Rezepte',
     en: '{n}+ recipes',
@@ -72,7 +68,7 @@ const TABLES = {
     nl: '{n} talen',
     ru: '{n} языков',
   },
-  /** 3.2.3: Hinweise für die drei Chef-Seiten (Zutaten → Beschreiben → Video). */
+  
   chefSwipe: {
     de: ['← Wischen: beschreiben · nochmal wischen: Video-Link', '← Weiter zum Video-Link · → zurück zu den Zutaten', '→ zurück zur Beschreibung'],
     en: ['← Swipe to describe · swipe again for a video link', '← Continue to the video link · → back to ingredients', '→ back to describing'],
@@ -99,7 +95,7 @@ const out = lines.map((line) => {
   const lang = match[2];
   const value = VALUES[lang];
   if (!value || line.includes(`${KEY}1:`)) return line;
-  /* Ein Wert oder eine Liste: Liste wird zu KEY1, KEY2, KEY3 … */
+  
   const entries = (Array.isArray(value) ? value : [value])
     .map((text, index) => `${KEY}${Array.isArray(value) ? index + 1 : ''}: '${text}'`)
     .join(', ');

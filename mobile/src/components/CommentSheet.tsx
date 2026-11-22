@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -10,27 +10,24 @@ import {
   TextInput,
   View,
 } from 'react-native';
-/* 3.3.0: Meldungen im App-Design statt System-Dialog */
+
 import { Alert } from '../lib/alert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Flag, MessageSquare, Send, Trash2, X } from 'lucide-react-native';
 
 import { api } from '../lib/api';
 import { useMutation, useQuery } from '../lib/convex-auth';
+import { addPendingOp, getConnNow } from '../lib/offline';
 import { colors } from '../theme';
 import { useTranslation } from '../lib/i18n';
 
-const REPORT_REASONS: { value: string; label: string }[] = [
-  { value: 'spam', label: 's.cmtSpam' },
-  { value: 'offensive', label: 's.cmtOffensive' },
-  { value: 'wrong', label: 's.cmtWrong' },
-  { value: 'other', label: 'common.none' },
+const REPORT_REASONS: { value: string; key: string }[] = [
+  { value: 'spam', key: 'cmtSpam' },
+  { value: 'offensive', key: 'cmtOffensive' },
+  { value: 'wrong', key: 'cmtWrong' },
+  { value: 'other', key: 'cmtOther' },
 ];
 
-/**
- * Comments + report sheet for one community recipe.
- * Uses the 2.0.0 tables (`share_comments`, `content_reports`).
- */
 export function CommentSheet({
   shareId,
   shareTitle,
@@ -45,7 +42,6 @@ export function CommentSheet({
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState('');
-  const [busy, setBusy] = useState(false);
   const [reportReason, setReportReason] = useState<string | null>(null);
 
   const comments = useQuery(api.sharing.comments, shareId ? { sharedRecipeId: shareId } : {});
@@ -53,34 +49,58 @@ export function CommentSheet({
   const deleteComment = useMutation(api.sharing.deleteComment);
   const report = useMutation(api.sharing.report);
 
-  const list: any[] = Array.isArray(comments) ? comments : [];
+  
 
-  const send = async () => {
+  const [pending, setPending] = useState<any[]>([]);
+  useEffect(() => {
+    setPending([]);
+  }, [shareId]);
+  const shown = useMemo(() => {
+    const serverList: any[] = Array.isArray(comments) ? comments : [];
+    const stillOpen = pending.filter(
+      (p) => !serverList.some((c: any) => String(c.text ?? '') === String(p.text ?? '') && String(c.userName ?? '') === String(p.userName ?? '')),
+    );
+    return [...serverList, ...stillOpen];
+  }, [comments, pending]);
+
+  const send = () => {
     const text = draft.trim();
-    if (!shareId || !text || busy) return;
-    setBusy(true);
-    try {
-      await addComment({ sharedRecipeId: shareId, text, userName: userName ?? null });
-      setDraft('');
-    } catch (e) {
-      Alert.alert(t('s.cmtSendFail'), e instanceof Error ? e.message : t('common.tryAgain'));
-    } finally {
-      setBusy(false);
-    }
+    if (!shareId || !text) return;
+    
+    const local = { _id: `loc-${Date.now()}`, text, userName: userName ?? '', mine: true, local: true };
+    setPending((prev) => [...prev, local]);
+    setDraft('');
+    void (async () => {
+      const payload = { sharedRecipeId: shareId, text, userName: userName ?? null };
+      if (getConnNow() === 'offline') {
+        await addPendingOp('community.comment', payload);
+        return;
+      }
+      try {
+        await addComment(payload);
+      } catch {
+        await addPendingOp('community.comment', payload);
+      }
+    })();
   };
 
   const remove = (id: string) => {
     Alert.alert(t('s.cmtDelConfirm'), t('s.cmtDelBody'), [
-      { text: 'Cancel', style: 'cancel' },
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: () => {
+          setPending((prev) => prev.filter((c) => c._id !== id));
           void (async () => {
+            if (getConnNow() === 'offline') {
+              await addPendingOp('community.comment.remove', { id });
+              return;
+            }
             try {
               await deleteComment({ id });
             } catch {
-              Alert.alert(t('s.cmtDelFail'), t('common.tryAgain'));
+              await addPendingOp('community.comment.remove', { id });
             }
           })();
         },
@@ -133,12 +153,13 @@ export function CommentSheet({
             <ScrollView style={{ maxHeight: 320 }} keyboardShouldPersistTaps="handled">
               {comments === undefined ? (
                 <ActivityIndicator color={colors.accent} style={{ marginVertical: 18 }} />
-              ) : list.length === 0 ? (
+              ) : shown.length === 0 ? (
                 <Text style={{ fontSize: 13, color: colors.textSecondary, marginVertical: 14 }}>
-                  No comments yet - be the first to share how it went.
+                  {t('s.cmtEmpty')}
+
                 </Text>
               ) : (
-                list.map((c) => (
+                shown.map((c) => (
                   <View key={c._id} style={{ paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: colors.cardBorder }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                       <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.accent }}>{c.userName}</Text>
@@ -175,8 +196,8 @@ export function CommentSheet({
                 }}
               />
               <Pressable
-                onPress={() => void send()}
-                disabled={busy || !draft.trim()}
+                onPress={send}
+                disabled={!draft.trim()}
                 style={({ pressed }) => [
                   {
                     width: 46,
@@ -185,11 +206,11 @@ export function CommentSheet({
                     alignItems: 'center',
                     justifyContent: 'center',
                     backgroundColor: colors.darkButton,
-                    opacity: pressed || busy || !draft.trim() ? 0.6 : 1,
+                    opacity: pressed || !draft.trim() ? 0.6 : 1,
                   },
                 ]}
               >
-                {busy ? <ActivityIndicator size="small" color={colors.darkButtonText} /> : <Send size={18} color={colors.darkButtonText} />}
+                <Send size={18} color={colors.darkButtonText} />
               </Pressable>
             </View>
 
@@ -213,7 +234,7 @@ export function CommentSheet({
                     },
                   ]}
                 >
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textPrimary }}>{r.label}</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textPrimary }}>{t(`s.${r.key}`)}</Text>
                 </Pressable>
               ))}
             </View>

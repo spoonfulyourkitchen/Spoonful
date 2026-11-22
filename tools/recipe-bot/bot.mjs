@@ -1,26 +1,5 @@
 #!/usr/bin/env node
-/**
- * Spoonful — Recipe-Bot (2.1.4)
- * ---------------------------------------------------------------
- * Erzeugt für alle Länder (englische Namen A→Z, aus
- * mobile/src/lib/countries.ts) je 100 Rezepte im GLEICHEN Format wie die
- * bestehenden 1300: gleiche Spalten, gleiche Filterwerte (meal_type,
- * difficulty, dietary_restrictions), echtes Wikimedia-Commons-Bild.
- *
- * Länder, die in der Datenbank schon vollständig sind (>= --per-country
- * Rezepte), werden automatisch übersprungen — also die, die du schon
- * bestätigt hast.
- *
- * Beispiele:
- *   node bot.mjs --help
- *   node bot.mjs --verify                 # nur zeigen, was in der DB steht
- *   node bot.mjs --dry-run --countries=Italy   # 100 Rezepte bauen, nicht hochladen
- *   node bot.mjs --max-countries=3        # die nächsten 3 offenen Länder
- *   node bot.mjs                          # alle offenen Länder (dauert Stunden)
- *
- * Keys (NIE ins Repo):
- *   tools/recipe-bot/.env  →  SUPABASE_SERVICE_ROLE_KEY, OPENROUTER_API_KEY
- */
+
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -33,7 +12,6 @@ const OUT_DIR = path.join(HERE, 'out');
 const LOG_DIR = path.join(HERE, 'logs');
 const IMAGE_UTM = '?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled';
 
-/* ── .env laden (einfacher Parser, kein Paket nötig) ──────────────────────── */
 function loadEnv() {
   for (const file of [path.join(HERE, '.env'), path.join(ROOT, '.env.local')]) {
     if (!fs.existsSync(file)) continue;
@@ -48,18 +26,16 @@ function loadEnv() {
 loadEnv();
 
 const CFG = {
-  supabaseUrl: (process.env.SUPABASE_URL || 'https://gmfkleugoxafmvprqatk.supabase.co').replace(/\/$/, ''),
+  supabaseUrl: (process.env.SUPABASE_URL || 'https:
   serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   openRouterKey: process.env.OPENROUTER_API_KEY || '',
   model: process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini',
 };
 
-/** Erlaubte Filterwerte — exakt die, die im Bestand vorkommen. */
 const MEAL_TYPES = ['breakfast', 'main', 'side', 'snack', 'dessert', 'drink'];
 const DIFFICULTIES = ['easy', 'medium', 'hard'];
 const DIETS = ['vegan', 'vegetarian', 'gluten_free', 'dairy_free', 'nut_free', 'halal', 'pescatarian', 'low_carb', 'high_protein'];
 
-/* ── CLI ─────────────────────────────────────────────────────────────────── */
 const args = new Map();
 for (const a of process.argv.slice(2)) {
   const m = /^--([^=]+)(?:=(.*))?$/.exec(a);
@@ -72,7 +48,6 @@ const num = (name, fallback) => {
   return Number.isFinite(v) ? v : fallback;
 };
 
-/** Rezept-Blockgröße: sinkt automatisch, wenn Antworten abgeschnitten werden. */
 let batchOverride = 0;
 function batchSizeNow() {
   return batchOverride || num('batch', 4);
@@ -121,30 +96,29 @@ if (flag('help')) {
 }
 const QUIET = flag('quiet');
 
-/* ── Logging ─────────────────────────────────────────────────────────────── */
 fs.mkdirSync(LOG_DIR, { recursive: true });
 const LOG_FILE = path.join(LOG_DIR, `bot-${new Date().toISOString().slice(0, 10)}.log`);
 function log(msg, level = 'info') {
   const line = `[${new Date().toISOString().slice(11, 19)}] ${level.toUpperCase().padEnd(5)} ${msg}`;
   fs.appendFileSync(LOG_FILE, line + '\n');
-  if (level === 'debug') return; // Detail-Kram nur ins Logfile
+  if (level === 'debug') return;
   if (QUIET && level === 'info') return;
   console.log(line);
 }
-/** Kompakte Fortschritts-Datei für `--progress` (und zum Anschauen im Editor). */
+
 function writeStatus(patch) {
   const file = path.join(HERE, 'status.json');
   let current = {};
   try {
     if (fs.existsSync(file)) current = JSON.parse(fs.readFileSync(file, 'utf8'));
   } catch {
-    /* egal */
+    
   }
   const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
   try {
     fs.writeFileSync(file, JSON.stringify(next, null, 2));
   } catch {
-    /* egal */
+    
   }
   return next;
 }
@@ -161,7 +135,7 @@ const chunk = (arr, size) => {
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
   return out;
 };
-/** Führt tasks mit begrenzter Parallelität aus (Reihenfolge bleibt erhalten). */
+
 async function pool(items, limit, worker) {
   const result = new Array(items.length);
   let next = 0;
@@ -176,7 +150,6 @@ async function pool(items, limit, worker) {
   return result;
 }
 
-/* ── Länderliste aus der App (single source of truth) ────────────────────── */
 function readCountries() {
   const src = fs.readFileSync(COUNTRIES_TS, 'utf8');
   const list = [];
@@ -337,7 +310,7 @@ const FREE_MODELS = [
   'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
   'liquid/lfm-2.5-2.6b:free',
 ];
-const modelState = new Map(); // model -> { until, fails, calls }
+const modelState = new Map();
 
 /* ── OpenRouter-Keys: jeder Key hat sein eigenes Gratis-Kontingent ───────── */
 function readKeys() {
@@ -352,7 +325,7 @@ function readKeys() {
       });
   add(process.env.OPENROUTER_API_KEYS);
   add(process.env.OPENROUTER_API_KEY);
-  for (let i = 2; i <= 24; i++) add(process.env[`OPENROUTER_API_KEY_${i}`]);
+  for (let i = 2; i <= 40; i++) add(process.env[`OPENROUTER_API_KEY_${i}`]);
   return keys;
 }
 const KEYS = readKeys();
@@ -408,7 +381,7 @@ function candidateModels() {
       if (Date.now() < st.until) blocked++;
     }
     const rejects = modelQuality.get(model)?.rejects || 0;
-    const weight = fails + rejects * 2; // schlechte Rezepte zählen doppelt
+    const weight = fails + rejects * 2;
     return { weight, blocked, rank: KEYS.length - blocked === 0 ? 2 : weight > 0 ? 1 : 0 };
   };
   return modelList()
@@ -468,7 +441,6 @@ async function callOnce(model, keyIndex, messages, temperature, controller) {
         'X-Title': 'Spoonful Recipe Bot',
       },
       signal: controller.signal,
-      // bewusst KEIN response_format: viele Gratis-Modelle unterstützen es nicht
       body: JSON.stringify({
         model,
         temperature,
@@ -481,11 +453,8 @@ async function callOnce(model, keyIndex, messages, temperature, controller) {
   let res;
   try {
     res = await send(true);
-    // Modell kennt den reasoning-Parameter nicht → einmal ohne versuchen
     if (res.status === 400 && REASONING_OFF) res = await send(false);
   } catch (e) {
-    // Abbruch, weil ein anderes Modell gewonnen hat oder das Rennen vorbei ist
-    // → zählt nicht als Fehler für dieses Modell
     if (controller.signal.aborted && e?.name === 'AbortError' && controller.signal.reason !== 'timeout') {
       return { ok: false, silent: true, reason: '' };
     }
@@ -495,8 +464,6 @@ async function callOnce(model, keyIndex, messages, temperature, controller) {
   if (res.status === 429) {
     const retryAfter = Number(res.headers.get('retry-after') || 0);
     st.fails++;
-    // Gratis-Modelle haben vor allem ein Limit PRO MINUTE → klein anfangen und
-    // bei Wiederholung wachsen (45 s, 90 s, 3 min, 6 min, 12 min, max 15 min).
     const wait = retryAfter > 0 ? retryAfter * 1000 : Math.min(15 * 60_000, Math.round(45_000 * Math.pow(2, Math.min(5, st.fails - 1))));
     st.until = Date.now() + wait;
     return { ok: false, reason: `${tag}: 429 — Pause ${wait >= 60_000 ? Math.round(wait / 60_000) + ' min' : Math.round(wait / 1000) + ' s'}` };
@@ -566,8 +533,6 @@ async function askModelOnce(messages, temperature, validate) {
   const maxRejects = num('max-rejects', 8);
   const allModels = candidateModels();
   const freshModels = allModels.filter((m) => (modelQuality.get(m)?.rejects || 0) < maxRejects);
-  // Wenn die "guten" Modelle alle auffällig waren, nehmen wir trotzdem alle —
-  // lieber ein schwaches Rezept als ein übersprungenes Land.
   const models = freshModels.length ? freshModels : allModels;
   if (!models.length) throw new Error('keine Modelle mehr verfügbar');
   const errors = [];
@@ -679,7 +644,6 @@ async function askModel(messages, temperature, validate) {
     } catch (e) {
       lastError = e;
       const wait = minCooldownMs();
-      // Wenn ein Paar frei ist, aber trotzdem nichts Brauchbares kam, hilft Warten nicht
       if (!wait) break;
       const sleepMs = Math.min(wait + 1500, num('quota-wait-max', 45000));
       log(`  Gratis-Kontingent erschöpft — warte ${Math.round(sleepMs / 1000)} s (${round}/${rounds})`, 'info');
@@ -704,7 +668,6 @@ async function askModel(messages, temperature, validate) {
   }
   throw lastError || new Error('kein Modell verfügbar');
 }
-
 
 /** Phase 1: authentische Gerichtsnamen für ein Land. */
 async function askDishNames(country, count, avoid) {
@@ -807,7 +770,7 @@ function wordsOf(text) {
 
 /** Bild über die Wikipedia-Artikelsuche (Fallback, wenn Commons nichts hat). */
 async function wikipediaImage(dish, lang) {
-  const url = new URL(`https://${lang}.wikipedia.org/w/api.php`);
+  const url = new URL(`https:
   const params = {
     action: 'query',
     format: 'json',
@@ -832,11 +795,6 @@ async function wikipediaImage(dish, lang) {
   return out;
 }
 
-/**
- * Sucht ein echtes Bild zum Gericht; nimmt bevorzugt Treffer, deren Dateiname
- * die wichtigsten Wörter des Gerichts enthält. Doppelte Bilder werden vermieden.
- * Fallback: Artikelbild der Wikipedia (englisch, dann deutsch).
- */
 async function findImage(dish, country) {
   const dishWords = wordsOf(dish);
   const queries = [dish, `${dish} ${country}`, `${dish} dish food`];
@@ -858,16 +816,14 @@ async function findImage(dish, country) {
 
   for (const c of scored.slice(0, 4)) {
     if (usedImages.has(c.url)) continue;
-    if (c.hits === 0 && dishWords.length > 1) continue; // nur thematisch passende Bilder
+    if (c.hits === 0 && dishWords.length > 1) continue;
     if (await imageIsReachable(c.url)) {
       const clean = String(c.url).split('?')[0];
       usedImages.add(clean);
-      // Commons hängt eigene utm-Parameter an → durch unseren Standard-Anhang ersetzen
       return clean + IMAGE_UTM;
     }
   }
 
-  // Fallback Stufe 2: bestes Wikipedia-Suchergebnis, auch wenn der Titel nicht passt
   for (const lang of ['en', 'de']) {
     const found = await wikipediaImage(dish, lang).catch(() => []);
     for (const c of found) {
@@ -881,7 +837,6 @@ async function findImage(dish, country) {
     await sleep(120);
   }
 
-  // Fallback Stufe 3: Bild des Küchen-/Länderartikels (z. B. „Austrian cuisine")
   if (country) {
     for (const query of [`${country} cuisine`, country]) {
       for (const lang of ['en', 'de']) {
@@ -899,7 +854,6 @@ async function findImage(dish, country) {
     }
   }
 
-  // Fallback Stufe 4: Küchenfotos des Landes über Commons (möglichst verschiedene)
   if (country) {
     for (const query of [`${country} cuisine`, `${country} food`, `${country} dish`]) {
       for (const c of await commonsSearch(query)) {
@@ -917,7 +871,6 @@ async function findImage(dish, country) {
   return null;
 }
 
-/* ── Prüfung + Umwandlung in das DB-Format ───────────────────────────────── */
 const MEAT_WORDS = /\b(beef|pork|chicken|lamb|mutton|veal|turkey|duck|goat|bacon|ham|sausage|salami|prosciutto|fish|salmon|tuna|cod|trout|shrimp|prawn|squid|octopus|anchovy|anchovies|lard|gelatine|gelatin)\b/i;
 
 function problemsOf(r) {
@@ -948,8 +901,6 @@ function problemsOf(r) {
   if (Array.isArray(r.ingredients)) {
     const bad = r.ingredients.filter((i) => typeof i !== 'string' || i.trim().length < 3);
     if (bad.length) p.push('ingredients Strings');
-    // höchstens eine Zutat ohne Menge ("salt to taste")
-    // Gewürze/Zubehör zählen dabei nicht als vollwertige Zutat
     const SEASONING = /\b(salt|pepper|water|to taste|garnish|optional|as needed|seasoning|for serving|for frying)\b/i;
     const withoutAmount = r.ingredients.filter(
       (i) => typeof i === 'string' && !/\d|½|¼|¾/.test(i) && !SEASONING.test(i),
@@ -957,7 +908,6 @@ function problemsOf(r) {
     if (withoutAmount.length > 1) p.push('ingredients ohne Menge');
   }
   if (Array.isArray(r.steps)) {
-    // jeder Schritt muss eine echte Anleitung sein: 40-420 Zeichen, keine Nummerierung
     const bad = r.steps.filter((s) => typeof s !== 'string' || s.trim().length < 40 || s.trim().length > 420 || /^(step\s*\d|\d+[.)]\s)/i.test(s.trim()));
     if (bad.length) p.push('steps zu kurz/nummeriert');
   }
@@ -983,7 +933,6 @@ const slugify = (text) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 48);
 
-/** Titel ohne Füllwörter — für die Dubletten-Erkennung ("Bint al-Sittah custard"). */
 const FILLER = new Set(['with', 'and', 'style', 'custard', 'sauce', 'classic', 'traditional', 'homemade', 'fresh', 'version', 'the', 'a', 'an', 'of', 'in', 'on', 'mit', 'und']);
 function titleKey(text) {
   return wordsOf(text)
@@ -1013,7 +962,6 @@ function toRow(r, country, suffix) {
   };
 }
 
-/* ── Rezepte für ein Land erzeugen ───────────────────────────────────────── */
 function nextId(slug, state, existingIds) {
   let suffix = state.nextSuffix;
   let id = `${slug}-${String(suffix).padStart(4, '0')}`;
@@ -1030,18 +978,17 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
   const rows = [];
   const rejected = [];
   if (!knownTitles.length) {
-    // vorhandene Titel dieses Landes gegen Duplikate laden
     const existing = await rest(`recipes?select=title&cuisine=eq.${encodeURIComponent(countryName)}&limit=1000`);
     knownTitles = (existing || []).map((r) => String(r.title || ''));
   }
   const titles = new Set(knownTitles.map((t) => String(t).toLowerCase()));
-  /** Titel, die schon als Rezept existieren (DB + bereits gebaute) — nur dagegen prüfen. */
+  
   const accepted = new Set(titles);
-  /** Normalisierte Titel (ohne Füllwörter) gegen Fast-Dubletten. */
+  
   const acceptedKeys = new Set([...titles].map(titleKey));
   const batchSize = batchSizeNow();
 
-  /* Phase 1 — Gerichtsnamen sammeln (authentisch für dieses Land) */
+  
   const wanted = [];
   let nameRounds = 0;
   while (wanted.length < perCountry && nameRounds < 8) {
@@ -1071,13 +1018,12 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
   }
   if (!wanted.length) return { rows, rejected };
 
-  /* Phase 2 — Rezepte schreiben (in Blöcken, Fehlversuche werden wiederholt) */
+  
   let queue = [...wanted];
   let round = 0;
   while (queue.length && round < 20) {
     round++;
     const retry = [];
-    // mehrere Blöcke GLEICHZEITIG (jeder Block rennt intern über mehrere Modelle)
     await pool(chunk(queue, batchSize), Math.max(1, num('blocks', 3)), async (part) => {
       let list = [];
       let usedModel = '';
@@ -1133,7 +1079,6 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
       }
       retry.push(...asked.values());
       saveState(state);
-      // Zwischenstand sichern: ein Absturz oder Standby verliert so kein ganzes Land
       fs.mkdirSync(OUT_DIR, { recursive: true });
       fs.writeFileSync(path.join(OUT_DIR, `${slugify(countryName)}.partial.json`), JSON.stringify(rows, null, 2));
       writeStatus({ country: countryName, written: rows.length });
@@ -1144,7 +1089,6 @@ async function buildForCountry(countryName, perCountry, state, existingIds, know
   return { rows, rejected };
 }
 
-/* ── Bilder anhängen ─────────────────────────────────────────────────────── */
 async function attachImages(rows, country, state) {
   let without = 0;
   await pool(rows, 4, async (row) => {
@@ -1160,7 +1104,6 @@ async function attachImages(rows, country, state) {
   return without;
 }
 
-/* ── Hochladen ───────────────────────────────────────────────────────────── */
 async function pushRows(rows, country) {
   fs.mkdirSync(OUT_DIR, { recursive: true });
   const outFile = path.join(OUT_DIR, `${slugify(country)}.json`);
@@ -1178,7 +1121,6 @@ async function pushRows(rows, country) {
       written += part.length;
     } catch (e) {
       log(`  Batch-Upload fehlgeschlagen (${country}): ${e.message}`, 'warn');
-      // Einzelfall-Rettung: nur die guten Zeilen behalten
       for (const row of part) {
         try {
           await insertRecipes([row]);
@@ -1192,7 +1134,6 @@ async function pushRows(rows, country) {
   return written;
 }
 
-/* ── Report ──────────────────────────────────────────────────────────────── */
 function printCountryReport(countries, dbCounts, perCountry) {
   const done = [];
   const open = [];
@@ -1211,7 +1152,6 @@ function printCountryReport(countries, dbCounts, perCountry) {
   console.log('');
 }
 
-/* ── Key-Check (--check-keys) ────────────────────────────────────────────── */
 async function checkKeys() {
   if (!KEYS.length) {
     console.log('Keine OpenRouter-Keys gefunden (tools/recipe-bot/.env).');
@@ -1245,7 +1185,6 @@ async function checkKeys() {
   console.log(`\n  ${valid}/${KEYS.length} Keys gültig, davon ${paid} mit Guthaben (höheres Gratis-Limit).\n`);
 }
 
-/* ── Fortschritt (--progress) ────────────────────────────────────────────── */
 async function showProgress() {
   const perCountry = num('per-country', 100);
   const countries = readCountries();
@@ -1308,11 +1247,9 @@ async function progressLoop() {
   }
 }
 
-/* ── Hilfsfunktionen für die Nachkontrolle ───────────────────────────────── */
 const RECIPE_COLS =
   'id,title,cuisine,image_url,description,ingredients,steps,prep_time,cook_time,difficulty,meal_type,calories,protein,carbs,fat,dietary_restrictions';
 
-/** Rezepte laden (optional nur für bestimmte Länder). */
 async function loadRecipes(names = []) {
   const filter = names.length ? `&cuisine=in.(${names.map((n) => `"${n.replace(/"/g, '')}"`).join(',')})` : '';
   const out = [];
@@ -1513,7 +1450,6 @@ async function auditMode() {
       console.log(`    ${String(ids.length).padStart(3)}× ${url.split('/').pop()}  →  ${ids.slice(0, 5).join(', ')}${ids.length > 5 ? ' …' : ''}`);
     }
   }
-
 
   const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
   fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -1812,7 +1748,6 @@ async function main() {
   const summary = [];
   let auditCounter = 0;
 
-  // Mehrere Durchgänge: übersprungene Länder (alle Modelle im Limit) kommen später nochmal dran.
   let pending = [...todo];
   for (let pass = 1; pass <= 3 && pending.length; pass++) {
     if (pass > 1) {
@@ -1854,7 +1789,6 @@ async function main() {
       const secs = Math.round((Date.now() - t0) / 1000);
       summary.push({ country: country.name, written, without, rejected: rejected.length, secs });
       log(`${country.name}: ${written} hochgeladen, ${without} ohne Bild, ${rejected.length} verworfen (${secs}s)`);
-      // Länder unter 100 werden in der nächsten Runde aufgefüllt
       if ((dbCounts.get(country.name) || 0) < perCountry) deferred.push(country);
 
       /* Auto-Nachkontrolle: nach jedem Land die Bilder, nach je 2 Ländern ein Report. */

@@ -1,16 +1,5 @@
-/**
- * Kochmodus-Helfer (3.0.0)
- *
- * Alles, was aus dem Schritt-Text abgeleitet wird:
- *   * kurzer Schritt-Titel (Nr. 1 der Ideenliste)
- *   * Schwierigkeits-Hinweis (Nr. 28)
- *   * Dauer-Schätzung je Schritt (Nr. 11)
- *   * Teilschritte zum Aufklappen (Nr. 6)
- *   * Abhängigkeiten wie "währenddessen" / "bis der Teig ruht" (Nr. 14)
- *   * Gruppierung Vorbereitung / Kochen / Finish (Nr. 3)
- *
- * Die Texte selbst bleiben übersetzbar: es werden nur Schlüssel zurückgegeben.
- */
+
+
 import { detectPhase, type CoachPhase } from './coach-tips';
 
 export type StepAction =
@@ -34,21 +23,18 @@ const ACTION_RULES: [StepAction, RegExp][] = [
   ['cook', /(cook|simmer|stew|braise|stir.?fry)/i],
 ];
 
-/** Kurzer Aktions-Schlüssel für den Schritt-Titel. */
 export function stepAction(step: string): StepAction {
   const text = String(step || '');
   for (const [action, re] of ACTION_RULES) if (re.test(text)) return action;
   return 'cook';
 }
 
-/** Fallback-Titel: die ersten sinnvollen Wörter des Schritts. */
 export function stepShortText(step: string, words = 6): string {
   const clean = String(step || '').replace(/^\s*\d+[.)]\s*/, '').trim();
   const parts = clean.split(/\s+/).slice(0, words).join(' ');
   return parts.length < clean.length ? `${parts}…` : parts;
 }
 
-/** Schwierigkeits-Hinweis je Schritt (Nr. 28). */
 export function stepDifficulty(step: string): StepDifficulty {
   const text = String(step || '').toLowerCase();
   if (/(deep.?fry|friture|caramel|temper|flamb|dough|knead|ferment|proof|laminate|fillet|debone)/.test(text)) return 'hard';
@@ -56,7 +42,6 @@ export function stepDifficulty(step: string): StepDifficulty {
   return 'easy';
 }
 
-/** Dauer-Schätzung je Schritt: erst aus dem Text, sonst aus Erfahrungswerten (Nr. 11). */
 export function estimateStepMinutes(step: string, index: number, total: number): number {
   const text = String(step || '');
   const explicit = /(\d+)\s*(?:-|to|–)?\s*(\d+)?\s*(?:minutes?|min)\b/i.exec(text);
@@ -81,7 +66,6 @@ export function estimateStepMinutes(step: string, index: number, total: number):
   return Math.max(1, base[action] + lastBonus);
 }
 
-/** Teilschritte: lange Schritte an Satzgrenzen aufteilen (Nr. 6). */
 export function splitSubSteps(step: string): string[] {
   const clean = String(step || '').trim();
   const parts = clean
@@ -89,14 +73,12 @@ export function splitSubSteps(step: string): string[] {
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
   if (parts.length <= 1) {
-    // kein Satzende: an Kommas mit Bindewort teilen
     const alt = clean.split(/,\s+(?=(?:then|and then|after that|danach|dann)\s)/i).map((s) => s.trim()).filter(Boolean);
     return alt.length > 1 ? alt : [clean];
   }
   return parts;
 }
 
-/** Abhängigkeit aus dem Schritt-Text, z. B. "währenddessen" oder "bis der Teig ruht" (Nr. 14). */
 export function stepDependency(step: string): 'meanwhile' | 'until' | 'rest' | null {
   const text = String(step || '').toLowerCase();
   if (/(meanwhile|in the meantime|while|währenddessen)/.test(text)) return 'meanwhile';
@@ -105,7 +87,6 @@ export function stepDependency(step: string): 'meanwhile' | 'until' | 'rest' | n
   return null;
 }
 
-/** Gruppe des Schritts für die Übersicht (Nr. 3). */
 export function stepGroup(step: string, index: number, total: number): StepGroup {
   const phase: CoachPhase = detectPhase(step, index, total);
   if (phase === 'finish') return 'finish';

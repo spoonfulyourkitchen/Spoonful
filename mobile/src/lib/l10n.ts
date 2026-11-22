@@ -1,10 +1,5 @@
-/**
- * Small localisation helper for the 2.1.0 product/barcode flow.
- *
- * The tracker's barcode + portion UI is new, so its copy lives here in English,
- * German and Arabic; every other language falls back to English. Keeping it in
- * one place makes it trivial to move these strings into the big dictionaries.
- */
+
+
 export type TriText = { en: string; de?: string; ar?: string };
 
 export function pick(lang: string, text: TriText): string {
@@ -51,7 +46,7 @@ export const BARCODE_L10N = {
     de: 'Für dieses Produkt ist keine Menge hinterlegt - bitte Gramm eingeben.',
     ar: 'لا يتوفر وزن لهذا المنتج، أدخل الغرامات.',
   },
-  /* 2.1.1: sharper photos + better recognition */
+  
   sharpnessTitle: {
     en: 'A sharp photo is decoded best',
     de: 'Ein scharfes Foto wird am sichersten erkannt',
@@ -93,10 +88,6 @@ export const BARCODE_L10N = {
   },
 } as const;
 
-/**
- * Copy for the tracker blocks that were rebuilt in 2.1.1 (weight card, goal
- * suggestion popup). Same fallback rule as above.
- */
 export const TRACKER_L10N = {
   weightTitle: { en: 'Weight', de: 'Gewicht', ar: 'الوزن' },
   weightHint: {
@@ -119,10 +110,9 @@ export const TRACKER_L10N = {
     ar: 'بناءً على اتجاه وزنك نقترح',
   },
   ok: { en: 'Got it', de: 'Alles klar', ar: 'حسناً' },
-  scanCardTitle: { en: 'Add food', de: 'Essen hinzufügen', ar: 'أضف طعاماً' },
+  scanCardTitle: { en: 'Barcode', de: 'Barcode', ar: 'باركود' },
 } as const;
 
-/** 2.1.1: the shopping-list extras that used to unfold inline. */
 export const SHOP_L10N = {
   extrasTitle: { en: 'List options', de: 'Listen-Optionen', ar: 'خيارات القائمة' },
   extrasTotal: { en: 'Total so far', de: 'Summe bisher', ar: 'المجموع حتى الآن' },

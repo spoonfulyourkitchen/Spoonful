@@ -1,13 +1,5 @@
-/**
- * Ersetzt die letzten festen Texte durch i18n-Tags.
- *
- * Aufruf:  node tools/apply-i18n.mjs [--write]
- * Ohne --write wird nur geprüft, was gefunden wurde (Trockenlauf).
- *
- * Jede Ersetzung steht hier ausdrücklich in der Liste — nichts wird geraten.
- * Wird ein Text nicht gefunden, meldet das Skript einen Fehler (dann hat sich
- * der Code geändert und die Liste muss nachgezogen werden).
- */
+
+
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const BASE = new URL('../mobile/src/', import.meta.url);
@@ -92,7 +84,6 @@ for (const [rel, pairs] of Object.entries(MAP)) {
   if (WRITE) writeFileSync(url, text, 'utf8');
 }
 
-// App.tsx liegt außerhalb von src/
 const appUrl = new URL('../mobile/App.tsx', import.meta.url);
 let app = readFileSync(appUrl, 'utf8');
 const appPairs = [

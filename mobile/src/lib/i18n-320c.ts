@@ -1,6 +1,5 @@
-/**
- * 3.2.0 (Nachtrag 2): letzte feste Texte in Kochmodus, Anmeldung und Chef.
- */
+
+
 export const APP_320C: Record<string, Record<string, any>> = {
   de: {
     s: { chefViewRecipe: 'Ganzes Rezept ansehen', authPassword: 'Passwort', authMagic: 'Magischer Link', authNew: 'Neu bei Spoonful?', authCreate: 'Konto erstellen', cookServings: 'Portionen', cookYourIngredients: 'Deine Zutaten', cookReadyCount: '{n}/{m} bereit', cookAddAllShop: 'Alle auf die Einkaufsliste', loadCooking: 'Kochen' },

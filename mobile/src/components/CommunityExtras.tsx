@@ -8,11 +8,6 @@ import { colors } from '../theme';
 import { Chip, GlassCard, SectionLabel } from './ui';
 import { useTranslation } from '../lib/i18n';
 
-/**
- * Community extras (2.0.0, items 161-180): cooking challenges (create + join)
- * and "near me" - a region stored in the profile, so the feed can sort by
- * proximity without asking for a GPS permission.
- */
 const REGION_KEY = 'spoonful:region';
 
 export function CommunityExtras() {
@@ -47,15 +42,11 @@ export function CommunityExtras() {
       await saveProfile({ region: value });
       setRegionOpen(false);
       setNote(`${t('x.near')}: ${value}`);
-    } catch {
-      /* offline: the local value is used once the connection is back */
-    }
+    } catch {}
   };
-
 
   const [open, setOpen] = useState(false);
 
-  // Collapsed by default: just a thin line, so the feed scrolls without clutter.
   if (!open) {
     return (
       <Pressable

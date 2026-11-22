@@ -1,17 +1,11 @@
--- ============================================================================
--- Spoonful – Supabase Schema (Migration von Convex)
--- Ausgangsbasis: src/convex/schema.ts + exportierte Tabellenstruktur
--- In Supabase ausführen: SQL Editor → dieses Skript einfügen → Run
--- ============================================================================
+
 
 create extension if not exists pgcrypto;
 
--- Rollen: admin | mod | user | member   (mod ist NEU für Moderatoren)
 do $$ begin
   create type public.app_role as enum ('admin','mod','user','member');
 exception when duplicate_object then null; end $$;
 
--- PROFILES  (≙ Convex users; Auth kommt von Supabase auth.users)
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   name text,
@@ -26,7 +20,6 @@ create table if not exists public.profiles (
 );
 create index if not exists profiles_email_idx on public.profiles (email);
 
--- COLLECTIONS  (≙ Convex collections)
 create table if not exists public.collections (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -35,7 +28,6 @@ create table if not exists public.collections (
 );
 create index if not exists collections_user_idx on public.collections (user_id);
 
--- RECIPES  (≙ Convex recipes – „Meine Rezepte")
 create table if not exists public.recipes (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -57,8 +49,6 @@ create table if not exists public.recipes (
 );
 create index if not exists recipes_user_idx on public.recipes (user_id);
 
--- SAVED_RECIPES  (≙ Convex savedRecipes)
--- recipe_key = z. B. „library-xyz", „community-xyz", eigener uuid-String
 create table if not exists public.saved_recipes (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -86,8 +76,6 @@ create table if not exists public.saved_recipes (
 );
 create index if not exists saved_recipes_user_idx on public.saved_recipes (user_id);
 
--- SHARED_RECIPES  (≙ Convex sharedRecipes – Community)
--- status: pending | approved | rejected
 create table if not exists public.shared_recipes (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references public.profiles(id) on delete cascade,
@@ -118,7 +106,6 @@ create table if not exists public.shared_recipes (
 create index if not exists shared_recipes_status_idx on public.shared_recipes (status);
 create index if not exists shared_recipes_owner_idx on public.shared_recipes (owner_id);
 
--- RECIPE_LIKES  (NEU – Community „Liken")
 create table if not exists public.recipe_likes (
   shared_recipe_id uuid not null references public.shared_recipes(id) on delete cascade,
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -127,7 +114,6 @@ create table if not exists public.recipe_likes (
 );
 create index if not exists recipe_likes_user_idx on public.recipe_likes (user_id);
 
--- RECIPE_REVIEWS  (≙ Convex recipeReviews)
 create table if not exists public.recipe_reviews (
   id uuid primary key default gen_random_uuid(),
   shared_recipe_id uuid not null references public.shared_recipes(id) on delete cascade,
@@ -141,7 +127,6 @@ create table if not exists public.recipe_reviews (
 );
 create index if not exists recipe_reviews_shared_idx on public.recipe_reviews (shared_recipe_id);
 
--- CALORIE_ENTRIES  (≙ Convex calorieEntries – Tracker)
 create table if not exists public.calorie_entries (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -159,7 +144,6 @@ create table if not exists public.calorie_entries (
 create index if not exists calorie_entries_user_idx on public.calorie_entries (user_id);
 create index if not exists calorie_entries_user_date_idx on public.calorie_entries (user_id, eaten_at);
 
--- SHOPPING_LIST_ITEMS  (≙ Convex shoppingListItems)
 create table if not exists public.shopping_list_items (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -171,7 +155,6 @@ create table if not exists public.shopping_list_items (
 );
 create index if not exists shopping_user_idx on public.shopping_list_items (user_id);
 
--- FEEDBACK  (≙ Convex feedback)
 create table if not exists public.feedback (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -185,7 +168,6 @@ create table if not exists public.feedback (
 create index if not exists feedback_read_idx on public.feedback (read);
 create index if not exists feedback_created_idx on public.feedback (created_at);
 
--- IMAGE_REPORTS  (≙ Convex imageReports)
 create table if not exists public.image_reports (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -200,7 +182,6 @@ create table if not exists public.image_reports (
 create index if not exists image_reports_status_idx on public.image_reports (status);
 create index if not exists image_reports_created_idx on public.image_reports (created_at);
 
--- LIBRARY OVERRIDES  (≙ Convex libraryImageOverrides / libraryCategoryOverrides)
 create table if not exists public.library_image_overrides (
   recipe_key text primary key,
   image_url text not null,
@@ -215,15 +196,11 @@ create table if not exists public.library_category_overrides (
   updated_at timestamptz not null default now()
 );
 
--- SYSTEM_CONFIG  (≙ Convex systemConfig)
 create table if not exists public.system_config (
   key text primary key,
   value text not null
 );
 
--- ============================================================================
--- ROW LEVEL SECURITY (Grundregeln – wird beim App-Umbau je Feature verfeinert)
--- ============================================================================
 alter table public.profiles enable row level security;
 alter table public.collections enable row level security;
 alter table public.recipes enable row level security;
@@ -236,19 +213,16 @@ alter table public.shopping_list_items enable row level security;
 alter table public.feedback enable row level security;
 alter table public.image_reports enable row level security;
 
--- profiles: jeder kann lesen (für Namen/Bilder), nur selbst schreiben
 create policy "profiles_select" on public.profiles for select using (true);
 create policy "profiles_insert_own" on public.profiles for insert with check (auth.uid() = id);
 create policy "profiles_update_own" on public.profiles for update using (auth.uid() = id);
 
--- Eigene Daten: nur Besitzer
 create policy "collections_own" on public.collections for all using (auth.uid() = user_id);
 create policy "recipes_own" on public.recipes for all using (auth.uid() = user_id);
 create policy "saved_recipes_own" on public.saved_recipes for all using (auth.uid() = user_id);
 create policy "calorie_entries_own" on public.calorie_entries for all using (auth.uid() = user_id);
 create policy "shopping_own" on public.shopping_list_items for all using (auth.uid() = user_id);
 
--- Community: approved für alle lesbar, rest nur für Eigentümer/Admin/Mod
 create policy "shared_recipes_read_approved" on public.shared_recipes for select
   using (status = 'approved' or auth.uid() = owner_id
          or exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('admin','mod')));
@@ -259,13 +233,11 @@ create policy "shared_recipes_moderate" on public.shared_recipes for update usin
   exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('admin','mod'))
 );
 
--- Likes & Reviews
 create policy "likes_all" on public.recipe_likes for select using (true);
 create policy "likes_write_own" on public.recipe_likes for all using (auth.uid() = user_id);
 create policy "reviews_read" on public.recipe_reviews for select using (true);
 create policy "reviews_write_own" on public.recipe_reviews for all using (auth.uid() = user_id);
 
--- Feedback & Reports: Erstellen erlaubt, Lesen nur admin/mod
 create policy "feedback_insert" on public.feedback for insert with check (auth.uid() = user_id);
 create policy "image_reports_insert" on public.image_reports for insert with check (auth.uid() = user_id);
 create policy "feedback_read_admin" on public.feedback for select using (
@@ -275,9 +247,6 @@ create policy "image_reports_read_admin" on public.image_reports for select usin
   exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('admin','mod'))
 );
 
--- ============================================================================
--- TRIGGER: updated_at automatisch pflegen
--- ============================================================================
 create or replace function public.set_updated_at() returns trigger language plpgsql as $$
 begin new.updated_at = now(); return new; end $$;
 

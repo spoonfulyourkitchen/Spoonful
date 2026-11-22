@@ -2,20 +2,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSyncExternalStore } from 'react';
 import notifee, { AndroidImportance, TriggerType } from '@notifee/react-native';
 
-/**
- * Kitchen timers (2.0.0).
- *
- * Several timers run at the same time (pasta + sauce + oven). Every timer is
- * mirrored in AsyncStorage, so closing the app does not lose it, and each one
- * schedules a Notifee trigger notification - that is what rings with sound and
- * shows up on the lock screen while the app is in the background.
- */
 export type KitchenTimer = {
   id: string;
   label: string;
-  /** Timestamp (ms) when it would finish (frozen while paused). */
+  
   endsAt: number;
-  /** Milliseconds left while paused (null while running). */
+  
   remainingMs: number | null;
   running: boolean;
   totalMs: number;
@@ -36,9 +28,7 @@ function emit() {
 async function persist() {
   try {
     await AsyncStorage.setItem(KEY, JSON.stringify(timers));
-  } catch {
-    /* best effort */
-  }
+  } catch {}
 }
 
 async function ensureChannel() {
@@ -49,12 +39,9 @@ async function ensureChannel() {
       importance: AndroidImportance.HIGH,
       vibration: true,
     });
-  } catch {
-    /* notifications are optional */
-  }
+  } catch {}
 }
 
-/** Schedules (or cancels) the ringing notification for a single timer. */
 async function scheduleNotification(timer: KitchenTimer) {
   try {
     await ensureChannel();
@@ -77,21 +64,15 @@ async function scheduleNotification(timer: KitchenTimer) {
       },
       { type: TriggerType.TIMESTAMP, timestamp: Date.now() + delay },
     );
-  } catch {
-    /* notifications are optional */
-  }
+  } catch {}
 }
 
 async function cancelNotification(id: string) {
   try {
     await notifee.cancelNotification(`timer-${id}`);
-  } catch {
-    /* ignore */
-  }
+  } catch {}
 }
 
-
-/** Keeps a 1 s ticker alive only while at least one timer is running. */
 function ensureTicker() {
   const shouldRun = timers.some((t) => t.running && t.remainingMs === null);
   if (shouldRun && !ticker) {
@@ -129,7 +110,6 @@ async function hydrate() {
       timers = list
         .filter((t: any) => t && typeof t.id === 'string' && typeof t.endsAt === 'number')
         .map((t: KitchenTimer) => {
-          // A timer that ran out while the app was closed stays at zero.
           if (t.running && t.remainingMs === null && t.endsAt <= now) {
             return { ...t, running: false, remainingMs: 0 };
           }
@@ -139,9 +119,7 @@ async function hydrate() {
         if (t.running && t.remainingMs === null) void scheduleNotification(t);
       });
     }
-  } catch {
-    /* ignore corrupted cache */
-  }
+  } catch {}
   ensureTicker();
   emit();
 }
@@ -159,12 +137,10 @@ export function getTimers(): KitchenTimer[] {
   return timers;
 }
 
-/** Live list of timers (re-renders once per second while one is running). */
 export function useKitchenTimers(): KitchenTimer[] {
   return useSyncExternalStore(subscribeTimers, getTimers, getTimers);
 }
 
-/** Milliseconds left for display purposes. */
 export function timerRemaining(t: KitchenTimer, now = Date.now()): number {
   if (!t.running) return t.remainingMs ?? 0;
   return Math.max(0, t.endsAt - now);

@@ -8,13 +8,6 @@ import { colors, fonts } from '../theme';
 import { AppButton } from './ui';
 import { useTranslation } from '../lib/i18n';
 
-/**
- * One-time popup message from the team (2.0.0).
- *
- * The admin panel publishes a message; every signed-in user sees it exactly
- * once - the id of the last seen message is remembered locally, so it never
- * pops up twice on the same device.
- */
 const SEEN_KEY = 'spoonful:announcement-seen';
 
 export function AnnouncementGate() {
@@ -47,9 +40,7 @@ export function AnnouncementGate() {
     setVisible(false);
     try {
       await AsyncStorage.setItem(SEEN_KEY, String(latest.id));
-    } catch {
-      /* ignore */
-    }
+    } catch {}
   };
 
   return (

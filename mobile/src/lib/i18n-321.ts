@@ -1,9 +1,5 @@
-/**
- * 3.2.1: MONSTR ist zurück — alle Texte der Seite in 10 Sprachen.
- *
- * Die Seite selbst enthält bewusst keinen festen Text: jede Beschriftung läuft
- * über einen dieser Schlüssel (`s.mon…`).
- */
+
+
 export const APP_321: Record<string, Record<string, any>> = {
   de: {
     s: {
@@ -20,7 +16,7 @@ export const APP_321: Record<string, Record<string, any>> = {
       monCheapest: 'Günstigste Dose',
       monPressLoad: 'Noch keine Preise geladen.',
       monResults: 'Treffer',
-      monNone: 'Keine Treffer – probier einen anderen Suchbegriff.',
+      monNone: 'Keine Treffer, probier einen anderen Suchbegriff.',
       monSources: 'Quellen',
       monSrcPreis: 'Preisrunter',
       monSrcMarktguru: 'Marktguru',
@@ -36,7 +32,7 @@ export const APP_321: Record<string, Record<string, any>> = {
       monRetry: 'Nochmal versuchen',
       monOpen: 'Zum Produkt',
       monHint: 'Der Literpreis macht Dosen unterschiedlicher Größe vergleichbar.',
-      videoCheck: 'Bitte einmal drüberschauen – der Video-Text war nicht ganz eindeutig.',
+      videoCheck: 'Bitte einmal drüberschauen, der Video-Text war nicht ganz eindeutig.',
       videoFromAi: 'Aus dem Video-Text zusammengestellt.',
       cropPinch: 'Rahmen mit einem Finger schieben · Bild mit zwei Fingern vergrößern',
     },
@@ -56,7 +52,7 @@ export const APP_321: Record<string, Record<string, any>> = {
       monCheapest: 'Cheapest can',
       monPressLoad: 'No prices loaded yet.',
       monResults: 'results',
-      monNone: 'No results – try another search term.',
+      monNone: 'No results, try another search term.',
       monSources: 'Sources',
       monSrcPreis: 'Preisrunter',
       monSrcMarktguru: 'Marktguru',
@@ -72,7 +68,7 @@ export const APP_321: Record<string, Record<string, any>> = {
       monRetry: 'Try again',
       monOpen: 'Open product',
       monHint: 'Price per litre makes cans of different sizes comparable.',
-      videoCheck: 'Please have a look – the video text was not fully clear.',
+      videoCheck: 'Please have a look, the video text was not fully clear.',
       videoFromAi: 'Assembled from the video text.',
       cropPinch: 'Move the frame with one finger · zoom the photo with two fingers',
     },
@@ -92,7 +88,7 @@ export const APP_321: Record<string, Record<string, any>> = {
       monCheapest: 'أرخص علبة',
       monPressLoad: 'لم تُجلب أسعار بعد.',
       monResults: 'نتيجة',
-      monNone: 'لا نتائج – جرّب كلمة أخرى.',
+      monNone: 'لا نتائج, جرّب كلمة أخرى.',
       monSources: 'المصادر',
       monSrcPreis: 'برايسرونتر',
       monSrcMarktguru: 'ماركتغورو',
@@ -108,7 +104,7 @@ export const APP_321: Record<string, Record<string, any>> = {
       monRetry: 'حاول مرة أخرى',
       monOpen: 'إلى المنتج',
       monHint: 'سعر اللتر يجعل العلب بأحجام مختلفة قابلة للمقارنة.',
-      videoCheck: 'يرجى المراجعة – نص الفيديو لم يكن واضحاً تماماً.',
+      videoCheck: 'يرجى المراجعة, نص الفيديو لم يكن واضحاً تماماً.',
       videoFromAi: 'تم تجميعه من نص الفيديو.',
       cropPinch: 'حرّك الإطار بإصبع واحد · كبّر الصورة بإصبعين',
     },
@@ -324,7 +320,7 @@ export const APP_321: Record<string, Record<string, any>> = {
       monRetry: 'Opnieuw proberen',
       monOpen: 'Naar product',
       monHint: 'De literprijs maakt blikjes van verschillende maten vergelijkbaar.',
-      videoCheck: 'Kijk er nog even naar – de videotekst was niet helemaal duidelijk.',
+      videoCheck: 'Kijk er nog even naar, de videotekst was niet helemaal duidelijk.',
       videoFromAi: 'Samengesteld uit de videotekst.',
       cropPinch: 'Schuif het kader met één vinger · zoom met twee vingers',
     },
@@ -344,7 +340,7 @@ export const APP_321: Record<string, Record<string, any>> = {
       monCheapest: 'Самая дешёвая банка',
       monPressLoad: 'Цены ещё не загружены.',
       monResults: 'результатов',
-      monNone: 'Нет результатов — попробуйте другое слово.',
+      monNone: 'Нет результатов - попробуйте другое слово.',
       monSources: 'Источники',
       monSrcPreis: 'Preisrunter',
       monSrcMarktguru: 'Marktguru',
@@ -360,9 +356,9 @@ export const APP_321: Record<string, Record<string, any>> = {
       monRetry: 'Повторить',
       monOpen: 'К товару',
       monHint: 'Цена за литр делает банки разного размера сравнимыми.',
-      videoCheck: 'Посмотрите ещё раз — текст видео был не совсем ясен.',
+      videoCheck: 'Посмотрите ещё раз - текст видео был не совсем ясен.',
       videoFromAi: 'Собрано из текста видео.',
-      cropPinch: 'Рамку — одним пальцем · фото — двумя пальцами',
+      cropPinch: 'Рамку - одним пальцем · фото - двумя пальцами',
     },
   },
 };

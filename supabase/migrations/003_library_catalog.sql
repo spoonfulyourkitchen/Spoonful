@@ -1,9 +1,8 @@
--- Fix: owner_name column for shared recipes (used by share to community)
+
 alter table public.shared_recipes add column if not exists owner_name text;
---SPLIT--
+
 notify pgrst, 'reload schema';
---SPLIT--
--- Public recipe catalogue used by the Library tab.
+
 create table if not exists public.library_recipes (
   id uuid primary key default gen_random_uuid(),
   recipe_key text not null unique,
@@ -25,14 +24,14 @@ create table if not exists public.library_recipes (
   created_at bigint not null
 );
 alter table public.library_recipes enable row level security;
---SPLIT--
+
 create policy "library_recipes_select_all" on public.library_recipes for select using (true);
 create policy "library_recipes_admin_write" on public.library_recipes
   for all to authenticated using (public.is_admin()) with check (public.is_admin());
 create index if not exists library_recipes_cuisine_idx on public.library_recipes (cuisine);
 create index if not exists library_recipes_meal_type_idx on public.library_recipes (meal_type);
 create index if not exists library_recipes_difficulty_idx on public.library_recipes (difficulty);
---SPLIT--
+
 insert into public.library_recipes (recipe_key,title,description,ingredients,steps,prep_time,cook_time,cuisine,dietary_restrictions,image_url,difficulty,calories,protein,carbs,fat,meal_type,created_at) values
 ('pizza-margherita','Pizza Margherita','Classic pizza with tomato, mozzarella and basil.','["Pizza dough","Tomato sauce","Fresh mozzarella","Basil leaves","Olive oil"]'::jsonb,'["Roll out the dough","Spread tomato sauce over the base","Top with mozzarella and bake for 12 minutes","Finish with fresh basil"]'::jsonb,20,12,'Italian','["vegetarian"]'::jsonb,NULL,'easy',780,30,90,28,'dinner',1700000000000),
 ('creamy-tomato-pasta','Creamy Tomato Pasta','Silky tomato pasta ready in half an hour.','["Spaghetti","Tomato passata","Cream","Garlic","Parmesan"]'::jsonb,'["Boil the spaghetti","Soften garlic in olive oil","Add passata and simmer","Stir in cream and parmesan"]'::jsonb,5,20,'Italian','["vegetarian"]'::jsonb,NULL,'easy',640,18,90,22,'dinner',1700000000001),
@@ -42,7 +41,7 @@ insert into public.library_recipes (recipe_key,title,description,ingredients,ste
 ('guacamole','Guacamole','Creamy avocado dip with lime and cilantro.','["Avocado","Lime","Red onion","Tomato","Cilantro","Salt"]'::jsonb,'["Mash the avocado","Stir in lime juice","Fold in onion tomato and cilantro","Season to taste"]'::jsonb,10,0,'Mexican','["vegetarian","vegan","gluten-free"]'::jsonb,NULL,'easy',230,3,12,20,'snack',1700000000005),
 ('veggie-sushi-rolls','Veggie Sushi Rolls','Fresh vegetable maki rolls.','["Sushi rice","Nori sheets","Cucumber","Avocado","Carrot","Soy sauce"]'::jsonb,'["Cook and season the rice","Lay nori on a mat","Spread rice and add vegetables","Roll tightly and slice"]'::jsonb,40,20,'Japanese','["vegetarian","vegan"]'::jsonb,NULL,'medium',380,8,72,5,'lunch',1700000000006),
 ('teriyaki-salmon','Teriyaki Salmon','Glazed salmon fillets with a sticky teriyaki sauce.','["Salmon fillets","Soy sauce","Mirin","Honey","Ginger","Broccoli"]'::jsonb,'["Mix the teriyaki glaze","Pan fry salmon skin side down","Glaze and caramelize","Serve with steamed broccoli"]'::jsonb,10,15,'Japanese','["high-protein","gluten-free"]'::jsonb,NULL,'easy',560,42,22,30,'dinner',1700000000007);
---SPLIT--
+
 insert into public.library_recipes (recipe_key,title,description,ingredients,steps,prep_time,cook_time,cuisine,dietary_restrictions,image_url,difficulty,calories,protein,carbs,fat,meal_type,created_at) values
 ('french-omelette','French Omelette','Soft and creamy folded omelette.','["Eggs","Butter","Chives","Salt","Pepper"]'::jsonb,'["Whisk the eggs","Melt butter in a pan","Cook low and slow","Fold and serve"]'::jsonb,3,6,'French','["vegetarian","gluten-free"]'::jsonb,NULL,'easy',320,20,2,26,'breakfast',1700000000008),
 ('shakshuka','Shakshuka','Eggs poached in a spiced tomato and pepper sauce.','["Eggs","Tomatoes","Bell pepper","Onion","Paprika","Cumin"]'::jsonb,'["Soften onion and pepper","Add tomatoes and spices","Simmer into a sauce","Poach the eggs on top"]'::jsonb,10,20,'Middle Eastern','["vegetarian","gluten-free"]'::jsonb,NULL,'easy',310,16,22,17,'breakfast',1700000000009),
@@ -52,5 +51,4 @@ insert into public.library_recipes (recipe_key,title,description,ingredients,ste
 ('thai-green-curry','Thai Green Curry','Aromatic coconut curry with chicken and vegetables.','["Chicken thigh","Green curry paste","Coconut milk","Eggplant","Thai basil","Jasmine rice"]'::jsonb,'["Fry the curry paste","Add coconut milk","Simmer chicken and eggplant","Finish with basil and serve with rice"]'::jsonb,15,25,'Thai','["gluten-free"]'::jsonb,NULL,'medium',690,36,58,34,'dinner',1700000000013),
 ('mushroom-risotto','Mushroom Risotto','Creamy rice dish with mushrooms and parmesan.','["Arborio rice","Mushrooms","Vegetable stock","White wine","Onion","Parmesan"]'::jsonb,'["Saute mushrooms and onion","Toast the rice","Add wine then hot stock slowly","Stir in parmesan"]'::jsonb,15,30,'Italian','["vegetarian"]'::jsonb,NULL,'hard',560,16,76,18,'dinner',1700000000014),
 ('blueberry-muffins','Blueberry Muffins','Soft muffins packed with blueberries.','["Flour","Sugar","Blueberries","Eggs","Butter","Milk","Baking powder"]'::jsonb,'["Mix dry ingredients","Fold in wet ingredients","Add blueberries","Bake at 190c for 20 minutes"]'::jsonb,15,20,'American','["vegetarian"]'::jsonb,NULL,'medium',380,6,54,15,'dessert',1700000000015);
-
 

@@ -20,21 +20,6 @@ import { searchFoods, type FoodHit } from '../lib/foodFacts';
 import { BARCODE_L10N, pick } from '../lib/l10n';
 import { Popup } from './Popup';
 
-/**
- * Barcode scan from a photo (2.1.0, rebuilt in 2.1.1).
- *
- * What changed in 2.1.1
- * - the photo is captured at full resolution and quality 1 ("perfectly sharp"),
- * - the decoder runs several passes over the picture (greyscale + contrast
- *   stretch, upscaling, 90°/270° rotation, binarising, centre crop) with
- *   TRY_HARDER + all common formats, so skewed or low contrast codes still read,
- * - a blurry picture is explained in a popup instead of failing silently,
- * - the whole flow is a popup: tips + camera first, then the result.
- *
- * The picture is decoded by ZXing inside a hidden WebView: `zxing.min.js` ships
- * as an Android asset (android/app/src/main/assets/zxing.min.js), so scanning
- * works offline and needs no extra native module.
- */
 export function BarcodeScannerModal({
   visible,
   onClose,
@@ -44,7 +29,7 @@ export function BarcodeScannerModal({
   visible: boolean;
   onClose: () => void;
   onCode: (code: string) => void;
-  /** 'numeric' = Produkt-Barcode (Ziffern), 'any' = jeder Code, z. B. Haushalts-QR */
+  
   accept?: 'numeric' | 'any';
 }) {
   const { t, lang } = useTranslation();
@@ -54,11 +39,11 @@ export function BarcodeScannerModal({
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [manual, setManual] = useState('');
   const [notice, setNotice] = useState<'blurry' | 'noCode' | null>(null);
-  /* 3.2.0: Produktsuche in der offenen Produktdatenbank */
+  
   const [searchQ, setSearchQ] = useState('');
   const [hits, setHits] = useState<FoodHit[]>([]);
   const [searching, setSearching] = useState(false);
-  /* 3.1.2: Live-Scanner - Handy hinhalten statt Foto machen. */
+  
   const [live, setLive] = useState(true);
   const [liveError, setLiveError] = useState(false);
 
@@ -76,11 +61,8 @@ export function BarcodeScannerModal({
     setNotice(null);
   }, [visible]);
 
-  /**
-   * 3.2.2: Der Live-Scanner schließt sich nach 45 Sekunden von selbst
-   * (Punkt 12). Vorher lief die Kamera weiter, wenn man das Popup einfach
-   * liegen ließ — das kostet Akku und kann den Speicher voll laufen lassen.
-   */
+  
+
   useEffect(() => {
     if (!visible || !live || busy) return;
     const timer = setTimeout(() => onClose(), 45000);
@@ -105,10 +87,8 @@ export function BarcodeScannerModal({
     }
   };
 
-  /**
-   * Decoding script: several prepared copies of the photo are handed to a
-   * low-level ZXing reader. The first readable code wins.
-   */
+  
+
   const html = useMemo(() => {
     if (!image) return '';
     return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
@@ -134,7 +114,6 @@ function hints(){
   return h;
 }
 
-/* How sharp is the picture? Mean |laplacian| on a small greyscale copy. */
 function sharpness(img){
   try {
     var w = 150, h = Math.max(1, Math.round(150 * (img.naturalHeight || img.height) / (img.naturalWidth || img.width)));
@@ -151,7 +130,6 @@ function sharpness(img){
   } catch(e){ return -1; }
 }
 
-/* One prepared copy: crop -> scale -> rotate -> greyscale + contrast. */
 function prepped(img, o){
   var sw = img.naturalWidth || img.width, sh = img.naturalHeight || img.height;
   var sx = 0, sy = 0, cw = sw, ch = sh;
@@ -196,7 +174,6 @@ var PASSES = [
   { scale: 1, crop: 0.85, binary: true }
 ];
 
-/* Last resort: ZXing's own image reader (a different code path). */
 function fallbackReader(sharp){
   try {
     var reader = new ZXing.BrowserMultiFormatReader(hints());
@@ -231,7 +208,7 @@ if (document.readyState === 'complete') run(); else window.addEventListener('loa
 </body></html>`;
   }, [image]);
 
-  /** Messages from the hidden decoder: progress per pass, then the code. */
+  
   const onMessage = (event: any) => {
     let data: any = {};
     try {
@@ -254,11 +231,10 @@ if (document.readyState === 'complete') run(); else window.addEventListener('loa
       return;
     }
     setFailed(true);
-    // A very low laplacian score means motion blur / too far away.
     setNotice(sharp >= 0 && sharp < 3.2 ? 'blurry' : 'noCode');
   };
 
-  /** Sucht Produkte nach Namen (offene Datenbank, kostenlos). */
+  
   const runSearch = async () => {
     const q = searchQ.trim();
     if (q.length < 3) return;
@@ -279,7 +255,7 @@ if (document.readyState === 'complete') run(); else window.addEventListener('loa
     onClose();
   };
 
-  /* ── 3.1.2: Live-Scanner ───────────────────────────────────────────────── */
+  
   const liveFormats =
     accept === 'any'
       ? 'ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.DATA_MATRIX, ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.EAN_13'
@@ -316,7 +292,7 @@ window.addEventListener('load', go);
     [liveFormats],
   );
 
-  /** Meldungen des Live-Scanners: Code oder Fehler. */
+  
   const onLiveMessage = (event: any) => {
     let data: any = {};
     try {
@@ -361,7 +337,6 @@ window.addEventListener('load', go);
                   </Pressable>
                 </View>
 
-                {/* 3.1.2: Live-Scanner — Handy hinhalten, bis der Code erkannt wird */}
                 {live && !image ? (
                   <View style={{ marginTop: 12 }}>
                     <View style={{ height: 200, borderRadius: 18, overflow: 'hidden', backgroundColor: '#000' }}>
@@ -398,18 +373,28 @@ window.addEventListener('load', go);
                       )}
                     </View>
                     <Text style={{ fontSize: 13, fontWeight: '800', color: colors.textPrimary, marginTop: 10 }}>{t('s.scanLive')}</Text>
-                    <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>{t('s.scanLiveHint')}</Text>
-                    <Pressable
-                      onPress={() => setLive(false)}
-                      style={({ pressed }) => [{ alignSelf: 'flex-start', marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6, backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.7 : 1 }]}
-                    >
-                      <Camera size={13} color={colors.textSecondary} />
-                      <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textSecondary }}>{t('s.scanFallback')}</Text>
-                    </Pressable>
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                      <Pressable
+                        onPress={() => setLive(false)}
+                        style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6, backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.7 : 1 }]}
+                      >
+                        <Camera size={13} color={colors.textSecondary} />
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textSecondary }}>{t('s.scanFallback')}</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => void grab('library')}
+                        disabled={busy}
+                        accessibilityRole="button"
+                        accessibilityLabel={pick(lang, BARCODE_L10N.fromGallery)}
+                        style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6, backgroundColor: colors.surfaceMuted, opacity: busy ? 0.6 : pressed ? 0.7 : 1 }]}
+                      >
+                        <ImageIcon size={13} color={colors.textSecondary} />
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textSecondary }}>{pick(lang, BARCODE_L10N.fromGallery)}</Text>
+                      </Pressable>
+                    </View>
                   </View>
                 ) : null}
 
-                {/* 3.2.0: Produkt suchen statt nur scannen */}
                 <View style={{ marginTop: 14 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 12 }}>
                     <Search size={16} color={colors.textSecondary} />
@@ -431,7 +416,26 @@ window.addEventListener('load', go);
                   ) : null}
                 </View>
 
-                {/* how to take a picture that decodes on the first pass (nur im Foto-Modus) */}
+                <View style={{ marginTop: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 12 }}>
+                    <ScanLine size={16} color={colors.textSecondary} />
+                    <TextInput
+                      value={manual}
+                      onChangeText={setManual}
+                      keyboardType="number-pad"
+                      placeholder={pick(lang, BARCODE_L10N.manual)}
+                      placeholderTextColor={colors.textSecondary}
+                      onSubmitEditing={useManual}
+                      style={{ flex: 1, paddingVertical: 11, fontSize: 15, color: colors.textPrimary }}
+                    />
+                    <Pressable onPress={useManual} hitSlop={8} disabled={manual.replace(/\D/g, '').length < 6}>
+                      <Text style={{ fontSize: 12.5, fontWeight: '800', color: manual.replace(/\D/g, '').length < 6 ? colors.textSecondary : colors.accent }}>
+                        {pick(lang, BARCODE_L10N.use)}
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+
                 {live && !image ? null : (
                   <>
                 <View style={{ marginTop: 12, borderRadius: 16, backgroundColor: colors.surfaceMuted, padding: 12 }}>
@@ -448,27 +452,18 @@ window.addEventListener('load', go);
                   </>
                 )}
 
-                <Pressable
-                  onPress={() => void grab('camera')}
-                  disabled={busy}
-                  accessibilityRole="button"
-                  accessibilityLabel={pick(lang, BARCODE_L10N.takePhoto)}
-                  style={({ pressed }) => [{ marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 16, paddingVertical: 15, backgroundColor: colors.accent, opacity: busy ? 0.6 : pressed ? 0.85 : 1 }]}
-                >
-                  <Camera size={18} color={colors.accentText} strokeWidth={2.4} />
-                  <Text style={{ color: colors.accentText, fontWeight: '800', fontSize: 15 }}>{pick(lang, BARCODE_L10N.takePhoto)}</Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={() => void grab('library')}
-                  disabled={busy}
-                  accessibilityRole="button"
-                  accessibilityLabel={pick(lang, BARCODE_L10N.fromGallery)}
-                  style={({ pressed }) => [{ marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 16, paddingVertical: 13, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, opacity: busy ? 0.6 : pressed ? 0.85 : 1 }]}
-                >
-                  <ImageIcon size={17} color={colors.accent} />
-                  <Text style={{ color: colors.accent, fontWeight: '700', fontSize: 14 }}>{pick(lang, BARCODE_L10N.fromGallery)}</Text>
-                </Pressable>
+                {!live ? (
+                  <Pressable
+                    onPress={() => void grab('camera')}
+                    disabled={busy}
+                    accessibilityRole="button"
+                    accessibilityLabel={pick(lang, BARCODE_L10N.takePhoto)}
+                    style={({ pressed }) => [{ alignSelf: 'flex-start', marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: colors.darkButton, opacity: busy ? 0.6 : pressed ? 0.85 : 1 }]}
+                  >
+                    <Camera size={15} color={colors.darkButtonText} strokeWidth={2.2} />
+                    <Text style={{ color: colors.darkButtonText, fontWeight: '800', fontSize: 13.5 }}>{pick(lang, BARCODE_L10N.takePhoto)}</Text>
+                  </Pressable>
+                ) : null}
 
                 {image ? (
                   <View style={{ marginTop: 14 }}>
@@ -480,7 +475,6 @@ window.addEventListener('load', go);
                         {progress.total ? ` · ${pick(lang, BARCODE_L10N.pass)} ${progress.done}/${progress.total}` : ''}
                       </Text>
                     </View>
-                    {/* Hidden decoder: it only has to run, not to be visible. */}
                     <View style={{ width: 1, height: 1, opacity: 0 }} pointerEvents="none">
                       <WebView
                         source={{ html }}
@@ -523,39 +517,12 @@ window.addEventListener('load', go);
                   </Pressable>
                 ) : null}
 
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 }}>
-                  <View style={{ flex: 1, height: 1, backgroundColor: colors.cardBorder }} />
-                  <Text style={{ fontSize: 10.5, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.6 }}>
-                    {pick(lang, BARCODE_L10N.manual)}
-                  </Text>
-                  <View style={{ flex: 1, height: 1, backgroundColor: colors.cardBorder }} />
-                </View>
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-                  <TextInput
-                    value={manual}
-                    onChangeText={setManual}
-                    keyboardType="number-pad"
-                    placeholder="4001234567890"
-                    placeholderTextColor={colors.textSecondary}
-                    style={{ flex: 1, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 12, paddingVertical: 11, color: colors.textPrimary, fontSize: 15 }}
-                  />
-                  <Pressable
-                    onPress={useManual}
-                    disabled={manual.replace(/\D/g, '').length < 6}
-                    accessibilityRole="button"
-                    accessibilityLabel={pick(lang, BARCODE_L10N.use)}
-                    style={({ pressed }) => [{ borderRadius: 14, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.darkButton, opacity: manual.replace(/\D/g, '').length < 6 ? 0.5 : pressed ? 0.8 : 1 }]}
-                  >
-                    <Text style={{ color: colors.darkButtonText, fontWeight: '800' }}>{pick(lang, BARCODE_L10N.use)}</Text>
-                  </Pressable>
-                </View>
               </ScrollView>
             </View>
           </View>
       
         </KeyboardAvoidingView></Modal>
 
-      {/* Why nothing was decoded - a popup instead of a line somewhere below. */}
       <Popup
         visible={!!notice}
         onClose={() => setNotice(null)}

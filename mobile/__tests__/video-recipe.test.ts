@@ -1,12 +1,5 @@
-/**
- * 3.2.1: Tests für „Video-Link -> Rezept".
- *
- * Diese Tests halten die zwei Fehler fest, die die Funktion vorher unmöglich
- * gemacht haben:
- *  1. Untertitel-Adressen sind RELATIV (müssen ergänzt werden).
- *  2. Video-Text ist oft ein einziger Block - er muss in Sätze/Abschnitte
- *     zerlegt werden, sonst findet die Erkennung nichts.
- */
+
+
 jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn(async () => null),
   setItem: jest.fn(async () => undefined),

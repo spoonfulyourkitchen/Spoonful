@@ -1,13 +1,5 @@
-/**
- * 3.1.2: Haushalt — komplett neu und aufgeräumt.
- *
- * Bewusst nur vier Bereiche, alles andere steckt hinter "Mehr anzeigen":
- *   1. Mitglieder           3. Einkauf (+ teilen)
- *   2. Kocht gerade         4. Wochenplan (Rezepte aus Bibliothek/Meine/Gespeichert)
- *   5. Aufgaben             Mehr: Ausgaben, Pinnwand, Statistik, Aktivität
- *
- * Oben rechts der QR-Code: scannen = beitreten, darunter der Beitritts-Code.
- */
+
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -21,18 +13,18 @@ import {
   TextInput,
   View,
 } from 'react-native';
-/* 3.3.0: Meldungen im App-Design statt System-Dialog */
+
 import { Alert } from '../lib/alert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  Bell, Check, ChefHat, MoreHorizontal, Plus, QrCode, Search, Share2,
+  Bell, Camera, Check, ChefHat, MoreHorizontal, Plus, QrCode, Search, Share2,
   ShoppingCart, Trash2, UsersRound, Utensils, X,
 } from 'lucide-react-native';
 
 import { AppButton, EmptyState, GlassCard, PageHeader, SectionLabel } from '../components/ui';
 import { QrCodeView } from '../components/QrCodeView';
 import { Collapsible } from '../components/Collapsible';
-import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
+import { HouseholdQrScannerModal } from '../components/HouseholdQrScannerModal';
 import { useTranslation } from '../lib/i18n';
 import { useMutation, useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';
@@ -77,7 +69,7 @@ export function HouseholdScreen() {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
-  /* 3.2.0: geteilte Einkaufslisten (max. 2) */
+  
   const [lists, setLists] = useState<HhList[]>([]);
   const [openList, setOpenList] = useState<string | null>(null);
 
@@ -90,7 +82,7 @@ export function HouseholdScreen() {
   const [expenseTitle, setExpenseTitle] = useState('');
   const [expenseAmount, setExpenseAmount] = useState('');
 
-  /* Wochenplan: Rezept-Auswahl */
+  
   const [pickDay, setPickDay] = useState<number | null>(null);
   const [pickTab, setPickTab] = useState<'lib' | 'mine' | 'saved'>('lib');
   const [pickQuery, setPickQuery] = useState('');
@@ -99,7 +91,7 @@ export function HouseholdScreen() {
   const hasHousehold = !!household;
   const isAdmin = members.some((m) => m.userId === myProfile?.id && m.householdRole === 'admin');
 
-  /** Kurzer Wochentag in der App-Sprache. */
+  
   const dayLabel = (i: number) => new Date(2024, 0, 1 + i).toLocaleDateString(lang, { weekday: 'short' });
 
   const refresh = useCallback(async () => {
@@ -121,7 +113,7 @@ export function HouseholdScreen() {
     }
   }, []);
 
-  /* Läuft, sobald ein Haushalt da ist (auch direkt nach dem Beitritt). */
+  
   useEffect(() => {
     if (!hasHousehold) return;
     void refresh();
@@ -146,22 +138,20 @@ export function HouseholdScreen() {
     return raw || null;
   }, [invite, household]);
 
-  /* Code automatisch holen, sobald der QR-Code geöffnet wird. */
+  
   useEffect(() => {
     if (!qrOpen || code) return;
     (async () => {
       try {
         const res: any = await makeInvite({});
         setInvite(res?.code ?? res?.data?.code ?? null);
-      } catch {
-        /* ohne Code bleibt das Feld leer */
-      }
+      } catch {}
     })();
   }, [qrOpen, code, makeInvite]);
 
   const qrValue = code ? `SPOONFUL-HH:${code}` : '';
 
-  /** QR-Code öffnen (den Code holt der Effekt oben automatisch). */
+  
   const openQr = () => setQrOpen(true);
 
   const shareCode = async () => {
@@ -187,7 +177,7 @@ export function HouseholdScreen() {
       setJoinCode('');
     });
 
-  /** 3.1.2: QR-Code eines anderen Haushalts scannen = beitreten. */
+  
   const [scanOpen, setScanOpen] = useState(false);
   const onScannedCode = (raw: string) => {
     const value = String(raw ?? '').trim();
@@ -203,10 +193,10 @@ export function HouseholdScreen() {
       { text: t('hh.leave'), style: 'destructive', onPress: () => void run(() => leaveHousehold({})) },
     ]);
 
-  /* ── Kocht gerade ─────────────────────────────────────────────────────── */
+  
   const others = (cooking ?? []).filter((c) => c.userId !== myProfile?.id && Date.now() - c.at < 12 * 3600 * 1000);
 
-  /* ── Einkauf ──────────────────────────────────────────────────────────── */
+  
   const openShopping = (shopping ?? []).filter((i: any) => !i.checked);
   const shareShopping = async () => {
     const names = openShopping.map((i: any) => String(i.name ?? '')).filter(Boolean);
@@ -214,9 +204,7 @@ export function HouseholdScreen() {
     try {
       await Share.share({ message: body });
       await logEvent(me, 'shopping', `${names.length} × ${t('s.shopSharedOk')}`);
-    } catch {
-      /* Teilen abgebrochen */
-    }
+    } catch {}
   };
   const clearShopping = () => {
     const ids = openShopping.map((i: any) => i.id).filter(Boolean);
@@ -224,7 +212,7 @@ export function HouseholdScreen() {
     void run(() => setCheckedMany({ ids, checked: true }));
   };
 
-  /* ── Wochenplan: Rezepte aus Bibliothek / Meine / Gespeichert ─────────── */
+  
   const libPage = useQuery(api.recipes.libraryPage, { search: pickTab === 'lib' ? pickQuery : '', limit: 24, offset: 0 }) as any;
   const pickerItems: any[] = useMemo(() => {
     if (pickTab === 'lib') return (libPage?.items ?? []) as any[];
@@ -252,14 +240,14 @@ export function HouseholdScreen() {
   };
   const planToShopping = (entry: HhPlanEntry) => run(() => addNamesToShopping([entry.title], entry.title));
 
-  /* ── Aufgaben ─────────────────────────────────────────────────────────── */
+  
   const doAddTask = () =>
     run(() => addTask(taskDraft, null, null), () => {
       setTaskDraft('');
     });
   const toggleTask = (tk: HhTask) => run(() => setTaskDone(tk.id, !tk.done));
 
-  /* ── Mehr: Ausgaben, Pinnwand, Statistik, Aktivität ───────────────────── */
+  
   const doAddExpense = () =>
     run(() => addExpense(expenseTitle, Number(expenseAmount.replace(',', '.')), me), () => {
       setExpenseTitle('');
@@ -276,14 +264,14 @@ export function HouseholdScreen() {
     return { sum, diff: mine - sum / per };
   }, [expenses, members.length, myProfile?.id]);
 
-  /** Posten in einer Haushalts-Liste abhaken (alle dürfen das). */
+  
   const toggleHhItem = (list: HhList, index: number) => {
     const next = list.items.map((it, i) => (i === index ? { ...it, checked: !it.checked } : it));
     setLists((all) => all.map((l) => (l.id === list.id ? { ...l, items: next } : l)));
     void updateHouseholdList(list.id, next);
   };
 
-  /** Liste zurückholen: Posten kommen wieder in meine Einkaufsliste. */
+  
   const takeList = (list: HhList) =>
     run(async () => {
       const names = list.items.map((it) => it.name).filter(Boolean);
@@ -300,7 +288,6 @@ export function HouseholdScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top }}>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 46 + insets.bottom }} showsVerticalScrollIndicator={false}>
-        {/* Kopf mit QR-Code oben rechts */}
         <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
           <View style={{ flex: 1 }}>
             <PageHeader
@@ -352,56 +339,38 @@ export function HouseholdScreen() {
           </GlassCard>
         ) : (
           <>
-            {/* 1. Mitglieder */}
-            <SectionLabel>{t('s.hhMembers')}</SectionLabel>
-            <GlassCard variant="solid" pad={14}>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                {members.map((m) => (
-                  <Pressable
-                    key={m.userId}
-                    onLongPress={() => (isAdmin && m.userId !== myProfile?.id ? void run(() => setHouseholdRole(m.userId, m.householdRole === 'admin' ? 'member' : 'admin')) : undefined)}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 999, paddingLeft: 5, paddingRight: 11, paddingVertical: 5, backgroundColor: colors.surfaceMuted }}
-                  >
-                    <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ fontSize: 11, fontWeight: '800', color: colors.accent }}>{(m.name || '?').slice(0, 2).toUpperCase()}</Text>
-                    </View>
-                    <Text numberOfLines={1} style={{ fontSize: 12.5, fontWeight: '700', color: colors.textPrimary }}>
-                      {m.name}{m.userId === myProfile?.id ? ` (${t('s.hhYou')})` : ''}
-                    </Text>
-                    {m.householdRole === 'admin' ? <Text style={{ fontSize: 10.5, fontWeight: '800', color: colors.accent }}>★</Text> : null}
-                  </Pressable>
-                ))}
-                {!members.length && loading ? <ActivityIndicator color={colors.accent} /> : null}
+            <GlassCard variant="solid" pad={16} style={{ marginBottom: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '800', letterSpacing: 0.7, textTransform: 'uppercase', color: colors.textSecondary }}>
+                    {t('feat.household')}
+                  </Text>
+                  <Text style={{ fontFamily: fonts.display, fontSize: 19, fontWeight: '800', color: colors.textPrimary, marginTop: 2 }}>
+                    {String(household?.name ?? t('hh.title'))}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, backgroundColor: colors.surfaceMuted, paddingHorizontal: 10, paddingVertical: 5 }}>
+                  <UsersRound size={13} color={colors.accent} />
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: colors.textPrimary }}>{members.length}</Text>
+                </View>
               </View>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-                <MiniBtn label={t('s.hhShareHh')} icon={<Share2 size={13} color={colors.accent} />} onPress={() => void shareCode()} />
-                <MiniBtn label={t('s.hhRemind')} icon={<Bell size={13} color={colors.textSecondary} />} onPress={doRemind} />
-                <MiniBtn label={t('hh.leave')} danger icon={<X size={13} color={colors.rose} />} onPress={doLeave} />
+
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+                <View style={{ flex: 1, borderRadius: 14, backgroundColor: colors.surfaceMuted, padding: 12 }}>
+                  <Text style={{ fontSize: 22, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.5 }}>{openShopping.length}</Text>
+                  <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>{t('s.hhShoppingOpen')}</Text>
+                </View>
+                <View style={{ flex: 1, borderRadius: 14, backgroundColor: colors.surfaceMuted, padding: 12 }}>
+                  <Text style={{ fontSize: 22, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.5 }}>{tasks.filter((x) => !x.done).length}</Text>
+                  <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>{t('s.hhTasksSection')}</Text>
+                </View>
+                <View style={{ flex: 1, borderRadius: 14, backgroundColor: colors.surfaceMuted, padding: 12 }}>
+                  <Text style={{ fontSize: 22, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.5 }}>{plan.length}</Text>
+                  <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>{t('s.hhPlanSection')}</Text>
+                </View>
               </View>
             </GlassCard>
 
-            {/* 2. Kocht gerade */}
-            <SectionLabel style={{ marginTop: 18 }}>{t('s.hhCookingNow')}</SectionLabel>
-            <GlassCard variant="solid" pad={14}>
-              {others.length ? (
-                others.slice(0, 3).map((c) => (
-                  <Pressable
-                    key={c.userId}
-                    onPress={() => navigate('RecipeDetail', { recipeId: c.recipeKey, title: c.title, source: 'mine' })}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 }}
-                  >
-                    <ChefHat size={15} color={colors.accent} />
-                    <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, color: colors.textPrimary }}>
-                      {t('s.cookHouseholdAt', { name: c.name || '—', n: c.step + 1, total: c.total })}{c.title ? ` · ${c.title}` : ''}
-                    </Text>
-                  </Pressable>
-                ))
-              ) : (
-                <Text style={{ fontSize: 12.5, color: colors.textSecondary }}>{t('s.hhCookingNone')}</Text>
-              )}
-            </GlassCard>
-
-            {/* 3. Einkauf */}
             <SectionLabel style={{ marginTop: 18 }}>{t('s.hhShoppingSection')}</SectionLabel>
             <GlassCard variant="solid" pad={14}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -419,10 +388,9 @@ export function HouseholdScreen() {
               ) : null}
             </GlassCard>
 
-            {/* 3b. geteilte Einkaufslisten (max. 2) */}
-            <SectionLabel style={{ marginTop: 18 }}>{t('s.hhLists')}</SectionLabel>
+            {lists.length ? <SectionLabel style={{ marginTop: 18 }}>{t('s.hhLists')}</SectionLabel> : null}
+            {lists.length ? (
             <GlassCard variant="solid" pad={14}>
-              {!lists.length ? <Text style={{ fontSize: 12.5, color: colors.textSecondary }}>{t('s.hhListsHint')}</Text> : null}
               {lists.map((list) => (
                 <Collapsible
                   key={list.id}
@@ -446,8 +414,8 @@ export function HouseholdScreen() {
                 </Collapsible>
               ))}
             </GlassCard>
+            ) : null}
 
-            {/* 4. Wochenplan — Gerichte aus Bibliothek / Meine / Gespeichert */}
             <SectionLabel style={{ marginTop: 18 }}>{t('s.hhPlanSection')}</SectionLabel>
             <GlassCard variant="solid" pad={14}>
               {!plan.length ? <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginBottom: 8 }}>{t('s.hhPlanEmpty')}</Text> : null}
@@ -458,7 +426,7 @@ export function HouseholdScreen() {
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <Text style={{ width: 32, fontSize: 12.5, fontWeight: '800', color: colors.accent }}>{dayLabel(day - 1)}</Text>
                       <Text numberOfLines={1} style={{ flex: 1, fontSize: 12.5, color: entries.length ? colors.textPrimary : colors.textMuted }}>
-                        {entries.length ? entries.map((e) => e.title).join(' · ') : '—'}
+                        {entries.length ? entries.map((e) => e.title).join(' · ') : '-'}
                       </Text>
                       <Pressable
                         onPress={() => {
@@ -487,7 +455,6 @@ export function HouseholdScreen() {
               })}
             </GlassCard>
 
-            {/* 5. Aufgaben */}
             <SectionLabel style={{ marginTop: 18 }}>{t('s.hhTasksSection')}</SectionLabel>
             <GlassCard variant="solid" pad={14}>
               <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
@@ -520,7 +487,6 @@ export function HouseholdScreen() {
               ))}
             </GlassCard>
 
-            {/* Mehr: Ausgaben, Pinnwand, Statistik, Aktivität */}
             <Pressable
               onPress={() => setMoreOpen((v) => !v)}
               style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 18, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingVertical: 12, opacity: pressed ? 0.75 : 1 }]}
@@ -531,6 +497,53 @@ export function HouseholdScreen() {
 
             {moreOpen ? (
               <>
+            <SectionLabel style={{ marginTop: 18 }}>{t('s.hhMembers')}</SectionLabel>
+            <GlassCard variant="solid" pad={14}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {members.map((m) => (
+                  <Pressable
+                    key={m.userId}
+                    onLongPress={() => (isAdmin && m.userId !== myProfile?.id ? void run(() => setHouseholdRole(m.userId, m.householdRole === 'admin' ? 'member' : 'admin')) : undefined)}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 999, paddingLeft: 5, paddingRight: 11, paddingVertical: 5, backgroundColor: colors.surfaceMuted }}
+                  >
+                    <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: colors.accent }}>{(m.name || '?').slice(0, 2).toUpperCase()}</Text>
+                    </View>
+                    <Text numberOfLines={1} style={{ fontSize: 12.5, fontWeight: '700', color: colors.textPrimary }}>
+                      {m.name}{m.userId === myProfile?.id ? ` (${t('s.hhYou')})` : ''}
+                    </Text>
+                    {m.householdRole === 'admin' ? <Text style={{ fontSize: 10.5, fontWeight: '800', color: colors.accent }}>★</Text> : null}
+                  </Pressable>
+                ))}
+                {!members.length && loading ? <ActivityIndicator color={colors.accent} /> : null}
+              </View>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                <MiniBtn label={t('s.hhShareHh')} icon={<Share2 size={13} color={colors.accent} />} onPress={() => void shareCode()} />
+                <MiniBtn label={t('s.hhRemind')} icon={<Bell size={13} color={colors.textSecondary} />} onPress={doRemind} />
+              </View>
+            </GlassCard>
+
+            {others.length ? (
+              <>
+                <SectionLabel style={{ marginTop: 18 }}>{t('s.hhCookingNow')}</SectionLabel>
+                <GlassCard variant="solid" pad={14}>
+                  {others.slice(0, 3).map((c) => (
+                    <Pressable
+                      key={c.userId}
+                      onPress={() => navigate('RecipeDetail', { recipeId: c.recipeKey, title: c.title, source: 'mine' })}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 }}
+                    >
+                      <ChefHat size={15} color={colors.accent} />
+                      <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, color: colors.textPrimary }}>
+                        {t('s.cookHouseholdAt', { name: c.name || '-', n: c.step + 1, total: c.total })}{c.title ? ` · ${c.title}` : ''}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </GlassCard>
+              </>
+            ) : null}
+
+
                 <SectionLabel style={{ marginTop: 18 }}>{t('s.hhExpenses')}</SectionLabel>
                 <GlassCard variant="solid" pad={14}>
                   <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
@@ -602,6 +615,9 @@ export function HouseholdScreen() {
                       {ev.actorName} {ev.text}
                     </Text>
                   ))}
+                  <View style={{ marginTop: 12 }}>
+                    <MiniBtn label={t('hh.leave')} danger icon={<X size={13} color={colors.rose} />} onPress={doLeave} />
+                  </View>
                 </GlassCard>
               </>
             ) : null}
@@ -609,7 +625,6 @@ export function HouseholdScreen() {
         )}
       </ScrollView>
 
-      {/* Rezept-Auswahl für den Wochenplan */}
       <Modal visible={pickDay != null} transparent animationType="fade" onRequestClose={() => setPickDay(null)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
           <View style={{ flex: 1, backgroundColor: rgbaHelper('#000000', 0.55), justifyContent: 'flex-end' }}>
@@ -670,7 +685,6 @@ export function HouseholdScreen() {
       
         </KeyboardAvoidingView></Modal>
 
-      {/* QR-Code: scannen = beitreten */}
       <Modal visible={qrOpen} transparent animationType="fade" onRequestClose={() => setQrOpen(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
           <View style={{ flex: 1, backgroundColor: rgbaHelper('#000000', 0.55), alignItems: 'center', justifyContent: 'center', padding: 18 }}>
@@ -683,28 +697,30 @@ export function HouseholdScreen() {
               </View>
               {qrValue ? <QrCodeView value={qrValue} size={260} /> : <ActivityIndicator color={colors.accent} />}
               <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 10, textAlign: 'center' }}>{t('s.hhQrBody')}</Text>
+              <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 4, textAlign: 'center' }}>{t('s.hhQrScanHint')}</Text>
               <Text style={{ fontSize: 15, fontWeight: '800', color: colors.accent, marginTop: 10 }}>
-                {t('s.hhCode')}: {code ?? '—'}
+                {t('s.hhCode')}: {code ?? '-'}
               </Text>
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 16, alignSelf: 'stretch' }}>
-                <AppButton label={t('s.hhShareHh')} variant="ghost" onPress={() => void shareCode()} style={{ flex: 1 }} />
-                <AppButton label={t('common.close')} variant="dark" onPress={() => setQrOpen(false)} style={{ flex: 1 }} />
+              <View style={{ flexDirection: 'row', gap: 12, marginTop: 16, alignSelf: 'stretch', justifyContent: 'center' }}>
+                <Pressable onPress={() => void shareCode()} accessibilityRole="button" accessibilityLabel={t('s.hhShareHh')} style={{ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accentSoft }}>
+                  <Share2 size={20} color={colors.accent} />
+                </Pressable>
+                <Pressable onPress={() => { setQrOpen(false); setScanOpen(true); }} accessibilityRole="button" accessibilityLabel={t('s.hhScan')} style={{ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accent }}>
+                  <Camera size={20} color={colors.accentText} />
+                </Pressable>
               </View>
             </View>
           </View>
       
         </KeyboardAvoidingView></Modal>
 
-      {/* QR-Code scannen, um beizutreten */}
-      <BarcodeScannerModal visible={scanOpen} onClose={() => setScanOpen(false)} onCode={onScannedCode} accept="any" />
+      <HouseholdQrScannerModal visible={scanOpen} onClose={() => setScanOpen(false)} onCode={onScannedCode} />
     </View>
   );
 }
 
 const inputStyle = {
   borderRadius: 12,
-  /* 3.2.3: feste Theme-Farben + Rahmen — vorher wirkten die Felder im dunklen
-     Theme hell/weiß, weil die Fläche nur eine schwache Tönung war. */
   backgroundColor: colors.card,
   borderWidth: 1,
   borderColor: colors.cardBorder,

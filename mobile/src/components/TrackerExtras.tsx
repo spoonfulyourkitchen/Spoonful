@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { Camera, Droplets, Minus, Plus, ScanLine, Search, TrendingDown, TrendingUp } from 'lucide-react-native';
+import { markReviewAction } from '../lib/review';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useMutation, useQuery } from '../lib/convex-auth';
-import { api } from '../lib/api';
+import { useMutation } from '../lib/convex-auth';
+import { api, runOp } from '../lib/api';
 import { colors } from '../theme';
 import { GlassCard } from './ui';
 import { Collapsible } from './Collapsible';
@@ -15,36 +16,59 @@ import { FoodPortionSheet } from './FoodPortionSheet';
 import { Popup } from './Popup';
 import { tutorialAction, useTutorialTarget } from '../lib/tutorial';
 import { BARCODE_L10N, TRACKER_L10N, pick } from '../lib/l10n';
+import { addPendingOp, getConnNow } from '../lib/offline';
+import {
+  addWaterLocal,
+  addWeightLocal,
+  getWaterLocal,
+  getWeightsLocal,
+  hydrateTrackerLocal,
+  subscribeTrackerLocal,
+  undoWaterLocal,
+  waterMarkSynced,
+  waterServerTotal,
+  weightMarkSynced,
+  weightsServerList,
+} from '../lib/tracker-local';
 
-/**
- * Tracker extras (2.0.0, rebuilt in 2.1.1):
- *  - the food card (search + barcode photo scan) sits at the very top,
- *  - water intake with a goal derived from the body weight,
- *  - weight card: quick logging, trend and an automatic goal suggestion,
- *  - every result of an action is a popup, nothing "appears" further down the
- *    page where the user would have to scroll to find it.
- */
 const PROFILE_KEY = 'spoonful:nutrition-profile';
 
-export function TrackerExtras() {
+export function TrackerExtras({ onLocalLog }: { onLocalLog?: (payload: any) => void } = {}) {
   const { t, lang } = useTranslation();
-  const water = useQuery(api.tracker.waterToday) as any;
-  const addWater = useMutation(api.tracker.addWater);
-  const removeWater = useMutation(api.tracker.removeWater);
-  const addWeight = useMutation(api.tracker.addWeight);
-  const weights = useQuery(api.tracker.weights) as any[] | undefined;
   const logManual = useMutation(api.calorieEntries.logManual);
+  
 
-  /* 3.2.0: Scan vom Tab (langes Drücken) hier abholen und direkt öffnen */
+  const addWaterServer = useMutation(api.tracker.addWater);
+  const removeWaterServer = useMutation(api.tracker.removeWater);
+  const addWeightServer = useMutation(api.tracker.addWeight);
+  const waterLocal = useSyncExternalStore(subscribeTrackerLocal, getWaterLocal, getWaterLocal);
+  const weightLocal = useSyncExternalStore(subscribeTrackerLocal, getWeightsLocal, getWeightsLocal);
+
   useEffect(() => {
-    const code = takePendingBarcode();
-    if (code) void onScanned(code);
-    return subscribePendingBarcode((next) => void onScanned(next));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void hydrateTrackerLocal();
+    void (async () => {
+      try {
+        const res: any = await runOp(api.tracker.waterToday, 'query', null, {});
+        waterServerTotal(Number(res?.totalMl ?? 0));
+      } catch {}
+      try {
+        const rows: any = await runOp(api.tracker.weights, 'query', null, {});
+        if (Array.isArray(rows)) weightsServerList(rows);
+      } catch {}
+    })();
   }, []);
 
-  /* 3.2.0: Abschnitte aufklappbar (weniger Scrollen) */
-  /** 3.2.3: Das Essens-Feld startet geschlossen (Nutzer wünschte es so). */
+  
+
+  const onScannedRef = useRef<((code: string) => void) | null>(null);
+  useEffect(() => {
+    const code = takePendingBarcode();
+    if (code) onScannedRef.current?.(code);
+    return subscribePendingBarcode((next) => onScannedRef.current?.(next));
+  }, []);
+
+  
+  
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({ food: false, water: false, weight: false });
   const toggleSection = (key: string) => setOpenSections((s) => ({ ...s, [key]: !s[key] }));
 
@@ -55,13 +79,13 @@ export function TrackerExtras() {
   const [searching, setSearching] = useState(false);
   const [barcode, setBarcode] = useState('');
   const [scannerOpen, setScannerOpen] = useState(false);
-  /** Product waiting for the portion choice (2.1.0). */
+  
   const [pending, setPending] = useState<FoodHit | null>(null);
-  /** 2.1.1: one popup for every message (goal, weight, product lookup). */
+  
   const [popup, setPopup] = useState<{ title: string; body?: string } | null>(null);
   const [kgInput, setKgInput] = useState('');
   const [kgBusy, setKgBusy] = useState(false);
-  /* Tutorial target: the barcode row (scan a photo / type the number). */
+  
   const barcodeTarget = useTutorialTarget('tut-barcode');
 
   useEffect(() => {
@@ -80,13 +104,48 @@ export function TrackerExtras() {
   }, []);
 
   const waterGoalMl = Math.round((bodyWeight * 35) / 100) * 100;
-  const totalMl = Number(water?.totalMl ?? 0);
+  const totalMl = waterLocal.totalMl;
   const waterPct = waterGoalMl ? Math.min(100, Math.round((totalMl / waterGoalMl) * 100)) : 0;
 
-  /** Trend: weight logs of the last weeks, oldest to newest. */
+  
+  const addWater = (ml: number) => {
+    addWaterLocal(ml);
+    void (async () => {
+      if (getConnNow() === 'offline') {
+        await addPendingOp('tracker.water.add', { ml });
+        return;
+      }
+      try {
+        await addWaterServer({ ml });
+        waterMarkSynced(1, 0);
+      } catch {
+        await addPendingOp('tracker.water.add', { ml });
+      }
+    })();
+  };
+
+  
+  const undoWater = () => {
+    const mode = undoWaterLocal();
+    if (mode !== 'server') return;
+    void (async () => {
+      if (getConnNow() === 'offline') {
+        await addPendingOp('tracker.water.undo', {});
+        return;
+      }
+      try {
+        await removeWaterServer({});
+        waterMarkSynced(0, 1);
+      } catch {
+        await addPendingOp('tracker.water.undo', {});
+      }
+    })();
+  };
+
+  
   const trend = useMemo(() => {
-    const rows = (weights ?? [])
-      .map((w: any) => ({ kg: Number(w.weightKg), at: Number(w.loggedAt ?? 0) }))
+    const rows = weightLocal
+      .map((w) => ({ kg: Number(w.kg), at: Number(w.at ?? 0) }))
       .filter((w) => Number.isFinite(w.kg))
       .sort((a, b) => a.at - b.at);
     if (rows.length < 2) return null;
@@ -97,7 +156,7 @@ export function TrackerExtras() {
     const delta = Math.round((last.kg - base.kg) * 10) / 10;
     const weeks = Math.max(1, Math.round((Date.now() - base.at) / (7 * 86400000)));
     return { last: last.kg, delta, weeks, points: rows.slice(-14) };
-  }, [weights]);
+  }, [weightLocal]);
 
   const suggestion = useMemo(() => {
     if (!trend) return null;
@@ -111,7 +170,7 @@ export function TrackerExtras() {
 
   const goalWord = (g: string) => t(g === 'lose' ? 'onb.lose' : g === 'gain' ? 'onb.gain' : 'onb.keep');
 
-  /** 2.1.1: confirmation opens as a popup instead of a line below the button. */
+  
   const applySuggestion = async () => {
     if (!suggestion) return;
     try {
@@ -125,25 +184,30 @@ export function TrackerExtras() {
         title: pick(lang, TRACKER_L10N.goalAdjustedTitle),
         body: `${pick(lang, TRACKER_L10N.goalHint)}: ${goalWord(next.goal)}`,
       });
-    } catch {
-      /* ignore */
-    }
+    } catch {}
   };
 
-  /** 2.1.1: weight logging lives in this panel now (the old emoji card is gone). */
+  
+
   const saveWeight = async () => {
     const kg = Number(kgInput.replace(',', '.'));
     if (!Number.isFinite(kg) || kg < 20 || kg > 400) {
       setPopup({ title: pick(lang, TRACKER_L10N.weightTitle), body: pick(lang, TRACKER_L10N.weightInvalid) });
       return;
     }
+    const entry = addWeightLocal(kg);
+    setKgInput('');
+    setPopup({ title: pick(lang, TRACKER_L10N.weightTitle), body: pick(lang, TRACKER_L10N.weightSaved) });
+    if (getConnNow() === 'offline') {
+      await addPendingOp('tracker.weight.add', { kg: entry.kg, at: entry.at });
+      return;
+    }
     setKgBusy(true);
     try {
-      await addWeight({ weightKg: Math.round(kg * 10) / 10, at: Date.now() });
-      setKgInput('');
-      setPopup({ title: pick(lang, TRACKER_L10N.weightTitle), body: pick(lang, TRACKER_L10N.weightSaved) });
-    } catch (e) {
-      setPopup({ title: pick(lang, TRACKER_L10N.weightTitle), body: e instanceof Error ? e.message : pick(lang, TRACKER_L10N.weightInvalid) });
+      await addWeightServer({ weightKg: entry.kg, at: entry.at });
+      weightMarkSynced(entry.id);
+    } catch {
+      await addPendingOp('tracker.weight.add', { kg: entry.kg, at: entry.at });
     } finally {
       setKgBusy(false);
     }
@@ -165,14 +229,13 @@ export function TrackerExtras() {
       setHits(hit ? [hit] : []);
       if (hit?.name) setQuery(hit.name);
       if (!hit) setPopup({ title: pick(lang, BARCODE_L10N.noCodeTitle), body: pick(lang, BARCODE_L10N.notInDatabase) });
-      // 2.1.0: ask how much was eaten before logging.
-      if (hit) setPending(hit);
+      if (hit) { setPending(hit); markReviewAction('barcode'); }
     } finally {
       setSearching(false);
     }
   };
 
-  /** 2.1.0: a barcode that the photo scanner read from the picture. */
+  
   const onScanned = async (code: string) => {
     setBarcode(code);
     setSearching(true);
@@ -185,34 +248,49 @@ export function TrackerExtras() {
       setHits([hit]);
       if (hit.name) setQuery(hit.name);
       setPending(hit);
+      markReviewAction('barcode');
     } finally {
       setSearching(false);
     }
   };
+  
+  onScannedRef.current = onScanned;
 
-  /** 2.1.0: write the tracker entry with the portion the user picked. */
+  
+
   const confirmPortion = async (hit: FoodHit, grams: number) => {
     const scaled = scaleToPortion(hit, grams);
+    const payload = {
+      title: `${hit.brand ? `${hit.name} (${hit.brand})` : hit.name} · ${grams} g`,
+      calories: scaled.calories,
+      protein: scaled.protein,
+      carbs: scaled.carbs,
+      fat: scaled.fat,
+    };
+    onLocalLog?.(payload);
+    setPending(null);
+    setHits([]);
+    setQuery('');
+    setBarcode('');
+    if (getConnNow() === 'offline') {
+      await addPendingOp('tracker.log', payload);
+      return;
+    }
     try {
       await logManual({
-        title: `${hit.brand ? `${hit.name} (${hit.brand})` : hit.name} · ${grams} g`,
-        calories: scaled.calories,
-        protein: scaled.protein,
-        carbs: scaled.carbs,
-        fat: scaled.fat,
+        title: payload.title,
+        calories: payload.calories,
+        protein: payload.protein,
+        carbs: payload.carbs,
+        fat: payload.fat,
       });
-      setPending(null);
-      setHits([]);
-      setQuery('');
-      setBarcode('');
     } catch {
-      /* reactive refresh handles it */
+      await addPendingOp('tracker.log', payload);
     }
   };
 
   return (
     <>
-      {/* 2.1.1: the food card (scan + search) is the first thing on the tracker */}
       <Collapsible bare title={pick(lang, TRACKER_L10N.scanCardTitle)} open={openSections.food} onToggle={() => toggleSection('food')} />
       <GlassCard visible={openSections.food} pad={16} radius={20}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -246,11 +324,8 @@ export function TrackerExtras() {
               style={{ flex: 1, paddingVertical: 9, color: colors.textPrimary }}
             />
           </View>
-          {/* 2.1.1: the camera opens the (popup) scanner */}
           <Pressable
             onPress={() => {
-              // Tapping the camera/scan row completes the tour step, otherwise
-              // the scanner popup would hide the coach mark while it is open.
               tutorialAction('tut-barcode');
               setScannerOpen(true);
             }}
@@ -301,7 +376,6 @@ export function TrackerExtras() {
         ) : null}
       </GlassCard>
 
-      {/* water */}
       <Collapsible bare title={t('x.water')} open={openSections.water} onToggle={() => toggleSection('water')} />
       <GlassCard visible={openSections.water} pad={16} radius={20}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -315,13 +389,17 @@ export function TrackerExtras() {
             </Text>
           </View>
           <Pressable
-            onPress={() => void removeWater({})}
+            onPress={undoWater}
+            accessibilityRole="button"
+            accessibilityLabel={t('x.water')}
             style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' }}
           >
             <Minus size={15} color={colors.textPrimary} />
           </Pressable>
           <Pressable
-            onPress={() => void addWater({ ml: 250 })}
+            onPress={() => addWater(250)}
+            accessibilityRole="button"
+            accessibilityLabel="250 ml"
             style={{ flexDirection: 'row', alignItems: 'center', gap: 4, height: 34, paddingHorizontal: 12, borderRadius: 17, backgroundColor: colors.darkButton }}
           >
             <Plus size={14} color={colors.darkButtonText} />
@@ -333,8 +411,8 @@ export function TrackerExtras() {
         </View>
       </GlassCard>
 
-      {/* weight: quick logging + trend + automatic goal suggestion (3.3.1:
-          aufklappbar wie Essen und Wasser — standardmäßig geschlossen) */}
+      {
+}
       <Collapsible bare title={pick(lang, TRACKER_L10N.weightTitle)} open={openSections.weight} onToggle={() => toggleSection('weight')} />
       <GlassCard visible={openSections.weight} pad={16} radius={20}>
         <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -397,7 +475,6 @@ export function TrackerExtras() {
         )}
       </GlassCard>
 
-      {/* 2.1.0/2.1.1: scanner popup + portion popup + message popup */}
       <BarcodeScannerModal visible={scannerOpen} onClose={() => setScannerOpen(false)} onCode={(code) => void onScanned(code)} />
       <FoodPortionSheet
         hit={pending}

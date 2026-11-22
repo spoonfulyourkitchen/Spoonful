@@ -13,7 +13,6 @@ import { colors, fonts, glassShadow, subscribeTheme } from '../theme';
 import { SpoonfulLogo as Logo } from '../components/Logo';
 import { WashBackground } from '../components/GlassBackground';
 import { useAiTask, clearAiTask } from '../lib/aiTask';
-import { subscribeAiUsage, getAiUsage, refreshAiUsage } from '../lib/ai';
 import { navigate } from './rootRef';
 import { useTranslation } from '../lib/i18n';
 
@@ -28,7 +27,6 @@ export function useAppShell(): ShellContextValue {
   return useContext(ShellContext);
 }
 
-/* AI status indicator — spinner / "recipe ready" chip / error chip. */
 function RingSpinner() {
   const spin = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -95,42 +93,11 @@ export function AiStatusIndicator() {
   return null;
 }
 
-/* 3.2.3: Tageslimit-Anzeige (3 KI-Nutzungen pro Tag, alle Chef-Funktionen
-   zusammen). Mods/Admins haben kein Limit und sehen keinen Zähler. */
-function AiQuotaBadge() {
-  const { t } = useTranslation();
-  const usage = React.useSyncExternalStore(subscribeAiUsage, getAiUsage, getAiUsage);
-  useEffect(() => {
-    void refreshAiUsage();
-  }, []);
-  if (!usage || usage.unlimited) return null;
-  const exhausted = usage.remaining <= 0;
-  return (
-    <View
-      accessible
-      accessibilityLabel={t('s.aiQuotaA11y', { n: usage.remaining, limit: usage.limit })}
-      style={{
-        flexDirection: 'row', alignItems: 'center', gap: 4,
-        borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4,
-        borderWidth: 1,
-        borderColor: exhausted ? colors.rose : colors.cardBorder,
-        backgroundColor: exhausted ? colors.roseBg : colors.card,
-      }}
-    >
-      <Sparkles size={11} color={exhausted ? colors.rose : colors.accent} strokeWidth={2.4} />
-      <Text style={{ fontSize: 11, fontWeight: '800', color: exhausted ? colors.rose : colors.textPrimary }}>
-        {usage.remaining}/{usage.limit}
-      </Text>
-    </View>
-  );
-}
-
 const aiPill: any = {
   flexDirection: 'row', alignItems: 'center',
   borderRadius: 999, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4,
 };
-/* 2.0.0 theme fix: rebuilt on every theme change, otherwise the AI pills keep
-   the colours of the theme the app was started with. */
+
 function buildShellStyles() {
   return {
     aiRunning: { ...aiPill, gap: 6, borderColor: colors.cardBorder, backgroundColor: colors.card },
@@ -142,7 +109,6 @@ function buildShellStyles() {
 let styles = buildShellStyles();
 subscribeTheme(() => { styles = buildShellStyles(); });
 
-/* Glass main header (mobile): logo · AI status + Tageslimit · hamburger. */
 export function MainHeader() {
   const insets = useSafeAreaInsets();
   const { toggle } = useAppShell();
@@ -165,7 +131,6 @@ export function MainHeader() {
 
         <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
           <AiStatusIndicator />
-          <AiQuotaBadge />
         </View>
 
         <Pressable
@@ -183,7 +148,6 @@ export function MainHeader() {
   );
 }
 
-/* Page — full screen with glass wash + sticky header. */
 export function Page({
   children,
   header = true,
@@ -202,10 +166,6 @@ export function Page({
   );
 }
 
-/* ---------------------------------------------------------------------------
-   Right-side drawer (86% width, max 24rem) slides in from the right over a
-   dim backdrop. Contains search, pages, more links, sign out + legal footer.
-   ------------------------------------------------------------------------- */
 const LEGAL = [
   { page: 'impressum', label: 'Impressum' },
   { page: 'datenschutz', label: 'Datenschutz' },
@@ -277,10 +237,8 @@ function DrawerSheet({ visible, onClose }: { visible: boolean; onClose: () => vo
     [],
   );
 
-  /**
-   * 3.2.1: deferred actions (drawer slid out, then navigate / sign out) with a
-   * timer that is always cleared - before it used to fire after a sign-out.
-   */
+  
+
   const runLater = (fn: () => void, delay = 140) => {
     if (goTimer.current) clearTimeout(goTimer.current);
     goTimer.current = setTimeout(() => {
@@ -402,7 +360,6 @@ function DrawerLabel({ children }: { children: React.ReactNode }) {
 
 const StyleSheetAbs: any = { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 };
 
-/** Slim right-edge strip: swipe left to open the drawer. */
 function EdgeOpenStrip({ onOpen }: { onOpen: () => void }) {
   const pan = useRef(
     PanResponder.create({
@@ -415,7 +372,6 @@ function EdgeOpenStrip({ onOpen }: { onOpen: () => void }) {
   return <View style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 18 }} {...pan.panHandlers} />;
 }
 
-/* Provider — mounted once around the signed-in navigator. */
 export function AppShellProvider({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const value = React.useMemo(

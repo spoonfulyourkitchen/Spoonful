@@ -1,12 +1,5 @@
-/**
- * 3.3.0: Vorlesen von Schritten im Kochmodus (Android Text-to-Speech).
- *
- * Das native Modul liefert nur `speak`/`stop`/`available`; alles andere (welcher
- * Text, welche Sprache) entscheidet die App. Fehlt die Sprachausgabe auf dem
- * Gerät (oder läuft die App im Web/Simulator), meldet `speechAvailable()`
- * `false` und der Vorlese-Knopf wird ausgeblendet — es gibt also nie einen
- * Knopf, der nichts tut.
- */
+
+
 import { NativeModules, Platform } from 'react-native';
 
 type TtsNative = {
@@ -17,14 +10,6 @@ type TtsNative = {
 
 const native: TtsNative | undefined = (NativeModules as any)?.SpoonfulTts;
 
-/**
- * 3.3.1: Sprache des Textes erkennen.
- *
- * Der Vorleser benutzte bisher immer die Sprache der App — ein englischer
- * Coach-Tipp wurde dadurch mit deutscher Aussprache vorgelesen. Jetzt wird die
- * Sprache des Textes bestimmt (Schriftzeichen + häufige Wörter) und die
- * passende Stimme gewählt; ist nichts erkennbar, gilt die App-Sprache.
- */
 const SCRIPT_HINTS: [RegExp, string][] = [
   [/[\u0600-\u06FF\u0750-\u077F]/, 'ar'],
   [/[\u0400-\u04FF]/, 'ru'],
@@ -46,7 +31,6 @@ const WORD_HINTS: [string, RegExp][] = [
   ['nl', /\b(en|het|de|met|tot|daarna|voeg|verwarm|minuten)\b/gi],
 ];
 
-/** Erkannte Sprache ('' wenn unklar). */
 export function detectTextLanguage(text: string): string {
   const value = String(text ?? '');
   if (!value.trim()) return '';
@@ -65,7 +49,6 @@ export function detectTextLanguage(text: string): string {
   return bestScore >= 2 ? best : '';
 }
 
-/** BCP-47-Tag für die Ausgabe (Fallback Englisch). */
 export function speechLocale(appLang: string): string {
   const map: Record<string, string> = {
     de: 'de-DE',
@@ -91,9 +74,6 @@ export async function speechAvailable(): Promise<boolean> {
   }
 }
 
-/** Liest einen Text vor; ersetzt eine laufende Ausgabe.
- *  3.3.1: Es gilt die Sprache **des Textes** (englischer Tipp → englische
- *  Aussprache), nur wenn sie unklar ist, die Sprache der App. */
 export async function speakText(text: string, appLang: string): Promise<boolean> {
   const value = String(text ?? '').trim();
   if (!value || Platform.OS !== 'android' || !native?.speak) return false;
@@ -110,7 +90,5 @@ export async function stopSpeaking(): Promise<void> {
   if (Platform.OS !== 'android' || !native?.stop) return;
   try {
     await native.stop();
-  } catch {
-    /* nichts zu stoppen */
-  }
+  } catch {}
 }

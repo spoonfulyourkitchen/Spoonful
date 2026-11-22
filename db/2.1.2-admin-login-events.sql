@@ -1,13 +1,4 @@
--- Spoonful 2.1.2 — admin-only login notifications
---
--- Run once in the Supabase SQL editor (project gmfkleugoxafmvprqatk).
---
--- Role separation:
---   * every signed-in user may INSERT their own login row through the RPC,
---   * only rows of admins are returned: `admin_login_events()` checks
---     public.is_admin() and returns an empty set for everyone else,
---   * the table itself has no SELECT policy for normal users (RLS default deny),
---     so even a manual query cannot read somebody else's logins.
+
 
 create table if not exists public.login_events (
   id          bigserial primary key,
@@ -25,7 +16,6 @@ create index if not exists login_events_time_idx on public.login_events (logged_
 
 alter table public.login_events enable row level security;
 
--- Admins may read (and mark as seen) - normal users get nothing.
 drop policy if exists login_events_admin_read on public.login_events;
 create policy login_events_admin_read on public.login_events
   for select using (public.is_admin());
@@ -34,9 +24,6 @@ drop policy if exists login_events_admin_update on public.login_events;
 create policy login_events_admin_update on public.login_events
   for update using (public.is_admin()) with check (public.is_admin());
 
--- Inserts only through the security-definer RPC below (no direct insert policy).
-
--- 1) called by the app right after a successful sign-in ------------------------
 create or replace function public.log_login_event(
   p_device text default '',
   p_platform text default '',
@@ -51,7 +38,7 @@ declare
   uid uuid := auth.uid();
 begin
   if uid is null then
-    return;                     -- guests are not logged
+    return;                     
   end if;
 
   insert into public.login_events (user_id, name, email, device, platform, app_version)
@@ -73,7 +60,6 @@ $$;
 
 grant execute on function public.log_login_event(text, text, text) to authenticated;
 
--- 2) admin feed: newest logins, empty for non-admins ---------------------------
 create or replace function public.admin_login_events(p_limit int default 30)
 returns table (
   id bigint, user_id uuid, name text, email text, device text,
@@ -93,7 +79,6 @@ $$;
 
 grant execute on function public.admin_login_events(int) to authenticated;
 
--- 3) "mark all as read" -------------------------------------------------------
 create or replace function public.admin_mark_login_events_seen()
 returns void
 language sql

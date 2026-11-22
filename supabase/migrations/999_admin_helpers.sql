@@ -8,7 +8,7 @@ begin
   end if;
 end;
 $$;
---SPLIT--
+
 create or replace function public.admin_list_users()
 returns setof public.users
 language plpgsql security definer set search_path = public
@@ -18,7 +18,7 @@ begin
   return query select * from public.users order by created_at desc;
 end;
 $$;
---SPLIT--
+
 create or replace function public.admin_list_feedback()
 returns table (id uuid, user_name text, user_email text, rating bigint, text text, read boolean, created_at bigint)
 language plpgsql security definer set search_path = public
@@ -31,7 +31,7 @@ begin
     order by f.created_at desc;
 end;
 $$;
---SPLIT--
+
 create or replace function public.admin_list_image_reports()
 returns table (id uuid, recipe_key text, recipe_title text, image_url text, reason text, message text, status text, created_at bigint, reporter_name text, reporter_email text)
 language plpgsql security definer set search_path = public
@@ -46,7 +46,7 @@ begin
     order by r.created_at desc;
 end;
 $$;
---SPLIT--
+
 create or replace function public.admin_open_report_count()
 returns bigint
 language plpgsql security definer set search_path = public
@@ -70,7 +70,7 @@ begin
    where id = target_user_id;
 end;
 $$;
---SPLIT--
+
 create or replace function public.admin_add_email(em text)
 returns void
 language plpgsql security definer set search_path = public
@@ -82,7 +82,7 @@ begin
   on conflict (email) do nothing;
 end;
 $$;
---SPLIT--
+
 create or replace function public.admin_remove_email(em text)
 returns void
 language plpgsql security definer set search_path = public
@@ -92,11 +92,11 @@ begin
   delete from public.admin_emails where lower(email) = lower(trim(em));
 end;
 $$;
---SPLIT--
+
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('recipe-images', 'recipe-images', true, 5242880, array['image/jpeg','image/png','image/webp','image/heic']::text[])
 on conflict (id) do update set public = true, file_size_limit = 5242880;
---SPLIT--
+
 do $$
 begin
   if not exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'recipe_images_insert_own') then

@@ -1,4 +1,4 @@
--- Split user recipes from the imported catalogue (public.recipes is now read-only catalogue).
+
 create table if not exists public.user_recipes (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.users(id) on delete cascade,
@@ -20,13 +20,12 @@ create table if not exists public.user_recipes (
   updated_at bigint not null
 );
 alter table public.user_recipes enable row level security;
---SPLIT--
+
 create policy "user_recipes_insert_own" on public.user_recipes for insert with check (user_id = auth.uid());
 create policy "user_recipes_select_own" on public.user_recipes for select using (user_id = auth.uid());
 create policy "user_recipes_update_own" on public.user_recipes for update using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy "user_recipes_delete_own" on public.user_recipes for delete using (user_id = auth.uid());
---SPLIT--
--- Server-side recipe catalogue search with offset pagination + exact total.
+
 create or replace function public.catalog_page(p jsonb)
 returns jsonb
 language plpgsql stable security definer set search_path = public
@@ -86,8 +85,7 @@ begin
   );
 end;
 $$;
---SPLIT--
--- Server-cached recipe translations (keyed by recipe + language).
+
 create table if not exists public.recipe_translations (
   recipe_key text not null,
   language text not null,
@@ -99,11 +97,11 @@ create table if not exists public.recipe_translations (
   primary key (recipe_key, language)
 );
 alter table public.recipe_translations enable row level security;
---SPLIT--
+
 create policy "recipe_translations_select_all" on public.recipe_translations for select using (true);
 create policy "recipe_translations_write" on public.recipe_translations
   for all to authenticated using (true) with check (true);
---SPLIT--
+
 create or replace function public.save_translation(p jsonb)
 returns void
 language plpgsql security definer set search_path = public
@@ -120,8 +118,7 @@ begin
     ingredients = excluded.ingredients, steps = excluded.steps, updated_at = excluded.updated_at;
 end;
 $$;
---SPLIT--
--- Remove the temporary demo catalogue rows from the previous migration.
+
 drop table if exists public.library_recipes;
---SPLIT--
+
 notify pgrst, 'reload schema';

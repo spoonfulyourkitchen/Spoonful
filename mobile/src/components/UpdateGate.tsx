@@ -7,30 +7,16 @@ import { APP_VERSION } from '../config';
 import { colors, fonts } from '../theme';
 import { useTranslation } from '../lib/i18n';
 
-/**
- * "New update" popup (2.1.4).
- *
- * Deliberately persistent: every time the app is OPENED, a user on an older
- * release sees this popup again until they actually update. Users who already
- * run the new version get nothing at all — the server only returns the notice
- * when the posted version is newer than the version the app reports
- * (`latest_update_notice(p_client_version)`), so the nagging stops by itself
- * after updating.
- *
- * Only the admin panel can publish a notice; the release link is opened in the
- * browser so the APK can be downloaded from GitHub.
- */
 export function UpdateGate() {
   const { t, rtl } = useTranslation();
   const notice = useQuery(api.updates.latest, { version: APP_VERSION }) as any;
   const [visible, setVisible] = useState(false);
-  /** Only for this session: closing it hides the popup until the next start. */
+  
   const closedForSession = useRef(false);
 
   useEffect(() => {
     if (closedForSession.current) return;
     if (!notice?.url) return;
-    // every app start: show it again while the version is older
     setVisible(true);
   }, [notice?._id, notice?.url]);
 
@@ -44,9 +30,7 @@ export function UpdateGate() {
   const open = async () => {
     try {
       await Linking.openURL(String(notice.url));
-    } catch {
-      /* no browser available */
-    }
+    } catch {}
   };
 
   const row = { flexDirection: (rtl ? 'row-reverse' : 'row') as 'row' | 'row-reverse' };
@@ -114,5 +98,4 @@ export function UpdateGate() {
   );
 }
 
-/* 2.1.4 theme fix: the styles are built inline on every render (see above). */
 export default UpdateGate;

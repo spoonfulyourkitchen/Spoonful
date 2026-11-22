@@ -32,7 +32,7 @@ notepad .env        # SUPABASE_SERVICE_ROLE_KEY und OPENROUTER_API_KEY eintragen
 
 `.env` ist in `.gitignore` — Keys landen nie im Repo. Wenn `OPENROUTER_API_KEY`
 nicht in `.env` steht, nimmt der Bot automatisch den Wert aus
-`C:\Users\salem\Desktop\Spoonful\.env.local`.
+`D:\Spoonful\.env.local`.
 
 Voraussetzung: **Node 18+** (fetch ist eingebaut), keine npm-Pakete nötig.
 

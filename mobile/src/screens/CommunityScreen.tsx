@@ -15,9 +15,9 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-/* 3.3.0: Meldungen im App-Design statt System-Dialog */
-import { Alert } from '../lib/alert';
 import { Bookmark, BookmarkCheck, Clock3, Flame, Heart, MessageSquare, Play, Search, SlidersHorizontal, Star, UsersRound, X } from 'lucide-react-native';
+import { markReviewAction } from '../lib/review';
+import { CollectionModal } from '../components/CollectionModal';
 import { useMutation, useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';
 import { colors } from '../theme';
@@ -26,12 +26,13 @@ import { navigate } from '../navigation/rootRef';
 import { AppButton, Chip, EmptyState, GlassCard, PageHeader } from '../components/ui';
 import { RecipeImage } from '../components/RecipeImage';
 import { CommentSheet } from '../components/CommentSheet';
+import { CommunityReportButton } from '../components/CommunityReportButton';
 import { TutorialTarget } from '../components/TutorialTarget';
 import { tutorialAction } from '../lib/tutorial';
 import { translate } from '../lib/i18n';
 import { difficultyLabel } from '../lib/recipe';
 import { asRecipeFromDoc } from '../lib/recipe';
-import { useConnectivity, retryConnectivity } from '../lib/offline';
+import { useConnectivity, retryConnectivity, addPendingOp, getConnNow } from '../lib/offline';
 import { useTranslation } from '../lib/i18n';
 import { difficultyColor } from '../theme';
 import { formatCuisine } from '../lib/recipe';
@@ -40,24 +41,28 @@ import { OfflineTv } from '../components/OfflineTv';
 const DIFFS = ['all', 'easy', 'medium', 'hard'] as const;
 
 export function CommunityScreen() {
-  /* 3.2.0: alle Filter stecken in einem Popup hinter dem Filter-Knopf */
+  
   const [filtersOpen, setFiltersOpen] = useState(false);
   const community = useQuery(api.sharing.community);
   const savedList = useQuery(api.savedRecipes.list);
+  const collections = useQuery(api.collections.list) as any[] | undefined;
   const saveRecipe = useMutation(api.savedRecipes.save);
   const removeSaved = useMutation(api.savedRecipes.remove);
   const likeShare = useMutation(api.sharing.like);
   const unlikeShare = useMutation(api.sharing.unlike);
-  const [likeBusy, setLikeBusy] = useState<string | null>(null);
+  
+  const [likes, setLikes] = useState<Record<string, { liked: boolean; count: number }>>({});
+  const likeOf = (item: any) => likes[item._id] ?? { liked: !!item.likedByMe, count: Number(item.likesCount ?? 0) };
   const [commentShare, setCommentShare] = useState<{ id: string; title: string } | null>(null);
-  const commentCounts = useQuery((api.sharing as any).commentCounts) as Record<string, number> | undefined;
+  const [collectionTarget, setCollectionTarget] = useState<any | null>(null);
+  const commentCounts = useQuery(api.sharing.commentCounts) as Record<string, number> | undefined;
   const me = useQuery(api.users.currentUser);
   const slideX = useRef(new Animated.Value(0)).current;
   const pageRef = useRef(0);
   const { width: W } = useWindowDimensions();
   const feedHeight = Dimensions.get('window').height;
 
-  /** 0 = community list, 1 = vertical "for you" feed. */
+  
   const goPage = (index: number) => {
     const clamped = index < 0 ? 0 : index > 1 ? 1 : index;
     pageRef.current = clamped;
@@ -70,19 +75,16 @@ export function CommunityScreen() {
     }).start();
   };
 
-  // Keep the pager aligned when the window size changes (rotation, split view).
   useEffect(() => {
     slideX.setValue(-pageRef.current * W);
   }, [W, slideX]);
 
   const pan = useRef(
     PanResponder.create({
-      // Only claim clearly horizontal drags, so vertical scrolling still works.
       onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
       onPanResponderMove: (_e, g) => {
         const base = -pageRef.current * W;
         let next = base + g.dx;
-        // soft rubber band at both outer edges instead of a hard stop
         if (next > 0) next *= 0.35;
         else if (next < -W) next = -W + (next + W) * 0.35;
         slideX.setValue(next);
@@ -93,7 +95,7 @@ export function CommunityScreen() {
         const flung = Math.abs(g.vx) > 0.45;
         if ((flung && g.vx < 0) || (!flung && next < -W * 0.35)) goPage(pageRef.current + 1);
         else if ((flung && g.vx > 0) || (!flung && next > W * 0.35)) goPage(pageRef.current - 1);
-        else goPage(pageRef.current); // already there: springs back, no double animation
+        else goPage(pageRef.current);
       },
       onPanResponderTerminate: () => goPage(pageRef.current),
     }),
@@ -107,12 +109,8 @@ export function CommunityScreen() {
   const { t } = useTranslation();
 
   const conn = useConnectivity();
-  /**
-   * 3.2.1 CRASH-FIX: Diese Liste war ein `useMemo` **nach** dem Offline-`return`
-   * unten. Beim Wechsel online/offline ändert sich damit die Zahl der Hooks ->
-   * React bricht mit „Rendered more hooks than during the previous render" ab.
-   * Die gefilterte Liste gehört vor jeden `return`.
-   */
+  
+
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
     const base = [...items].filter((it: any) => {
@@ -125,6 +123,26 @@ export function CommunityScreen() {
       sort === 'popular' ? (b.ratingAverage ?? 0) - (a.ratingAverage ?? 0) : (b.createdAt ?? 0) - (a.createdAt ?? 0),
     );
   }, [items, sort, q, diff]);
+
+  
+
+  useEffect(() => {
+    if (!community) return;
+    setLikes((prev) => {
+      if (!Object.keys(prev).length) return prev;
+      let changed = false;
+      const next = { ...prev };
+      for (const item of community as any[]) {
+        const override = next[item._id];
+        if (!override) continue;
+        if (override.liked === !!item.likedByMe && override.count === Number(item.likesCount ?? 0)) {
+          delete next[item._id];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [community]);
 
   if (conn === 'offline') {
     return (
@@ -143,10 +161,10 @@ export function CommunityScreen() {
 
   const isSaved = (id: string) => savedDocs.some((s: any) => s.recipeKey === `community-${id}`);
 
-  const toggleSave = async (item: any, currently: boolean) => {
+  const toggleSave = async (item: any, currently: boolean, collectionId: string | null = null) => {
     if (currently) {
       const doc = savedDocs.find((s: any) => s.recipeKey === `community-${item._id}`);
-      if (doc) { try { await removeSaved({ id: doc._id }); } catch { /* reactive */ } }
+      if (doc) { try { await removeSaved({ id: doc._id }); } catch {  } }
       return;
     }
     const rec = asRecipeFromDoc(item, `community-${item._id}`);
@@ -167,8 +185,9 @@ export function CommunityScreen() {
         protein: rec.protein,
         carbs: rec.carbs,
         fat: rec.fat,
+        collectionIds: collectionId ? [collectionId] : [],
       });
-    } catch { /* reactive */ }
+    } catch {  }
   };
 
   const cookNow = (item: any) => {
@@ -185,15 +204,25 @@ export function CommunityScreen() {
   };
 
   const toggleLike = (item: any) => {
-    if (likeBusy) return;
-    setLikeBusy(item._id);
-    const p = item.likedByMe
-      ? unlikeShare({ shareId: item._id })
-      : likeShare({ shareId: item._id });
-    p.then(() => setLikeBusy(null)).catch((e: any) => {
-      setLikeBusy(null);
-      Alert.alert(t('s.commLikeFail'), e instanceof Error ? e.message : t('common.tryAgain'));
-    });
+    
+
+    const current = likeOf(item);
+    const next = { liked: !current.liked, count: Math.max(0, current.count + (current.liked ? -1 : 1)) };
+    if (next.liked) markReviewAction('like');
+    setLikes((prev) => ({ ...prev, [item._id]: next }));
+    void (async () => {
+      const kind = next.liked ? 'community.like' : 'community.unlike';
+      if (getConnNow() === 'offline') {
+        await addPendingOp(kind, { shareId: item._id });
+        return;
+      }
+      try {
+        if (next.liked) await likeShare({ shareId: item._id });
+        else await unlikeShare({ shareId: item._id });
+      } catch {
+        await addPendingOp(kind, { shareId: item._id });
+      }
+    })();
   };
 
   const feedPage = (
@@ -221,11 +250,10 @@ export function CommunityScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 14 }}>
                     <Pressable
                       onPress={() => toggleLike(item)}
-                      disabled={likeBusy === item._id}
-                      style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: item.likedByMe ? colors.roseBg : colors.surfaceMuted, opacity: pressed ? 0.8 : 1 }]}
+                      style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: likeOf(item).liked ? colors.roseBg : colors.surfaceMuted, opacity: pressed ? 0.8 : 1 }]}
                     >
-                      <Heart size={18} color={item.likedByMe ? colors.rose : colors.textSecondary} fill={item.likedByMe ? colors.rose : 'transparent'} />
-                      <Text style={{ fontWeight: '800', color: item.likedByMe ? colors.rose : colors.textSecondary }}>{item.likesCount ?? 0}</Text>
+                      <Heart size={18} color={likeOf(item).liked ? colors.rose : colors.textSecondary} fill={likeOf(item).liked ? colors.rose : 'transparent'} />
+                      <Text style={{ fontWeight: '800', color: likeOf(item).liked ? colors.rose : colors.textSecondary }}>{likeOf(item).count}</Text>
                     </Pressable>
                     <Pressable onPress={() => cookNow(item)} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: colors.darkButton, opacity: pressed ? 0.85 : 1 }]}>
                       <Flame size={16} color={colors.darkButtonText} />
@@ -261,7 +289,7 @@ export function CommunityScreen() {
           keyExtractor={(r) => r._id}
           ListHeaderComponent={<>
       <View style={{ paddingTop: 4, paddingBottom: 2 }}>
-        <PageHeader eyebrow={t('community.fromCommunity')} title={t('community.title')} subtitle={t('community.desc')} />
+        <PageHeader eyebrow={t('community.fromCommunity')} title={t('community.title')} />
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder, paddingHorizontal: 10 }}>
@@ -282,14 +310,9 @@ export function CommunityScreen() {
         </View>
 
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-          <Chip label={sort === 'recent' ? t('s.commSortNew') : t('s.commSortTop')} active onPress={() => setSort(sort === 'recent' ? 'popular' : 'recent')} />
           {diff !== 'all' ? <Chip label={dLabel(diff)} active tone={diff === 'hard' ? 'rose' : diff === 'medium' ? 'accent' : 'green'} onPress={() => setDiff('all')} /> : null}
         </View>
-        <Pressable onPress={() => goPage(1)} hitSlop={8} style={{ marginTop: 10 }}>
-          <Text style={{ fontSize: 12, color: colors.textSecondary }}>{t('s.commForYou')}</Text>
-        </Pressable>
 
-        {/* 3.2.0: Filter-Popup */}
         <Modal visible={filtersOpen} transparent animationType="fade" onRequestClose={() => setFiltersOpen(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
             <View style={{ flex: 1, backgroundColor: colors.overlayStrong, justifyContent: 'flex-end' }}>
@@ -331,13 +354,16 @@ export function CommunityScreen() {
             <CommunityCard
               item={item}
               saved={isSaved(item._id)}
-              liked={!!item.likedByMe}
-              likesCount={item.likesCount ?? 0}
+              liked={likeOf(item).liked}
+              likesCount={likeOf(item).count}
               commentCount={Number(commentCounts?.[item._id] ?? 0)}
-              likeBusyId={likeBusy}
+              likeBusyId={null}
               onComments={() => setCommentShare({ id: item._id, title: item.title ?? 'Recipe' })}
               onLike={() => toggleLike(item)}
-              onSave={() => void toggleSave(item, isSaved(item._id))}
+              onSave={() => {
+                if (isSaved(item._id)) void toggleSave(item, true);
+                else setCollectionTarget(item);
+              }}
               onCook={() => cookNow(item)}
               onOpen={() => navigate('RecipeDetail', { recipeId: item._id, title: item.title, source: 'community', recipe: asRecipeFromDoc(item, `community-${item._id}`) })}
             />
@@ -350,6 +376,17 @@ export function CommunityScreen() {
         {feedPage}
       </Animated.View>
 
+      <CollectionModal
+        visible={collectionTarget != null}
+        collections={collections ?? []}
+        mode="pick"
+        onChoose={(collectionId) => {
+          const target = collectionTarget;
+          setCollectionTarget(null);
+          if (target) void toggleSave(target, false, collectionId);
+        }}
+        onClose={() => setCollectionTarget(null)}
+      />
       <CommentSheet
         shareId={commentShare?.id ?? null}
         shareTitle={commentShare?.title ?? ''}
@@ -359,7 +396,6 @@ export function CommunityScreen() {
     </View>
   );
 }
-
 
 function dLabel(d: string): string {
   return d === 'all' ? translate('s.commAnyDiff') : d.charAt(0).toUpperCase() + d.slice(1);
@@ -433,6 +469,7 @@ function CommunityCard({ item, saved, liked, likesCount, commentCount, likeBusyI
               <MessageSquare size={13} color={colors.accent} />
               <Text style={{ fontSize: 12, fontWeight: '800', color: colors.accent }}>{commentCount || 0}</Text>
             </Pressable>
+            <CommunityReportButton shareId={item._id} />
           </View>
           {item.authorName ? (
             <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 8 }}>

@@ -1,4 +1,5 @@
-import { translate } from '../lib/i18n';
+import { useTranslation } from '../lib/i18n';
+import { themeText, themeUi } from '../lib/i18n-theme';
 import React from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Check, Moon, Sun } from 'lucide-react-native';
@@ -15,23 +16,24 @@ function useThemeId(): string {
 
 export function ThemeScreen() {
   const selected = useThemeId();
+  const { t, lang } = useTranslation();
   return (
     <Page>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 32 }}>
         <PageHeader
-          eyebrow="Personalize"
-          title={translate('s.xChooseTheme')}
-          subtitle={translate('s.xChooseThemeSub')}
+          eyebrow={themeUi(lang, 'personalize')}
+          title={t('s.xChooseTheme')}
+          subtitle={t('s.xChooseThemeSub')}
         />
 
         <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
           <View style={pillRow}>
             <Sun size={15} color={colors.accent} />
-            <Text style={{ fontSize: 13, color: colors.textPrimary }}>Light themes</Text>
+            <Text style={{ fontSize: 13, color: colors.textPrimary }}>{themeUi(lang, 'light')}</Text>
           </View>
           <View style={pillRow}>
             <Moon size={15} color={colors.accent} />
-            <Text style={{ fontSize: 13, color: colors.textPrimary }}>Dark themes</Text>
+            <Text style={{ fontSize: 13, color: colors.textPrimary }}>{themeUi(lang, 'dark')}</Text>
           </View>
         </View>
 
@@ -61,8 +63,8 @@ export function ThemeScreen() {
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 10 }}>
                   <View>
-                    <Text style={{ fontSize: 16, fontWeight: '700', color: theme.textPrimary, fontFamily: fonts.display }}>{theme.name}</Text>
-                    <Text style={{ fontSize: 12, color: theme.textSecondary, marginTop: 2 }}>{theme.tagline}</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: theme.textPrimary, fontFamily: fonts.display }}>{themeText(lang, theme.id, 'name', theme.name)}</Text>
+                    <Text style={{ fontSize: 12, color: theme.textSecondary, marginTop: 2 }}>{themeText(lang, theme.id, 'tag', theme.tagline)}</Text>
                   </View>
                   <View style={{ flex: 1 }} />
                   <View style={{ height: 34, flex: 0.7, borderRadius: 9, backgroundColor: theme.cardBg, borderWidth: 1, borderColor: theme.cardBorder }} />
@@ -77,7 +79,6 @@ export function ThemeScreen() {
   );
 }
 
-/* 2.0.0 theme fix: rebuilt on every theme change. */
 function buildPillRow() {
   return {
     flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6,

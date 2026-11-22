@@ -107,7 +107,6 @@ function scaleLine(ing: string, servings: number): string {
 }
 const mm = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
-/** Pulls "8 minutes" / "3 min" style hints out of a step. */
 function extractMinutes(step: string): number | null {
   const m = step.match(/(\d+)\s*(?:minutes?|min)\b/i);
   if (!m) return null;
@@ -122,13 +121,6 @@ function cleanIngredientForShop(line: string): string {
   return name ? name.charAt(0).toUpperCase() + name.slice(1) : line;
 }
 
-
-/**
- * 3.3.1: Schritt-Hinweise. Aufbau bewusst klar:
- *   Coach-Tipp   (fett, weiß)   → darunter der Tipp in Grau
- *   Achte auf    (fett, weiß)   → darunter der Hinweis in hellem Gelb
- * So sieht man sofort, was die Aussage ist und was der Hinweis dazu.
- */
 function StepGuideBlock({
   coach,
   look,
@@ -163,23 +155,22 @@ function StepGuideBlock({
   );
 }
 
+import { markReviewAction } from '../lib/review';
+
 export function CookingScreen({ route }: any) {
+  useEffect(() => { markReviewAction('cooking'); }, []);
   const insets = useSafeAreaInsets();
   const { t, lang } = useTranslation();
   const p = route.params ?? {};
   const origTitle: string = p.title ?? 'Recipe';
-  /* 2.0.0: recipes written by other tools may store steps/ingredients as
-     objects - coerce everything to strings so scaling and timers cannot crash. */
+  
+
   const origSteps: string[] = recipeLines(p.steps).length ? recipeLines(p.steps) : ['Prepare your ingredients and enjoy.'];
   const origIngredients: string[] = recipeLines(p.ingredients);
   const recipeKey: string = String(p.recipeKey ?? origTitle);
 
-  /**
-   * Übersetzung (2.1.5): kommt der Kochmodus aus der Rezept-Detailseite, die
-   * gerade übersetzt angezeigt wird, wird die Übersetzung mitgegeben. Sonst
-   * kann man sie hier direkt einschalten - beim Umschalten bleibt alles erhalten
-   * (gleiche Schrittzahl, gleiche Portionen), damit Timer und Fortschritt passen.
-   */
+  
+
   const inlineTr = p.translatedSteps && recipeLines(p.translatedSteps).length
     ? {
         title: String(p.translatedTitle ?? origTitle),
@@ -197,7 +188,7 @@ export function CookingScreen({ route }: any) {
   const steps: string[] = view?.steps?.length ? view.steps : origSteps;
   const ingredients: string[] = view?.ingredients?.length ? view.ingredients : origIngredients;
 
-  /* ── 3.0.0: Kochmodus-Extras ────────────────────────────────────────────── */
+  
   const [extras, setExtras] = useState<StepExtras>({ notes: {}, skipped: [], photos: {} });
   const [showSub, setShowSub] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
@@ -207,9 +198,9 @@ export function CookingScreen({ route }: any) {
   const publishCooking = useMutation(api.householdCooking.set);
   const stopCooking = useMutation(api.householdCooking.stop);
   const myProfile = useQuery(api.users.currentUser) as any;
-  /** true, sobald die Konto-ID bekannt ist (Notizen/Fotos sind pro Konto). */
+  
   const profileReady = myProfile !== undefined;
-  /* 3.1.0: Kochmodus advanced (Einstellungen) — aus = klassischer Modus */
+  
   const [cookingAdvanced] = useCookingAdvanced();
   const totalTime: number = p.totalTime ?? 0;
   const nutrition = {
@@ -229,7 +220,6 @@ export function CookingScreen({ route }: any) {
   const [doneSteps, setDoneSteps] = useState<Set<number>>(new Set());
   const [checkedIng, setCheckedIng] = useState<Set<number>>(new Set());
   const [, setSuggested] = useState<number | null>(null);
-  // 2.0.0: several kitchen timers at once, ringing in the background.
   const timers = useKitchenTimers();
   const runningCount = timers.filter((t) => t.running).length;
 
@@ -249,9 +239,8 @@ export function CookingScreen({ route }: any) {
 
   const currentStep = steps[index] ?? '';
   const stepMinutes = useMemo(() => (phase === 'cook' ? extractMinutes(currentStep) : null), [phase, currentStep]);
-  /* Coach-Hinweise pro Schritt (vom Bot erzeugt, siehe lib/step-guides.ts).
-     Fehlen sie noch, zeigt die Oberfläche einen Hinweis — es werden keine
-     Tipps mehr erfunden. */
+  
+
   const [guides, setGuides] = useState<StepGuide[] | null>(null);
   useEffect(() => {
     let alive = true;
@@ -264,9 +253,8 @@ export function CookingScreen({ route }: any) {
   }, [recipeKey]);
   const guideFor = (i: number) => guides?.find((g) => g.index === i) ?? null;
 
-  /* 3.3.1: Die Hinweise liegen in der Bibliothek auf Englisch. Ist die App auf
-     einer anderen Sprache, werden sie übersetzt (mit Zwischenspeicher) — vorher
-     standen sie unübersetzt im Kochmodus. */
+  
+
   const [guideText, setGuideText] = useState<{ coach: string | null; look: string | null } | null>(null);
   const rawGuide = guideFor(index);
   useEffect(() => {
@@ -297,7 +285,7 @@ export function CookingScreen({ route }: any) {
     };
   }, [rawGuide?.coach, rawGuide?.look, lang]);
 
-  /* ── 3.3.0: Vorlesen (Text-to-Speech) ───────────────────────────────────── */
+  
   const [speechOk, setSpeechOk] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [popupOpen, setPopupOpen] = useState(false);
@@ -312,7 +300,7 @@ export function CookingScreen({ route }: any) {
     };
   }, []);
 
-  /* Beim Verlassen des Kochmodus nicht weiterreden. */
+  
   useEffect(() => () => { void stopSpeaking(); }, []);
 
   const readAloud = async (text: string) => {
@@ -336,13 +324,13 @@ export function CookingScreen({ route }: any) {
     await readAloud(currentStep);
   };
 
-  /** Langes Drücken: nur die Schritt-Box als Pop-up (ohne Vorbereitung/Timer). */
+  
   const openPopup = () => {
     setPopupOpen(true);
     if (speaking) void stopReadAloud();
   };
 
-  /* ── 3.0.0: Meta je Schritt (Titel, Dauer, Schwierigkeit, Teilschritte) ── */
+  
   const stepMeta = useMemo(
     () =>
       steps.map((s, i) => ({
@@ -370,12 +358,12 @@ export function CookingScreen({ route }: any) {
   const groupColor = (g: string) => (g === 'cook' ? colors.accent : g === 'finish' ? colors.success : colors.textSecondary);
   const difficultyColor = (d: StepDifficulty) => (d === 'hard' ? colors.rose : d === 'medium' ? colors.accent : colors.success);
   const others = (householdCooking ?? []).filter((h) => h.userId !== myProfile?.id && Date.now() - h.at < 12 * 3600 * 1000);
-  /** erster noch offener Schritt – Ziel für "Wo war ich?" (Nr. 10) */
+  
   const resumeIndex = stepMeta.findIndex((_m, i) => !doneSteps.has(i) && !skippedSet.has(i));
 
-  /* Extras laden (Notizen, übersprungene Schritte, Fotos, Startzeit) */
+  
   useEffect(() => {
-    if (!profileReady) return; // erst laden, wenn die Konto-ID feststeht
+    if (!profileReady) return;
     let alive = true;
     loadExtras(myProfile?.id, recipeKey).then((data) => {
       if (!alive) return;
@@ -388,7 +376,7 @@ export function CookingScreen({ route }: any) {
     };
   }, [recipeKey, profileReady, myProfile?.id]);
 
-  /* "Wo war ich?" – war die App länger weg? (Nr. 10) */
+  
   useEffect(() => {
     if (!profileReady) return;
     let alive = true;
@@ -403,7 +391,7 @@ export function CookingScreen({ route }: any) {
     };
   }, [recipeKey, index, phase, profileReady, myProfile?.id]);
 
-  /* Fortschritt im Haushalt veröffentlichen (Nr. 26) */
+  
   useEffect(() => {
     if (phase === 'prep' || !cookingAdvanced) return;
     const timer = setTimeout(() => {
@@ -412,10 +400,10 @@ export function CookingScreen({ route }: any) {
     return () => clearTimeout(timer);
   }, [recipeKey, title, index, total, doneSteps, phase, publishCooking, cookingAdvanced]);
 
-  /* beim Verlassen die Koch-Session zurückziehen */
+  
   useEffect(() => () => { void stopCooking().catch(() => {}); }, [stopCooking]);
 
-  /* ── Aktionen (Nr. 4, 16, 17, 8, 12) ───────────────────────────────────── */
+  
   const toggleSkip = (i: number) => {
     const has = extras.skipped.includes(i);
     const next = { ...extras, skipped: has ? extras.skipped.filter((n) => n !== i) : [...extras.skipped, i] };
@@ -449,11 +437,8 @@ export function CookingScreen({ route }: any) {
       ],
     });
 
-  /**
-   * Schritt-Foto (Nr. 17): bleibt beim **eigenen Konto** - das Bild wird nur
-   * lokal als data-URL gespeichert, nie in den Haushalt oder in die Cloud
-   * hochgeladen. Andere Haushaltsmitglieder sehen es also nie.
-   */
+  
+
   const saveStepPhoto = async (source: 'camera' | 'gallery') => {
     try {
       const photo = source === 'camera' ? await takeStepPhoto() : await pickStepPhoto();
@@ -461,7 +446,6 @@ export function CookingScreen({ route }: any) {
       const mime = photo.type ?? 'image/jpeg';
       const uri = photo.base64 ? `data:${mime};base64,${photo.base64}` : photo.uri;
       if (!uri) return;
-      // 3.1.0: erst den Ausschnitt festlegen (Popup), dann speichern
       await editPhotoCrop(uri);
       const next = { ...extras, photos: { ...extras.photos, [String(index)]: uri } };
       setExtras(next);
@@ -471,7 +455,7 @@ export function CookingScreen({ route }: any) {
     }
   };
 
-  /** Schritt abhaken und weiter (auch per Wischgeste, Nr. 8). */
+  
   const markDoneAndNext = () => {
     const d = new Set(doneSteps);
     d.add(index);
@@ -487,10 +471,7 @@ export function CookingScreen({ route }: any) {
     void finishAndLog();
   };
 
-
-
-
-  /** Übersetzung ein-/ausschalten (Kochmodus in der App-Sprache). */
+  
   const toggleTranslation = async () => {
     if (showTr) {
       setShowTr(false);
@@ -526,6 +507,16 @@ export function CookingScreen({ route }: any) {
   };
   const canTranslate = isTranslatableLanguage(lang);
 
+  
+
+  const lastLangRef = useRef(lang);
+  useEffect(() => {
+    if (lastLangRef.current === lang) return;
+    lastLangRef.current = lang;
+    setTr(null);
+    setShowTr(false);
+  }, [lang]);
+
   const stepIngredients = useMemo(() => {
     if (!currentStep) return [];
     const words = currentStep.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 3);
@@ -535,16 +526,11 @@ export function CookingScreen({ route }: any) {
     }).slice(0, 5);
   }, [currentStep, scaledIngredients]);
 
-  /**
-   * 2.0.0: the cooking session survives leaving the screen or restarting the
-   * app - step, progress, servings and which ingredients were ticked off.
-   */
+  
+
   const sessionKey = `spoonful:cooking:${recipeKey}`;
-  /**
-   * 3.2.2: Wenn eine Sitzung fortgesetzt wurde, sagen wir es kurz (Punkt 84).
-   * Vorher sprang der Kochmodus wortlos mitten in die Schritte — das wirkte
-   * wie ein Fehler.
-   */
+  
+
   const [resumedAt, setResumedAt] = useState<number | null>(null);
   useEffect(() => {
     let alive = true;
@@ -592,7 +578,7 @@ export function CookingScreen({ route }: any) {
     if (mins) setSuggested(mins);
   };
 
-  /** 3.1.0: nochmal kochen (Knopf auf dem Endbildschirm). */
+  
   const restartCooking = () => {
     setPhase('prep');
     setIndex(0);
@@ -641,9 +627,8 @@ export function CookingScreen({ route }: any) {
   };
 
   const finishAndLog = async () => {
-    /* 3.3.0: Am Ende kommt keine System-Meldung mehr (und keine Sätze über
-       hinzugefügte Einträge) — der Kochmodus wechselt einfach in den
-       Fertig-Zustand. Die Mahlzeit wird still im Hintergrund erfasst. */
+    
+
     const cals = scaledNutrition.calories;
     const prot = scaledNutrition.protein;
     const carbs = scaledNutrition.carbs;
@@ -655,15 +640,15 @@ export function CookingScreen({ route }: any) {
     if (cals != null) {
       try {
         await logMeal({ title, calories: cals, protein: prot ?? undefined, carbs: carbs ?? undefined, fat: fat ?? undefined, servings });
-      } catch { /* best-effort */ }
+      } catch {  }
     }
   };
 
-  /* Wischgesten: nach links = Schritt fertig (Nr. 8), nach rechts = zurück.
-     Die Handler liegen in einem Ref, damit der Responder nicht veraltet. */
+  
+
   const panAction = useRef({ phase, index, next: markDoneAndNext, prev: goPrev });
   panAction.current = { phase, index, next: markDoneAndNext, prev: goPrev };
-  /* 3.3.0: gleiches für das Fokus-Pop-up (dort gibt es kein Scrollen). */
+  
   const popupAction = useRef({ next: markDoneAndNext, prev: goPrev });
   popupAction.current = { next: markDoneAndNext, prev: goPrev };
   const pan = useRef(PanResponder.create({
@@ -676,26 +661,26 @@ export function CookingScreen({ route }: any) {
     },
   })).current;
 
-  /** 3.3.0: gleiches Wischen im Fokus-Pop-up (dort gibt es kein Scrollen). */
+  
+
   const popupPan = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 26 && Math.abs(g.dx) > Math.abs(g.dy) * 1.4,
+      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 16 && Math.abs(g.dx) > Math.abs(g.dy) * 1.1,
+      onMoveShouldSetPanResponderCapture: (_e, g) => Math.abs(g.dx) > 16 && Math.abs(g.dx) > Math.abs(g.dy) * 1.1,
       onPanResponderRelease: (_e, g) => {
         const a = popupAction.current;
-        if (g.dx < -26) a.next();
-        else if (g.dx > 26) a.prev();
+        if (g.dx < -16) a.next();
+        else if (g.dx > 16) a.prev();
       },
     }),
   ).current;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top, paddingBottom: insets.bottom }}>
-      {/* header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 10, borderBottomWidth: 1, borderBottomColor: colors.cardBorder }}>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: colors.accent }}>{t('s.cookHeader')}</Text>
           <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: 16, fontWeight: '700', color: colors.textPrimary }}>{title}</Text>
-          {/* 3.2.2: kurzer Hinweis, dass eine alte Sitzung weiterläuft (Punkt 84) */}
           {resumedAt ? (
             <Text style={{ fontSize: 11, color: colors.textSecondary }}>{t('s.cookResume', { n: resumedAt })}</Text>
           ) : null}
@@ -731,7 +716,6 @@ export function CookingScreen({ route }: any) {
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
         {phase === 'prep' ? (
           <>
-            {/* progress preview */}
             <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.surfaceMuted, overflow: 'hidden' }}>
               <View style={{ height: 6, width: '0%', borderRadius: 3, backgroundColor: colors.accent }} />
             </View>
@@ -744,7 +728,6 @@ export function CookingScreen({ route }: any) {
                 Start by scaling the recipe, then tick off every ingredient you have ready. The coach guides you through each step as you go.
               </Text>
 
-              {/* servings */}
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 }}>
                 <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>{t('s.cookServings')}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -759,12 +742,11 @@ export function CookingScreen({ route }: any) {
               </View>
               {hasNutrition ? (
                 <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 4 }}>
-                  kcal {scaledNutrition.calories ?? '—'} · P {scaledNutrition.protein ?? '—'}g · C {scaledNutrition.carbs ?? '—'}g · F {scaledNutrition.fat ?? '—'}g
+                  kcal {scaledNutrition.calories ?? '-'} · P {scaledNutrition.protein ?? '-'}g · C {scaledNutrition.carbs ?? '-'}g · F {scaledNutrition.fat ?? '-'}g
                 </Text>
               ) : null}
             </View>
 
-            {/* ingredients checklist */}
             {ingredients.length > 0 ? (
               <View style={{ marginTop: 12, borderRadius: 20, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 16 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -792,7 +774,7 @@ export function CookingScreen({ route }: any) {
             ) : null}
 
             <View style={{ marginTop: 18 }}>
-              <AppButton label={checkedIng.size === scaledIngredients.length && scaledIngredients.length > 0 ? 'Start cooking' : `Start cooking (${checkedIng.size}/${scaledIngredients.length} ready)`} variant="dark" icon={<Play size={18} color={colors.darkButtonText} />} onPress={begin} />
+              <AppButton label={checkedIng.size === scaledIngredients.length && scaledIngredients.length > 0 ? (lang === 'de' ? 'Kochen starten' : 'Start cooking') : `${lang === 'de' ? 'Kochen starten' : 'Start cooking'} (${checkedIng.size}/${scaledIngredients.length}${lang === 'de' ? ' bereit' : ' ready'})`} variant="dark" icon={<Play size={18} color={colors.darkButtonText} />} onPress={begin} />
             </View>
           </>
         ) : phase === 'done' ? (
@@ -811,7 +793,6 @@ export function CookingScreen({ route }: any) {
               </View>
             ) : null}
 
-            {/* 3.1.0: nochmal kochen direkt vom Endbildschirm aus */}
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 22, alignSelf: 'stretch' }}>
               <AppButton
                 label={t('s.cookAgain')}
@@ -825,7 +806,6 @@ export function CookingScreen({ route }: any) {
           </View>
         ) : (
           <>
-            {/* Fortschritt: Rezept (groß) + aktueller Schritt (fein) — Nr. 2 (2/2 advanced) */}
             {cookingAdvanced ? (
               <>
             <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.surfaceMuted, overflow: 'hidden' }}>
@@ -839,7 +819,6 @@ export function CookingScreen({ route }: any) {
               <Text style={{ fontSize: 12, color: colors.accent, fontWeight: '800' }}>{Math.round(progress)}%</Text>
             </View>
 
-            {/* Schritt-Überschrift + Zeiten (Nr. 1, 11, 25) */}
             <Text numberOfLines={2} style={{ marginTop: 8, fontFamily: fonts.display, fontSize: 17, fontWeight: '700', color: colors.textPrimary }}>
               {groupLabel(currentMeta?.group ?? 'prep')} · {currentMeta?.title}
             </Text>
@@ -858,7 +837,6 @@ export function CookingScreen({ route }: any) {
               </View>
             </View>
 
-            {/* Haushalt: wer ist bei welchem Schritt? (Nr. 26) */}
             {others.length ? (
               <View style={{ marginTop: 10, borderRadius: 14, borderWidth: 1, borderColor: rgbaHelper(colors.accent, 0.35), backgroundColor: colors.accentSoft, padding: 10, gap: 6 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -872,7 +850,7 @@ export function CookingScreen({ route }: any) {
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
                   >
                     <Text numberOfLines={1} style={{ flex: 1, fontSize: 12.5, color: colors.textPrimary }}>
-                      {t('s.cookHouseholdAt', { name: h.name || '—', n: h.step + 1, total: h.total })}
+                      {t('s.cookHouseholdAt', { name: h.name || '-', n: h.step + 1, total: h.total })}
                     </Text>
                     {h.recipeKey === recipeKey && h.total === total ? (
                       <Text style={{ fontSize: 11.5, fontWeight: '800', color: colors.accent }}>{t('s.cookHouseholdJump')}</Text>
@@ -882,7 +860,6 @@ export function CookingScreen({ route }: any) {
               </View>
             ) : null}
 
-            {/* "Wo war ich?" nach längerer Pause (Nr. 10) */}
             {awayFor > 0 ? (
               <Pressable
                 onPress={() => { if (resumeIndex >= 0) setIndex(resumeIndex); setAwayFor(0); }}
@@ -899,7 +876,7 @@ export function CookingScreen({ route }: any) {
             ) : null}
               </>
             ) : (
-              /* klassischer Kochmodus: nur Fortschritt + Schritt-Zähler */
+              
               <>
                 <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.surfaceMuted, overflow: 'hidden' }}>
                   <View style={{ height: 6, width: `${progress}%`, borderRadius: 3, backgroundColor: colors.accent }} />
@@ -911,7 +888,6 @@ export function CookingScreen({ route }: any) {
               </>
             )}
 
-            {/* step chips */}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
               {steps.map((_: string, i: number) => (
                 <Pressable key={i} onPress={() => { setIndex(i); const mins = extractMinutes(steps[i] ?? ''); setSuggested(mins); }} style={{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: i === index ? colors.accent : doneSteps.has(i) ? colors.successBg : colors.surfaceMuted }}>
@@ -920,7 +896,6 @@ export function CookingScreen({ route }: any) {
               ))}
             </View>
 
-            {/* coach + step card */}
             <View {...pan.panHandlers} style={{ marginTop: 14 }}>
               <View style={{ borderRadius: 22, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 20 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
@@ -929,22 +904,19 @@ export function CookingScreen({ route }: any) {
                   </Text>
                   {cookingAdvanced ? (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                    {/* Gruppierung Vorbereitung / Kochen / Finish (Nr. 3) */}
                     <View style={{ borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: rgbaHelper(groupColor(currentMeta?.group ?? 'prep'), 0.16) }}>
                       <Text style={{ fontSize: 11, fontWeight: '800', color: groupColor(currentMeta?.group ?? 'prep') }}>{groupLabel(currentMeta?.group ?? 'prep')}</Text>
                     </View>
-                    {/* Schwierigkeit des Schritts (Nr. 28) */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: colors.surfaceMuted }}>
                       <Gauge size={11} color={difficultyColor(currentMeta?.difficulty ?? 'easy')} />
                       <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary }}>{difficultyLabel(currentMeta?.difficulty ?? 'easy')}</Text>
                     </View>
-                    {/* Dauer dieses Schritts (Nr. 11) */}
                     <View style={{ borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: colors.surfaceMuted }}>
                       <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary }}>{`~${currentMeta?.minutes ?? 0} min`}</Text>
                     </View>
                   </View>
                   ) : (
-                    /* klassisch: nur die Zeit-Schätzung des Schritts */
+                    
                     <View style={{ borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: colors.surfaceMuted }}>
                       <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary }}>{stepMinutes ? `~${stepMinutes} min` : t('s.cookQuickStep')}</Text>
                     </View>
@@ -954,8 +926,8 @@ export function CookingScreen({ route }: any) {
                   {currentStep}
                 </Text>
                 <View style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  {/* 3.3.0: Vorlesen — liest genau diesen Schritt vor, damit man
-                      nicht auf das Display schauen muss. */}
+                  {
+}
                   {speechOk ? (
                     <Pressable
                       onPress={() => void toggleSpeak()}
@@ -969,10 +941,10 @@ export function CookingScreen({ route }: any) {
                       </Text>
                     </Pressable>
                   ) : null}
-                  {/* 3.3.0: langes Drücken öffnet nur diese Box als Pop-up. */}
+                  {
+}
                   <Pressable
-                    onLongPress={() => openPopup()}
-                    delayLongPress={320}
+                    onPress={() => openPopup()}
                     accessibilityRole="button"
                     accessibilityLabel={t('s.cookStepPopup')}
                     style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 12, paddingVertical: 7, opacity: pressed ? 0.8 : 1 }]}
@@ -982,10 +954,8 @@ export function CookingScreen({ route }: any) {
                   </Pressable>
                 </View>
 
-                {/* Abhängigkeiten + Teilschritte + Notiz/Foto/Skip (nur advanced) */}
                 {cookingAdvanced ? (
                   <>
-                {/* Abhängigkeiten: "läuft parallel" / "warten bis gar" (Nr. 14) */}
                 {currentMeta?.dependency ? (
                   <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: colors.cyanBg }}>
                     <Timer size={12} color={colors.cyan} />
@@ -995,7 +965,6 @@ export function CookingScreen({ route }: any) {
                   </View>
                 ) : null}
 
-                {/* Teilschritte aufklappen (Nr. 6) */}
                 {currentMeta?.sub && currentMeta.sub.length > 1 ? (
                   <View style={{ marginTop: 12 }}>
                     <Pressable onPress={() => setShowSub((v) => !v)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start' }}>
@@ -1031,7 +1000,6 @@ export function CookingScreen({ route }: any) {
                   </View>
                 ) : null}
 
-                {/* Notiz (Nr. 16), Foto (Nr. 17), Schritt überspringen (Nr. 4) */}
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
                   <Pressable
                     onPress={() => { setNoteDraft(extras.notes[String(index)] ?? ''); setNoteOpen((v) => !v); }}
@@ -1082,9 +1050,9 @@ export function CookingScreen({ route }: any) {
                   </>
                 ) : null}
 
-                {/* 3.3.0: Coach-Tipp + „Achte auf" kommen pro Schritt aus der
-                    Bibliothek (vom Bot erzeugt). Fehlen sie, wird das gesagt —
-                    statt automatisch erfundener Tipps. */}
+                {
+
+}
                 <View style={{ marginTop: 16, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.surfaceMuted, padding: 12 }}>
                   <StepGuideBlock
                     coach={guideText?.coach ?? null}
@@ -1095,7 +1063,6 @@ export function CookingScreen({ route }: any) {
                   />
                 </View>
 
-                {/* suggested timer for this step */}
                 {stepMinutes && stepMinutes > 0 ? (
                   <Pressable
                     onPress={() => startTimer(stepMinutes)}
@@ -1110,7 +1077,6 @@ export function CookingScreen({ route }: any) {
               </View>
             </View>
 
-            {/* 2.0.0: timer controls - several timers run in parallel */}
             <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 16, flexWrap: 'wrap' }}>
               {PRESETS.map((m) => (
                 <Pressable key={m} onPress={() => startTimer(m)} style={({ pressed }) => [{ paddingHorizontal: 13, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 }]}>
@@ -1175,10 +1141,9 @@ export function CookingScreen({ route }: any) {
               </View>
             ) : null}
 
-            {/* 3.3.1: „Zweites Gericht parallel kochen" wurde entfernt (war zu
-                viel und wurde nicht genutzt). */}
+            {
+}
 
-            {/* bottom actions */}
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
               <Pressable onPress={goPrev} disabled={index === 0} style={({ pressed }) => [{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, paddingVertical: 14, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder, opacity: index === 0 ? 0.5 : pressed ? 0.8 : 1 }]}>
                 <ChevronLeft size={18} color={colors.textPrimary} />
@@ -1187,7 +1152,7 @@ export function CookingScreen({ route }: any) {
               <Pressable onPress={goNext} style={({ pressed }) => [{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, paddingVertical: 14, backgroundColor: colors.darkButton, opacity: pressed ? 0.85 : 1 }]}>
                 {doneSteps.has(index) ? <Check size={18} color={colors.darkButtonText} /> : <CircleCheck size={18} color={colors.darkButtonText} />}
                 <Text style={{ color: colors.darkButtonText, fontWeight: '700', fontSize: 15 }}>
-                  {doneSteps.has(index) ? (isLast ? 'Finish' : 'Next step') : 'Done — next step'}
+                  {doneSteps.has(index) ? (isLast ? (lang === 'de' ? 'Fertig' : 'Finish') : (lang === 'de' ? 'Weiter' : 'Next step')) : (lang === 'de' ? 'Erledigt, weiter' : 'Done - next step')}
                 </Text>
                 {!isLast ? <ChevronRight size={18} color={colors.darkButtonText} /> : null}
               </Pressable>
@@ -1196,13 +1161,12 @@ export function CookingScreen({ route }: any) {
         )}
       </ScrollView>
 
-      {/* 3.3.0: Fokus-Pop-up — dieselbe Schritt-Box, aber ohne Vorbereitung
-          (oben) und ohne Timer-Liste (unten). Kein Scrollen, dafür einfaches
-          Wischen zwischen den Schritten. Der Timer lässt sich hier genauso
-          starten. */}
+      {
+
+}
       <Modal visible={popupOpen} transparent animationType="fade" onRequestClose={() => { void stopReadAloud(); setPopupOpen(false); }} statusBarTranslucent>
-        <View style={{ flex: 1, backgroundColor: colors.overlayStrong, padding: 16, justifyContent: 'center' }}>
-          <View {...popupPan.panHandlers} style={{ borderRadius: 24, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 20 }}>
+        <View {...popupPan.panHandlers} style={{ flex: 1, backgroundColor: colors.overlayStrong, padding: 16, justifyContent: 'center' }}>
+          <View style={{ borderRadius: 24, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Text style={{ flex: 1, fontSize: 12, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', color: colors.accent }}>
                 {t('cooking.step')} {index + 1} {t('cooking.of')} {total}
@@ -1296,5 +1260,4 @@ function NutChip({ label, value }: { label: string; value: string }) {
     </View>
   );
 }
-
 

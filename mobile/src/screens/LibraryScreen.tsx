@@ -12,10 +12,10 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-/* 3.3.0: Meldungen im App-Design statt System-Dialog */
+
 import { Alert } from '../lib/alert';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Clock3, Filter, Search, Shuffle, SlidersHorizontal, X } from 'lucide-react-native';
+import { Check, Clock3, Filter, Flag, Search, Shuffle, SlidersHorizontal, X } from 'lucide-react-native';
 import { useQuery } from '../lib/convex-auth';
 import { api, runOp } from '../lib/api';
 import { colors, fonts } from '../theme';
@@ -29,16 +29,19 @@ import { LibraryRecipe, asRecipeFromDoc, formatCuisine, formatDiet, difficultyLa
 import { sortFilterValuesAZ } from '../lib/countries';
 import { difficultyColor } from '../theme';
 import { BookLoader } from '../components/BookLoader';
+import { ErrorState } from '../components/ErrorState';
 import { OfflineTv } from '../components/OfflineTv';
 import { useConnectivity, retryConnectivity } from '../lib/offline';
 import { useCachedList } from '../lib/offline';
-import { useTranslation } from '../lib/i18n';
+import { useTranslation, translate } from '../lib/i18n';
+import { useAdminQuickReport } from '../lib/app-prefs';
+import { useLocalPrefs } from '../lib/local-prefs';
+import { difficultyForSkill, skillLevel } from '../lib/skill';
 import { seasonalTerms, pantryTerms } from '../lib/seasonal';
 
 const PAGE_SIZE = 50;
 const SEARCH_DEBOUNCE_MS = 300;
 
-/** Sort options - the label goes through i18n at render time (2.0.0). */
 const SORTS: { value: 'title' | 'quick' | 'calories' | 'newest'; label: string; labelKey?: string }[] = [
   { value: 'title', label: 'A–Z' },
   { value: 'quick', label: 'Quickest', labelKey: 'library.sortQuick' },
@@ -46,7 +49,6 @@ const SORTS: { value: 'title' | 'quick' | 'calories' | 'newest'; label: string; 
   { value: 'newest', label: 'Newest', labelKey: 'library.sortNew' },
 ];
 
-/** Prep time buckets for the grouped list (2.0.0). */
 function timeBucket(minutes: number): number {
   if (minutes < 15) return 0;
   if (minutes <= 30) return 1;
@@ -54,10 +56,9 @@ function timeBucket(minutes: number): number {
   return 3;
 }
 
-/** Diet tag a profile diet/allergy maps to in the catalog (hard safety filter). */
 const DIET_TAGS: Record<string, string> = { vegetarian: 'vegetarian', vegan: 'vegan', pescatarian: 'pescatarian', halal: 'halal', kosher: 'kosher', glutenFree: 'gluten-free', lactoseFree: 'dairy-free' };
 const ALLERGY_TAGS: Record<string, string> = { nuts: 'nut-free', milk: 'dairy-free', gluten: 'gluten-free' };
-/** Catalog meal types -> i18n keys (unknown values fall back to the raw value). */
+
 const MEAL_LABEL_KEYS: Record<string, string> = {
   breakfast: 'library.breakfast', main: 'library.mainCourse', lunch: 'library.mainCourse',
   snack: 'library.snack', dessert: 'library.dessert', drink: 'library.drink',
@@ -66,7 +67,7 @@ const MEAL_LABEL_KEYS: Record<string, string> = {
 export function LibraryScreen() {
   const { t } = useTranslation();
   const { width: windowWidth } = useWindowDimensions();
-  /** Card width = screen - page padding (2x18) - column gap (12), split in two. */
+  
   const tileWidth = Math.floor((windowWidth - 36 - 12) / 2);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
@@ -77,12 +78,13 @@ export function LibraryScreen() {
   const [difficulty, setDifficulty] = useState('all');
   const [diets, setDiets] = useState<string[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  /* Tutorial targets: the tour highlights these elements and finishes the step
-     only when the user really taps/typing them. */
+  const [cuisineOpen, setCuisineOpen] = useState(false);
+  const [cuisineQuery, setCuisineQuery] = useState('');
+  
+
   const filterTarget = useTutorialTarget('tut-library-filter', { onPress: () => setFiltersOpen(true) });
   const applyTarget = useTutorialTarget('tut-library-apply', { onPress: () => setFiltersOpen(false) });
   const [sort, setSort] = useState<'title' | 'quick' | 'calories' | 'newest' | 'match'>('title');
-  // 2.0.0: "in season now" shelf and the "what can I cook?" matcher
   const [seasonal, setSeasonal] = useState(false);
   const [pantryOpen, setPantryOpen] = useState(false);
   const [pantryInput, setPantryInput] = useState('');
@@ -92,15 +94,19 @@ export function LibraryScreen() {
   const [presetsLoaded, setPresetsLoaded] = useState(false);
 
   const profile = useQuery(api.users.currentUser) as any;
+  const localPrefs = useLocalPrefs();
+  
+  const isAdmin = useQuery(api.admin.isAdmin) === true;
+  const [quickReportPref] = useAdminQuickReport();
+  const quickReport = isAdmin && quickReportPref;
+  const [reportNote, setReportNote] = useState<string | null>(null);
   const dietInit = useRef(false);
 
-  /** The catalog search terms: seasonal produce or the user's pantry. */
+  
   const terms = useMemo(() => (seasonal ? seasonalTerms() : pantry), [seasonal, pantry]);
 
-  /**
-   * 2.0.0 (55/56): the same search also runs over the user's own and saved
-   * recipes - offline from the cached mirror, online fresh from the server.
-   */
+  
+
   const mineLive = useQuery(api.recipes.list) as any[] | undefined;
   const savedLive = useQuery(api.savedRecipes.list) as any[] | undefined;
   const { data: mineCache } = useCachedList<any>('mine', mineLive);
@@ -113,18 +119,17 @@ export function LibraryScreen() {
     return { mine: (mineCache ?? []).filter(match).slice(0, 6), saved: (savedCache ?? []).filter(match).slice(0, 6) };
   }, [search, mineCache, savedCache]);
 
+  
 
-  /** Catalog titles are English - map "Aubergine", "melanzane" … so
-      the same recipes show up for every user language. */
   const translatedSearch = useMemo(() => translateSearchTerm(search), [search]);
 
   const FILTERS_KEY = 'spoonful:library-filters';
+  const LIB_PAGE_CACHE = 'spoonful:library-page:';
   const PRESETS_KEY = 'spoonful:library-presets';
   const filtersLoaded = useRef(false);
   const filtersRaw = useRef<string | null>(null);
   const [filtersReady, setFiltersReady] = useState(false);
 
-  // restore the last used filters/sorting
   useEffect(() => {
     let alive = true;
     AsyncStorage.getItem(FILTERS_KEY)
@@ -147,25 +152,28 @@ export function LibraryScreen() {
     return () => { alive = false; };
   }, []);
 
-  // remember them for the next visit
   useEffect(() => {
     if (!filtersLoaded.current) return;
     const payload = JSON.stringify({ search: searchInput, cuisine, mealType, timeRange, calories, difficulty, diets, sort });
     AsyncStorage.setItem(FILTERS_KEY, payload).catch(() => {});
   }, [searchInput, cuisine, mealType, timeRange, calories, difficulty, diets, sort]);
 
-  // 2.0.0: the onboarding answers (diet + allergies) pre-filter the library once.
   useEffect(() => {
     if (dietInit.current || !profile) return;
-    if (!filtersReady) return; // wait until we know whether filters were saved
+    if (!filtersReady) return;
     dietInit.current = true;
     const saved = (() => { try { return JSON.parse(filtersRaw.current ?? 'null'); } catch { return null; } })();
-    if (saved && Array.isArray(saved.diets) && saved.diets.length) return; // user already chose
-    const fromProfile = [DIET_TAGS[profile.diet ?? ''] ?? '', ...((profile.allergies ?? []) as string[]).map((a) => ALLERGY_TAGS[a] ?? '')].filter(Boolean);
+    if (saved && Array.isArray(saved.diets) && saved.diets.length) return;
+    const diet = profile.diet || localPrefs.diet || '';
+    const allergies = (profile.allergies?.length ? profile.allergies : localPrefs.allergies) ?? [];
+    const fromProfile = [DIET_TAGS[diet] ?? '', ...allergies.map((a: string) => ALLERGY_TAGS[a] ?? '')].filter(Boolean);
     if (fromProfile.length) setDiets(Array.from(new Set(fromProfile)));
-  }, [profile, filtersReady]);
+    if (!saved || !saved.difficulty) {
+      const level = skillLevel(profile.cookingExperience || localPrefs.experience, localPrefs.startedAt);
+      setDifficulty(difficultyForSkill(level));
+    }
+  }, [profile, localPrefs, filtersReady]);
 
-  // Saved filter combinations ("my filters").
   useEffect(() => {
     AsyncStorage.getItem(PRESETS_KEY)
       .then((raw) => {
@@ -199,19 +207,16 @@ export function LibraryScreen() {
     setSort(p.sort ?? 'title');
   };
 
-  // Typing must not fire a database request per keystroke (that was the main
-  // reason the library felt laggy while searching).
   useEffect(() => {
     const id = setTimeout(() => setSearch(searchInput.trim()), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(id);
   }, [searchInput]);
 
-  // Pagination state: the first page is fetched reactively, further pages are
-  // appended so the scroll position never jumps back to the top.
   const [items, setItems] = useState<LibraryRecipe[]>([]);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [loadedOnce, setLoadedOnce] = useState(false);
   const offsetRef = useRef(0);
   const signatureRef = useRef('');
@@ -220,13 +225,8 @@ export function LibraryScreen() {
   const listRef = useRef<any>(null);
 
   const meta = useQuery(api.recipes.libraryMeta);
-  /**
-   * 2.0.0 fix: one memoised request description for the current filter set.
-   * It is used for the reactive first page *and* for "load more", and it doubles
-   * as the token that tells us which response belongs to which filter set -
-   * without it the list showed the recipes of the previous filter while the
-   * counter already showed the new one.
-   */
+  
+
   const queryArgs = useMemo(
     () => ({
       search: translatedSearch,
@@ -256,13 +256,8 @@ export function LibraryScreen() {
     });
   }, []);
 
-  /**
-   * 2.0.0 fix: as soon as the filter set changes, drop the old tiles. Before
-   * this the previous results stayed on screen while the new counter was
-   * already there ("2 recipes" above ten tiles) - and because the query hook
-   * keeps the last value while loading, that stale list was even written back
-   * into the state.
-   */
+  
+
   useEffect(() => {
     signatureRef.current = '';
     itemsLenRef.current = 0;
@@ -276,14 +271,28 @@ export function LibraryScreen() {
     listRef.current?.scrollToOffset({ offset: 0, animated: false });
   }, [queryKey]);
 
+  
+
+  const [loadPct, setLoadPct] = useState(0);
+  useEffect(() => {
+    if (loadedOnce) {
+      setLoadPct(1);
+      return;
+    }
+    setLoadPct(0.04);
+    const started = Date.now();
+    const id = setInterval(() => {
+      const elapsed = (Date.now() - started) / 1000;
+      const eased = 1 - Math.exp(-elapsed / 2.2);
+      setLoadPct(Math.min(0.93, Math.max(0.04, eased)));
+    }, 140);
+    return () => clearInterval(id);
+  }, [loadedOnce, queryKey]);
+
   useEffect(() => {
     if (!pageData) return;
-    // Ignore responses that belong to an older filter set.
     if (pageData.token !== queryKey) return;
 
-    // Any app event (mutation, foreground, refresh) re-fetches queries. For the
-    // *same* filters that must not throw away the pages the user loaded
-    // already - only the counters get refreshed.
     if (queryKey === signatureRef.current && itemsLenRef.current > 0) {
       setTotal(Number(pageData.total) || 0);
       setHasMore(!!pageData.hasMore);
@@ -298,9 +307,34 @@ export function LibraryScreen() {
     setTotal(Number(pageData.total) || 0);
     setHasMore(!!pageData.hasMore);
     setLoadedOnce(true);
+    if (first.length) {
+      AsyncStorage.setItem(
+        LIB_PAGE_CACHE + queryKey,
+        JSON.stringify({ items: first.slice(0, 40), total: pageData.total, hasMore: pageData.hasMore, at: Date.now() }),
+      ).catch(() => {});
+    }
   }, [pageData, queryKey]);
 
-  /** Appends the next 24 results - nothing else is re-fetched. */
+  useEffect(() => {
+    let alive = true;
+    AsyncStorage.getItem(LIB_PAGE_CACHE + queryKey)
+      .then((raw) => {
+        if (!alive || !raw || itemsLenRef.current > 0) return;
+        const cached = JSON.parse(raw);
+        if (!Array.isArray(cached?.items) || !cached.items.length) return;
+        signatureRef.current = queryKey;
+        offsetRef.current = cached.items.length;
+        itemsLenRef.current = cached.items.length;
+        setItems(cached.items);
+        setTotal(Number(cached.total) || cached.items.length);
+        setHasMore(!!cached.hasMore);
+        setLoadedOnce(true);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [queryKey]);
+
+  
   const loadMore = useCallback(async () => {
     if (loadingRef.current || !hasMore) return;
     loadingRef.current = true;
@@ -312,7 +346,6 @@ export function LibraryScreen() {
         offset: offsetRef.current,
         token: key,
       });
-      // The user changed a filter while this page was in flight: drop it.
       if (res?.token !== key) return;
       const more = (res?.items ?? []) as LibraryRecipe[];
       offsetRef.current += more.length;
@@ -322,23 +355,23 @@ export function LibraryScreen() {
       });
       setTotal(Number(res?.total) || 0);
       setHasMore(!!res?.hasMore);
-    } catch (e) {
-      // Keep current list; user can retry via the button.
-      console.warn('[spoonful] load more failed', e instanceof Error ? e.message : e);
+      setLoadError(false);
+    } catch {
+      setLoadError(true);
     } finally {
       loadingRef.current = false;
       setLoadingMore(false);
     }
   }, [hasMore, queryArgs, queryKey, tracksItems]);
 
-  /** "{t('s.xSurpriseMe')}": jump straight into a random catalog recipe. */
+  
   const surpriseMe = useCallback(async () => {
     try {
       const item = (await runOp(api.recipes.random, 'query', null, {})) as LibraryRecipe | null;
       if (!item?.id) return;
       navigate('RecipeDetail', { recipeId: item.id, title: item.title, source: 'library', recipe: item });
-    } catch (e) {
-      console.warn('[spoonful] random recipe failed', e instanceof Error ? e.message : e);
+    } catch {
+      setLoadError(true);
     }
   }, []);
 
@@ -352,17 +385,35 @@ export function LibraryScreen() {
   const clearAll = () => {
     setCuisine('all'); setMealType('all'); setTimeRange('all');
     setCalories('all'); setDifficulty('all'); setDiets([]);
+    setSort('title');
   };
   const toggleDiet = (d: string) =>
     setDiets((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d]));
 
+  const orderedItems = useMemo(() => {
+    const list = [...items];
+    list.sort((a, b) => {
+      const ai = a.imageUrl ? 0 : 1;
+      const bi = b.imageUrl ? 0 : 1;
+      if (ai !== bi) return ai - bi;
+      return String(a.title ?? '').localeCompare(String(b.title ?? ''));
+    });
+    return list;
+  }, [items]);
+
   const cuisineOptions = useMemo(
-    /* 2.1.2: countries are sorted A→Z (Afghanistan … Zimbabwe) */
+    
     () => sortFilterValuesAZ((meta?.cuisines as string[] | undefined) ?? []).map((c: string) => ({ value: c, label: formatCuisine(c) })),
     [meta],
   );
-  /* Meal types come from the catalog, so no filter ends up with zero results
-     (the old list offered "Drink", which no recipe in the catalog uses). */
+  
+
+  const cuisineMatches = useMemo(() => {
+    const q = cuisineQuery.trim().toLowerCase();
+    const list = cuisineOptions;
+    return q ? list.filter((c: any) => c.label.toLowerCase().includes(q)) : list;
+  }, [cuisineOptions, cuisineQuery]);
+
   const mealTypeOptions = useMemo(() => {
     const live = ((meta?.mealTypes as string[] | undefined) ?? []).filter(Boolean);
     const values = live.length ? live : ['breakfast', 'main', 'snack', 'dessert'];
@@ -397,11 +448,8 @@ export function LibraryScreen() {
     return found.labelKey ? t(found.labelKey) : found.label;
   };
 
-  /**
-   * 2.0.0: every active filter is listed as a chip under the search field and
-   * can be removed with one tap - nobody has to open the sheet to find out why
-   * the library looks the way it does.
-   */
+  
+
   const activeChips: { key: string; label: string; remove: () => void }[] = [];
   if (cuisine !== 'all') activeChips.push({ key: 'cuisine', label: formatCuisine(cuisine), remove: () => setCuisine('all') });
   if (mealType !== 'all') activeChips.push({ key: 'meal', label: mealTypeOptions.find((o) => o.value === mealType)?.label ?? formatCuisine(mealType), remove: () => setMealType('all') });
@@ -414,15 +462,30 @@ export function LibraryScreen() {
   if (sort !== 'title') activeChips.push({ key: 'sort', label: `${t('common.sort')}: ${sortLabel(sort)}`, remove: () => setSort('title') });
 
   const conn = useConnectivity();
-  /**
-   * 3.2.1 CRASH-FIX: `openRecipe` stand als `useCallback` **nach** dem
-   * Offline-`return` -> beim Wechsel online/offline änderte sich die Zahl der
-   * Hooks und React brach ab („Rendered more hooks than during the previous
-   * render"). Hooks immer vor jeden `return`.
-   */
+  
+
   const openRecipe = useCallback((recipe: LibraryRecipe) => {
     navigate('RecipeDetail', { recipeId: recipe.id, title: recipe.title, source: 'library', recipe });
   }, []);
+
+  
+
+  const quickReportImage = useCallback(
+    async (recipe: LibraryRecipe) => {
+      try {
+        await runOp(api.recipes.reportImage, 'mutation', null, {
+          recipeKey: recipe.id,
+          recipeTitle: recipe.title,
+          imageUrl: recipe.imageUrl,
+          reason: 'Wrong photo',
+        });
+        setReportNote(t('s.qrReported', { title: recipe.title }));
+      } catch {
+        setReportNote(t('s.qrReportFailed'));
+      }
+    },
+    [t],
+  );
 
   if (conn === 'offline') {
     return (
@@ -437,6 +500,18 @@ export function LibraryScreen() {
   const listHeader = (
     <>
       <PageHeader eyebrow={t('library.explore')} title={t('library.title')} subtitle={`${total || '…'} ${t('library.recipes')}`} />
+
+      {reportNote ? (
+        <View style={{ marginTop: 10, borderRadius: 12, backgroundColor: colors.accentSoft, paddingHorizontal: 12, paddingVertical: 9 }}>
+          <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.accent }}>{reportNote}</Text>
+        </View>
+      ) : null}
+      {quickReport ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
+          <Flag size={13} color={colors.rose} />
+          <Text style={{ fontSize: 12, fontWeight: '700', color: colors.rose }}>{t('s.qrModeBadge')}</Text>
+        </View>
+      ) : null}
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
         <View style={{ flex: 1 }}>
@@ -473,8 +548,8 @@ export function LibraryScreen() {
         </Pressable>
       </View>
 
-      {/* 2.0.0: the active filters are visible and removable right here, so
-          nobody has to open the sheet to understand the result list. */}
+      {
+}
       {activeChips.length ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }} style={{ marginTop: 10 }}>
           {activeChips.map((c) => (
@@ -504,9 +579,6 @@ export function LibraryScreen() {
           </Pressable>
         </ScrollView>
       ) : null}
-
-
-
 
       {localHits.mine.length || localHits.saved.length ? (
         <View style={{ marginTop: 10 }}>
@@ -560,7 +632,9 @@ export function LibraryScreen() {
     </>
   );
 
-  const listFooter = hasMore ? (
+  const listFooter = loadError ? (
+    <ErrorState compact onRetry={() => { setLoadError(false); void loadMore(); }} />
+  ) : hasMore ? (
     <Pressable
       onPress={() => void loadMore()}
       disabled={loadingMore}
@@ -580,12 +654,12 @@ export function LibraryScreen() {
 
   return (
     <Page>
-      {/* One virtualised list: only the tiles on screen are rendered, which is
-          what makes a 500-recipe library scroll smoothly. */}
+      {
+}
       <FlatList
         ref={listRef}
         key={groupByTime ? 'grouped' : 'grid'}
-        data={items}
+        data={orderedItems}
         numColumns={groupByTime ? 1 : 2}
         keyExtractor={(r) => r.id}
         columnWrapperStyle={groupByTime ? undefined : { gap: 12, alignItems: 'flex-start' }}
@@ -600,7 +674,7 @@ export function LibraryScreen() {
         ListHeaderComponent={listHeader}
         ListEmptyComponent={
           !loadedOnce ? (
-            <BookLoader label={t('s.loadCooking')} />
+            <BookLoader label={t('s.loadCooking')} progress={loadPct} />
           ) : (
             <EmptyState
               icon={<Filter size={24} color={colors.accent} strokeWidth={2} />}
@@ -624,7 +698,7 @@ export function LibraryScreen() {
         ListFooterComponent={listFooter}
         renderItem={({ item, index }) => (
           <View>
-            {groupByTime && (index === 0 || timeBucket(totalMinutes(items[index - 1])) !== timeBucket(totalMinutes(item))) ? (
+            {groupByTime && (index === 0 || timeBucket(totalMinutes(orderedItems[index - 1])) !== timeBucket(totalMinutes(item))) ? (
               <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.textSecondary, marginTop: 10, marginBottom: 4 }}>
                 {
                   [`< 15 ${t('common.min')}`, `15-30 ${t('common.min')}`, `30-60 ${t('common.min')}`, `> 60 ${t('common.min')}`][
@@ -634,10 +708,12 @@ export function LibraryScreen() {
               </Text>
             ) : null}
             {index === 0 ? (
-              /* the first tile is the tour target for "tap a recipe" */
+              
               <TutorialTarget id="tut-library-card" style={{ flex: 1 }}>
                 <RecipeTile
                   recipe={item}
+                  quickReport={quickReport}
+                  onReport={quickReportImage}
                   onOpen={(r) => {
                     tutorialAction('tut-library-card');
                     openRecipe(r);
@@ -647,26 +723,28 @@ export function LibraryScreen() {
                 />
               </TutorialTarget>
             ) : (
-              <RecipeTile recipe={item} onOpen={openRecipe} width={tileWidth} single={groupByTime} />
+              <RecipeTile
+                recipe={item}
+                quickReport={quickReport}
+                onReport={quickReportImage}
+                onOpen={openRecipe}
+                width={tileWidth}
+                single={groupByTime}
+              />
             )}
           </View>
         )}
       />
 
-      {/* Filters sheet */}
-      <Modal visible={filtersOpen} transparent animationType="slide" onRequestClose={() => setFiltersOpen(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlayStrong }}>
+      <Modal visible={filtersOpen} transparent animationType="fade" onRequestClose={() => setFiltersOpen(false)} statusBarTranslucent>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, backgroundColor: colors.overlayStrong }}>
+          <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 14, paddingVertical: 24 }}>
             <Pressable style={{ flex: 1 }} onPress={() => setFiltersOpen(false)} />
-            <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 26, borderTopRightRadius: 26, maxHeight: '84%', paddingBottom: 26 }}>
-              <View style={{ alignItems: 'center', paddingTop: 10 }}>
-                <View style={{ width: 44, height: 4, borderRadius: 2, backgroundColor: colors.cardBorder }} />
-              </View>
-              <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12 }}>
+            <View style={{ backgroundColor: colors.bg, borderRadius: 24, maxHeight: '86%' }}>
+              <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 24 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontFamily: fonts.display, fontSize: 21, fontWeight: '700', color: colors.textPrimary }}>{t('library.filters')}</Text>
-                    {/* 2.0.0: the result count updates live while filters are changed */}
                     <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 2 }}>
                       {loadedOnce ? `${total} ${t('library.recipes')}` : t('common.loading')}
                     </Text>
@@ -705,7 +783,6 @@ export function LibraryScreen() {
                     </Pressable>
                   </View>
 
-                  {/* discovery: in season now / what can I cook / group by time */}
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                     <Chip
                       label={t('feat.inSeason')}
@@ -759,7 +836,6 @@ export function LibraryScreen() {
                     </>
                   ) : null}
 
-                  {/* my saved filters: tap = apply, long press = delete */}
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                     <Chip label={t('feat.savePreset')} active={false} onPress={savePreset} />
                     {presetsLoaded && presets.map((p) => (
@@ -784,21 +860,20 @@ export function LibraryScreen() {
                 </FilterSection>
 
                 <FilterSection title={t('library.cuisine')}>
-                  <TutorialTarget id="tut-library-chip">
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
-                      {cuisineOptions.map((c) => (
-                        <Chip
-                          key={c.value}
-                          label={c.label}
-                          active={cuisine === c.value}
-                          onPress={() => {
-                            setCuisine(c.value === cuisine ? 'all' : c.value);
-                            tutorialAction('tut-library-chip');
-                          }}
-                        />
-                      ))}
-                    </ScrollView>
-                  </TutorialTarget>
+                  <Pressable
+                    onPress={() => { setCuisineQuery(''); setCuisineOpen(true); tutorialAction('tut-library-chip'); }}
+                    style={({ pressed }) => [{
+                      flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start',
+                      borderRadius: 999, borderWidth: 1, borderColor: cuisine === 'all' ? colors.cardBorder : colors.accent,
+                      backgroundColor: cuisine === 'all' ? colors.card : colors.accentSoft,
+                      paddingHorizontal: 14, paddingVertical: 10, opacity: pressed ? 0.85 : 1,
+                    }]}
+                  >
+                    <Text style={{ fontSize: 13.5, fontWeight: '700', color: cuisine === 'all' ? colors.textPrimary : colors.accent }}>
+                      {cuisine === 'all' ? t('library.allCuisines') : formatCuisine(cuisine)}
+                    </Text>
+                    <X size={13} color={cuisine === 'all' ? colors.textSecondary : colors.accent} />
+                  </Pressable>
                 </FilterSection>
 
                 <FilterSection title={t('library.type')}>
@@ -859,8 +934,56 @@ export function LibraryScreen() {
               </ScrollView>
             </View>
           </View>
-      
         </KeyboardAvoidingView></Modal>
+      <Modal visible={cuisineOpen} transparent animationType="fade" onRequestClose={() => setCuisineOpen(false)} statusBarTranslucent>
+        <View style={{ flex: 1, backgroundColor: colors.overlayStrong, justifyContent: 'center', paddingHorizontal: 14, paddingVertical: 24 }}>
+          <Pressable style={{ flex: 1 }} onPress={() => setCuisineOpen(false)} />
+          <View style={{ backgroundColor: colors.bg, borderRadius: 24, maxHeight: '78%' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingTop: 16 }}>
+              <Text style={{ flex: 1, fontFamily: fonts.display, fontSize: 19, fontWeight: '800', color: colors.textPrimary }}>{t('library.cuisine')}</Text>
+              <Pressable onPress={() => setCuisineOpen(false)} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('common.close')}>
+                <X size={20} color={colors.textSecondary} />
+              </Pressable>
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 18, marginTop: 12, borderRadius: 12, backgroundColor: colors.surfaceMuted, paddingHorizontal: 12 }}>
+              <Search size={15} color={colors.textSecondary} />
+              <TextInput
+                value={cuisineQuery}
+                onChangeText={setCuisineQuery}
+                placeholder={t('library.searchIngredients')}
+                placeholderTextColor={colors.textSecondary}
+                autoCorrect={false}
+                style={{ flex: 1, paddingVertical: 11, fontSize: 14, color: colors.textPrimary }}
+              />
+            </View>
+
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 8, paddingBottom: 24 }}>
+              <Pressable
+                onPress={() => { setCuisine('all'); setCuisineOpen(false); }}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.cardBorder }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textPrimary }}>{t('library.allCuisines')}</Text>
+                {cuisine === 'all' ? <Check size={16} color={colors.accent} /> : null}
+              </Pressable>
+              {cuisineMatches.map((c: any) => (
+                <Pressable
+                  key={c.value}
+                  onPress={() => { setCuisine(c.value); setCuisineOpen(false); }}
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.cardBorder }}
+                >
+                  <Text style={{ fontSize: 14, color: colors.textPrimary }}>{c.label}</Text>
+                  {cuisine === c.value ? <Check size={16} color={colors.accent} /> : null}
+                </Pressable>
+              ))}
+              {!cuisineMatches.length ? (
+                <Text style={{ fontSize: 13, color: colors.textSecondary, paddingVertical: 14 }}>{t('x.noResults')}</Text>
+              ) : null}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
     </Page>
   );
 }
@@ -876,25 +999,30 @@ function FilterSection({ title, children }: { title: string; children: React.Rea
   );
 }
 
-/** Memoised tile: list re-renders (scroll, filters, counters) skip untouched cards. */
 const RecipeTile = React.memo(function RecipeTile({
   recipe,
   onOpen,
   width,
   single,
+  quickReport,
+  onReport,
 }: {
   recipe: LibraryRecipe;
   onOpen: (recipe: LibraryRecipe) => void;
-  /** Fixed card width - keeps every tile the same size and the grid edges flush. */
+  
   width?: number;
-  /** One column layout (grouped view). */
+  
   single?: boolean;
+  
+  quickReport?: boolean;
+  onReport?: (recipe: LibraryRecipe) => void;
 }) {
   const diff = difficultyColor(recipe.difficulty);
   const cardWidth = single ? undefined : width;
   return (
     <Pressable
-      onPress={() => onOpen(recipe)}
+      onPress={() => (quickReport ? onReport?.(recipe) : onOpen(recipe))}
+      accessibilityLabel={quickReport ? translate('s.qrA11y') : undefined}
       style={({ pressed }) => [{ width: cardWidth ?? '100%' }, pressed && { opacity: 0.85 }]}
     >
       <GlassCard pad={0} radius={20} style={{ overflow: 'hidden', height: single ? undefined : 196 }}>

@@ -1,11 +1,5 @@
-/**
- * 3.1.2: `QrCodeView` — zeichnet einen QR-Code.
- *
- * Der Code entsteht offline: dieselbe ZXing-Datei, die schon für den Scanner
- * als Android-Asset liegt (android/app/src/main/assets/zxing.min.js), berechnet
- * die Matrix in einem unsichtbaren WebView. Gezeichnet wird die Matrix dann mit
- * react-native-svg — ohne Internet, ohne neue Bibliothek.
- */
+
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { WebView } from 'react-native-webview';

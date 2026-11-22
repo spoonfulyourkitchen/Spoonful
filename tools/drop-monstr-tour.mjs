@@ -1,7 +1,5 @@
-/**
- * 3.2.3: einmaliges Hilfsskript — entfernt die MONSTR-Schritte aus der Tour,
- * nachdem die MONSTR-Seite wieder aus der App genommen wurde.
- */
+
+
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const file = new URL('../mobile/src/lib/tutorial-steps.ts', import.meta.url);

@@ -1,34 +1,25 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, requireUserId, toError, type Session, type User } from './supabase';
 import { api, runOp, isRef, type FnRef } from './api';
 import { AUTH_REDIRECT_URL, RESET_REDIRECT_URL, initAuthLinkHandling } from './auth-link';
-
-/**
- * Supabase-backed replacement for the old `convex-auth` module.
- *
- * The rest of the app keeps importing the same names as before
- * (`ConvexAuthProvider`, `useQuery`, `useMutation`, `useAction`,
- * `useAuthActions`, `convexClient`, …) so screens did not need rewrites.
- */
+import { exitLocalTest, isLocalTestActive } from './local-test';
 
 export { supabase, api };
 
-/** Kept for backwards compatibility with old imports. */
 export const authStorage = AsyncStorage;
-
-/* ─── Auth context ──────────────────────────────────────────────────────── */
 
 type AuthValue = {
   session: Session | null;
   user: User | null;
   isLoading: boolean;
+  event: string | null;
   refresh: () => void;
 };
 
-const AuthContext = createContext<AuthValue>({ session: null, user: null, isLoading: true, refresh: () => {} });
+const AuthContext = createContext<AuthValue>({ session: null, user: null, isLoading: true, event: null, refresh: () => {} });
 
-/** Minimal refresh signal used by useQuery so lists re-sync after mutations. */
 let tick = 0;
 const tickSubs = new Set<() => void>();
 function bumpTick() {
@@ -47,14 +38,11 @@ export function refreshAllQueries() {
   bumpTick();
 }
 
-/**
- * Auth provider that wraps the whole app (drop-in for ConvexAuthProvider).
- * Exposes the session through context and re-renders on auth changes.
- */
 export function ConvexAuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authEvent, setAuthEvent] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -66,27 +54,30 @@ export function ConvexAuthProvider({ children }: { children: React.ReactNode }) 
           if (!alive) return;
           setSession(data.session);
           setUser(data.session?.user ?? null);
+          setAuthEvent(data.session ? 'INITIAL_SESSION' : null);
           setIsLoading(false);
         })
         .catch(() => {
           if (alive) setIsLoading(false);
         });
 
-      const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
+      const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
         if (!alive) return;
         setSession(next);
         setUser(next?.user ?? null);
+        setAuthEvent(event);
         setIsLoading(false);
-        bumpTick(); // signed in/out → all queries re-run against the right user
+        
+
+        if (!next?.user) clearQueryCache();
+        bumpTick();
       });
       return () => {
         alive = false;
         unlink();
         try {
           sub.subscription.unsubscribe();
-        } catch {
-          /* noop */
-        }
+        } catch {}
       };
     } catch (e) {
       console.warn('[spoonful] auth init failed', e instanceof Error ? e.message : e);
@@ -98,8 +89,8 @@ export function ConvexAuthProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   const value = useMemo<AuthValue>(
-    () => ({ session, user, isLoading, refresh: bumpTick }),
-    [session, user, isLoading],
+    () => ({ session, user, isLoading, event: authEvent, refresh: bumpTick }),
+    [session, user, isLoading, authEvent],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -109,13 +100,10 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
-/** Convex-compatible auth hook: { isAuthenticated, isLoading }. */
 export function useConvexAuth() {
-  const { session, isLoading } = useAuth();
-  return { isAuthenticated: !!session, isLoading };
+  const { session, isLoading, event } = useAuth();
+  return { isAuthenticated: !!session, isLoading, event };
 }
-
-/* ─── Query / mutation / action hooks (Convex-compatible) ──────────────── */
 
 function cacheKey(ref: any, args: any, uid: string | null): string {
   const key = ref?.key ?? (typeof ref === 'string' ? ref : '');
@@ -128,43 +116,46 @@ function cacheKey(ref: any, args: any, uid: string | null): string {
   return `${key}|${argPart}|${uid ?? 'anon'}`;
 }
 
-/**
- * useQuery(ref, args?) → returns the query result or `undefined` while it is
- * loading. It refetches on mount, on user/session change, on every refresh
- * tick (after a mutation, sign in/out or app foreground) — matching the
- * reactive behaviour the screens expect from Convex.
- */
+const queryCache = new Map<string, any>();
+
+function clearQueryCache() {
+  queryCache.clear();
+}
+
 export function useQuery(ref: any, args?: any): any {
   const { user } = useAuth();
   const uid = user?.id ?? null;
-  const [value, setValue] = useState<any>(undefined);
   const refreshTick = useSyncExternalStore(subscribeTick, getTick, getTick);
   const inFlight = useRef(false);
   const disposed = useRef(false);
   const key = cacheKey(ref, args, uid);
+  const [value, setValue] = useState<any>(() => (uid && ref ? queryCache.get(key) : undefined));
+  
+
+  const latest = useRef({ ref, args });
+  latest.current = { ref, args };
 
   useEffect(() => {
     disposed.current = false;
-    if (!uid || !ref) {
+    if (!uid || !latest.current.ref) {
       setValue(undefined);
       return;
     }
+    
+    const cached = queryCache.get(key);
+    if (cached !== undefined) setValue(cached);
     let retryTimer: any = null;
     let attempt = 0;
     const load = async () => {
       if (inFlight.current || disposed.current) return;
       inFlight.current = true;
       try {
-        const result = await runOp(ref, 'query', uid, args);
+        const result = await runOp(latest.current.ref, 'query', uid, latest.current.args);
+        queryCache.set(key, result);
         if (!disposed.current) setValue(result);
         attempt = 0;
       } catch (e) {
-        // Keep the screen usable: Convex used to throw into an error
-        // boundary here, but the offline cache + empty states handle this
-        // more gracefully for the user.
         console.warn('[spoonful] query failed', key, e instanceof Error ? e.message : e);
-        // A short network hiccup (cold start, wifi handover) should heal on its
-        // own instead of leaving the screen empty until the next app event.
         if (!disposed.current && attempt < 3) {
           attempt += 1;
           retryTimer = setTimeout(() => {
@@ -180,15 +171,11 @@ export function useQuery(ref: any, args?: any): any {
       disposed.current = true;
       if (retryTimer) clearTimeout(retryTimer);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, uid, refreshTick]);
 
   return value;
 }
-/**
- * useMutation(ref) → returns a function that runs the mutation and then bumps
- * the refresh tick so every mounted useQuery re-fetches.
- */
+
 export function useMutation(ref: any) {
   const { user } = useAuth();
   return useCallback(
@@ -202,12 +189,10 @@ export function useMutation(ref: any) {
         throw toError(e);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [ref, user?.id],
   );
 }
 
-/** useAction(ref) → like useMutation but for long-running server actions. */
 export function useAction(ref: any) {
   const { user } = useAuth();
   return useCallback(
@@ -219,11 +204,9 @@ export function useAction(ref: any) {
         throw toError(e);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [ref, user?.id],
   );
 }
-/* ─── Auth actions ──────────────────────────────────────────────────────── */
 
 export function useAuthActions() {
   const refresh = useAuth().refresh;
@@ -234,13 +217,29 @@ export function useAuthActions() {
   }, []);
 
   const signUp = useCallback(
-    async (opts: { email: string; password: string; name?: string; cookingExperience?: string }) => {
+    async (opts: {
+      email: string;
+      password: string;
+      name?: string;
+      cookingExperience?: string;
+      
+
+      ageConfirmed?: boolean;
+      termsAcceptedAt?: number;
+      healthConsentAt?: number;
+    }) => {
       try {
         const { data, error } = await supabase.auth.signUp({
           email: opts.email.trim().toLowerCase(),
           password: opts.password,
           options: {
-            data: { name: opts.name ?? '', cooking_experience: opts.cookingExperience ?? '' },
+            data: {
+              name: opts.name ?? '',
+              cooking_experience: opts.cookingExperience ?? '',
+              age_confirmed: opts.ageConfirmed ?? false,
+              terms_accepted_at: opts.termsAcceptedAt ?? null,
+              health_consent_at: opts.healthConsentAt ?? null,
+            },
             emailRedirectTo: AUTH_REDIRECT_URL,
           },
         });
@@ -276,7 +275,22 @@ export function useAuthActions() {
     }
   }, []);
 
-  /** Send an OTP / magic link to an email address. */
+  
+  
+
+  const signInWithGoogle = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: AUTH_REDIRECT_URL, skipBrowserRedirect: true },
+      });
+      if (error) throw error;
+      if (data?.url) await Linking.openURL(data.url);
+    } catch (e) {
+      throw toError(e);
+    }
+  }, []);
+
   const sendOtp = useCallback(async (email: string) => {
     try {
       const { error } = await supabase.auth.signInWithOtp({
@@ -307,7 +321,7 @@ export function useAuthActions() {
     [refresh],
   );
 
-  /** Send a password reset email (Supabase recovery link). */
+  
   const sendReset = useCallback(async (email: string) => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
@@ -319,7 +333,7 @@ export function useAuthActions() {
     }
   }, []);
 
-  /** Old convex-style compat: signIn('password', {flow:'signUp'|'signIn', …}). */
+  
   const signIn = useCallback(
     async (method: string, opts: any) => {
       if (method === 'password' && opts?.flow === 'signUp') {
@@ -337,6 +351,10 @@ export function useAuthActions() {
   );
 
   const signOut = useCallback(async () => {
+    if (isLocalTestActive()) {
+      await exitLocalTest();
+      return;
+    }
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
@@ -357,6 +375,7 @@ export function useAuthActions() {
     getSession,
     signUp,
     signInWithPassword,
+    signInWithGoogle,
     signIn,
     sendOtp,
     verifyOtp,
@@ -365,7 +384,7 @@ export function useAuthActions() {
     onAuthStateChange,
   };
 }
-/* ─── Drop-in for the old Convex client used by the offline queue ───────── */
+
 export const convexClient = {
   async mutation(ref: any, args?: any) {
     const result = await runOp(ref, 'mutation', null, args ?? {});
@@ -382,7 +401,4 @@ export const convexClient = {
 
 export type { FnRef };
 export { isRef };
-
-
-
 

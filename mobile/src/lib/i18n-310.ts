@@ -1,7 +1,5 @@
-/**
- * 3.1.0: Texte für Kochmodus advanced, Bild-Ausschnitt, Schritt-Foto-Diashow
- * und die Haushalts-Seite (20 Funktionen). Wird in i18n.tsx eingemischt.
- */
+
+
 export const APP_310: Record<string, Record<string, any>> = {
   de: {
     s: {

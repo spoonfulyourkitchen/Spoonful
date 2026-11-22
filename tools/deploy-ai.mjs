@@ -1,19 +1,5 @@
-/**
- * Deployt die Supabase-Funktion `ai` samt Secrets — in einem Befehl.
- *
- * Voraussetzung: ein **Personal Access Token** von Supabase
- *   Dashboard → Account → Access Tokens → „Generate new token“ (sbp_…)
- *
- * Einmalig setzen (PowerShell):
- *   $env:SUPABASE_ACCESS_TOKEN = "sbp_..."
- *
- * Dann:
- *   node tools/deploy-ai.mjs --secrets     # OpenRouter-Keys als Secrets setzen
- *   node tools/deploy-ai.mjs               # nur Funktion deployen
- *   node tools/deploy-ai.mjs --secrets --deploy
- *
- * Ohne Token läuft nichts — der Service-Role-Key reicht für Deploys NICHT aus.
- */
+
+
 import { readFileSync } from 'node:fs';
 
 const REF = 'gmfkleugoxafmvprqatk';
@@ -21,7 +7,6 @@ const DO_SECRETS = process.argv.includes('--secrets');
 const DO_DEPLOY = process.argv.includes('--deploy') || !DO_SECRETS;
 const API = `https://api.supabase.com/v1/projects/${REF}`;
 
-/** Token aus der Umgebung oder aus `.env.local` (git-ignoriert). */
 function accessToken() {
   if (process.env.SUPABASE_ACCESS_TOKEN) return process.env.SUPABASE_ACCESS_TOKEN.trim();
   try {
@@ -43,7 +28,6 @@ if (!TOKEN.startsWith('sbp_')) {
 
 const head = { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' };
 
-/** Keys aus .env.local und aus dem Bot sammeln (OPENROUTER_API_KEY … _24). */
 function collectSecrets() {
   const files = [new URL('../.env.local', import.meta.url), new URL('./recipe-bot/.env', import.meta.url)];
   const out = new Map();
@@ -80,11 +64,8 @@ if (DO_DEPLOY) {
   const indexSrc = readFileSync(new URL('index.ts', dir), 'utf8');
   const peakSrc = readFileSync(new URL('peak.ts', dir), 'utf8');
 
-  /**
-   * Die Management-API nimmt den Quelltext als **Text** (`body`), nicht als
-   * Dateiliste. Deshalb wird `peak.ts` beim Deploy in `index.ts` eingefügt —
-   * die Datei im Repo bleibt zum Testen trotzdem eigenständig.
-   */
+  
+
   const bundle = () => {
     const peakInline = peakSrc.replace(/^export\s+(?=(const|function|type|interface|async)\b)/gm, '');
     const importLine = /^import .*from '\.\/peak\.ts';\r?\n/m;

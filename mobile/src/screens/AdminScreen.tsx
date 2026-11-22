@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-/* 3.3.0: Meldungen im App-Design statt System-Dialog */
+
 import { Alert } from '../lib/alert';
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Flag, ListChecks, LogIn, MessageSquare, Rocket, Shield, Star, Trash2, UsersRound, XCircle } from 'lucide-react-native';
 import { useMutation, useQuery } from '../lib/convex-auth';
@@ -42,7 +42,6 @@ export function AdminScreen() {
   const pendingShares = useQuery((api.sharing as any).pendingShares);
   const reviewShare = useMutation((api.sharing as any).reviewShare);
   const setRole = useMutation(api.admin.setRole);
-  // 2.0.0: broadcast a one-time popup message to all users.
   const announcements = useQuery(api.announcement.list) as any[] | undefined;
   const sendAnnouncement = useMutation(api.announcement.send);
   const deactivateAnnouncement = useMutation(api.announcement.deactivate);
@@ -51,7 +50,7 @@ export function AdminScreen() {
   const [bBusy, setBBusy] = useState(false);
   const [bNote, setBNote] = useState<string | null>(null);
 
-  /* 2.1.4: "new update" notice - only users on an OLDER version see it. */
+  
   const updateNotices = useQuery(api.updates.list) as any[] | undefined;
   const updatesStatus = useQuery(api.updates.status) as any;
   const postUpdate = useMutation(api.updates.post);
@@ -118,14 +117,10 @@ export function AdminScreen() {
   const [openId, setOpenId] = useState<string | null>(null);
   const { t } = useTranslation();
 
-  /* 2.1.2: admin-only login feed (local notification + list, no data for users) */
-  const loginAlerts = useAdminLoginAlerts({
-    title: () => t('adminAlert.loginTitle'),
-    body: (name, device) =>
-      t('adminAlert.loginBody', { name, device, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }),
-  });
+  
 
-  // Mods get Reports/Feedback/Reviews but not the user-management area.
+  const loginAlerts = useAdminLoginAlerts();
+
   useEffect(() => {
     if (canModerate && !isAdmin && tab === 'Users') setTab('Reviews');
   }, [canModerate, isAdmin, tab]);
@@ -162,19 +157,19 @@ export function AdminScreen() {
   };
 
   const toggleUser = (u: any) => {
-    Alert.alert(u.role === 'admin' ? 'Remove admin' : 'Make admin', `${u.name} — change role?`, [
+    Alert.alert(u.role === 'admin' ? 'Remove admin' : 'Make admin', `${u.name} - change role?`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Confirm', onPress: () => { try { toggleAdmin({ targetUserId: u._id }); } catch { /* reactive */ } } },
+      { text: 'Confirm', onPress: () => { try { toggleAdmin({ targetUserId: u._id }); } catch {  } } },
     ]);
   };
 
   const chooseMod = (u: any, makeMod: boolean) => {
-    Alert.alert(makeMod ? 'Make moderator' : 'Remove as moderator', `${u.name} — ${makeMod ? 'can review recipes, reports and feedback' : 'loses moderation rights'}?`, [
+    Alert.alert(makeMod ? 'Make moderator' : 'Remove as moderator', `${u.name} - ${makeMod ? 'can review recipes, reports and feedback' : 'loses moderation rights'}?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: makeMod ? 'Make mod' : 'Remove',
         style: makeMod ? 'default' : 'destructive',
-        onPress: () => { try { void setRole({ userId: u._id, role: makeMod ? 'mod' : 'user' }); } catch { /* reactive */ } },
+        onPress: () => { try { void setRole({ userId: u._id, role: makeMod ? 'mod' : 'user' }); } catch {  } },
       },
     ]);
   };
@@ -186,7 +181,7 @@ export function AdminScreen() {
     ]);
   };
 
-  const safe = (fn: any) => { try { fn(); } catch { /* reactive */ } };
+  const safe = (fn: any) => { try { fn(); } catch {  } };
 
   return (
     <Page>
@@ -285,14 +280,14 @@ export function AdminScreen() {
                         <Pressable onPress={() => setRejectId(null)} style={({ pressed }) => [{ flex: 1, borderRadius: 12, paddingVertical: 11, alignItems: 'center', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder, opacity: pressed ? 0.7 : 1 }]}>
                           <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>{t('common.cancel')}</Text>
                         </Pressable>
-                        <Pressable onPress={() => { try { void reviewShare({ sharedRecipeId: s._id, approve: false, reason: rejectReason ?? 'other', note: rejectNote.trim() }); setRejectId(null); setRejectNote(''); setRejectReason(null); } catch { /* reactive */ } }} style={({ pressed }) => [{ flex: 2, borderRadius: 12, paddingVertical: 11, alignItems: 'center', backgroundColor: colors.rose, opacity: pressed ? 0.85 : 1 }]}>
+                        <Pressable onPress={() => { try { void reviewShare({ sharedRecipeId: s._id, approve: false, reason: rejectReason ?? 'other', note: rejectNote.trim() }); setRejectId(null); setRejectNote(''); setRejectReason(null); } catch {  } }} style={({ pressed }) => [{ flex: 2, borderRadius: 12, paddingVertical: 11, alignItems: 'center', backgroundColor: colors.rose, opacity: pressed ? 0.85 : 1 }]}>
                           <Text style={{ color: readableText(colors.rose), fontWeight: '800' }}>{t('s.adminRejectShare')}</Text>
                         </Pressable>
                       </View>
                     </View>
                   ) : (
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-                      <Pressable onPress={() => { try { void reviewShare({ sharedRecipeId: s._id, approve: true }); } catch { /* reactive */ } }} style={({ pressed }) => [{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, paddingVertical: 11, backgroundColor: colors.successBg, opacity: pressed ? 0.8 : 1 }]}>
+                      <Pressable onPress={() => { try { void reviewShare({ sharedRecipeId: s._id, approve: true }); } catch {  } }} style={({ pressed }) => [{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, paddingVertical: 11, backgroundColor: colors.successBg, opacity: pressed ? 0.8 : 1 }]}>
                         <CheckCircle2 size={15} color={colors.success} />
                         <Text style={{ color: colors.success, fontWeight: '800' }}>{t('s.adminApprove')}</Text>
                       </Pressable>
@@ -309,7 +304,7 @@ export function AdminScreen() {
         ) : tab === 'Mods' ? (
           <>
             <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 }}>{t('s.adminChooseMods')}</Text>
-            <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginBottom: 10 }}>Moderators can approve community recipes and see reports & feedback — but not user management.</Text>
+            <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginBottom: 10 }}>Moderators can approve community recipes and see reports & feedback - but not user management.</Text>
             {users === undefined ? (
               <Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: 20 }}>{t('s.adminLoadUsers')}</Text>
             ) : (users as any[]).length === 0 ? (
@@ -447,7 +442,7 @@ export function AdminScreen() {
                     <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: colors.textPrimary }} numberOfLines={1}>{r.recipeTitle || r.recipeKey}</Text>
                     <Text style={{ fontSize: 11, color: r.status === 'open' ? colors.rose : colors.textSecondary, textTransform: 'uppercase' }}>{r.status}</Text>
                   </View>
-                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 6 }}>{r.reason}{r.message ? ` — ${r.message}` : ''}</Text>
+                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 6 }}>{r.reason}{r.message ? ` - ${r.message}` : ''}</Text>
                   <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>{r.reporterName} · {r.reporterEmail || 'no email'}</Text>
                   {r.status === 'open' ? (
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
@@ -461,7 +456,6 @@ export function AdminScreen() {
           </>
         ) : tab === 'Logins' ? (
           <>
-            {/* 2.1.2: who signed in - admins only (empty list for everyone else) */}
             <GlassCard pad={14} radius={18}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <LogIn size={16} color={colors.accent} />
@@ -486,21 +480,23 @@ export function AdminScreen() {
               ) : null}
             </GlassCard>
 
-            {loginAlerts.events.length === 0 ? (
+            {!loginAlerts.loaded ? (
+              <Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: 12 }}>{t('common.loading')}</Text>
+            ) : loginAlerts.events.length === 0 ? (
               <Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: 12 }}>{t('adminAlert.empty')}</Text>
             ) : (
               loginAlerts.events.map((e) => (
                 <GlassCard key={e.id} pad={13} radius={16} style={{ opacity: e.seen ? 0.62 : 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: colors.textPrimary }}>
-                      {e.name || e.email || '—'}
+                      {e.name || e.email || '-'}
                     </Text>
                     {e.seen ? null : (
                       <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent }} />
                     )}
                   </View>
                   <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 3 }}>
-                    {`${t('adminAlert.device')}: ${e.device || '—'}${e.platform ? ` · ${e.platform}` : ''}${e.appVersion ? ` · v${e.appVersion}` : ''}`}
+                    {`${t('adminAlert.device')}: ${e.device || '-'}${e.platform ? ` · ${e.platform}` : ''}${e.appVersion ? ` · v${e.appVersion}` : ''}`}
                   </Text>
                   <Text style={{ fontSize: 11.5, color: colors.textMuted, marginTop: 2 }}>
                     {e.at ? new Date(e.at).toLocaleString() : ''}
@@ -511,7 +507,6 @@ export function AdminScreen() {
           </>
         ) : tab === 'Broadcast' ? (
           <>
-            {/* 2.1.4: update box on top - older versions get the popup on every start */}
             <GlassCard pad={16} radius={20}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Rocket size={16} color={colors.accent} />

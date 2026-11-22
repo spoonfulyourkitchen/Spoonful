@@ -1,37 +1,29 @@
-#!/usr/bin/env python3
-"""
-Spoonful - Video Advertisement Script
-A React Native cooking/recipe app advertisement.
 
-This script creates a structured video advertisement that explains the Spoonful app features.
-It can be used with video editing tools or AI video generation platforms.
-"""
 
 import enum
 from dataclasses import dataclass
 from typing import List
 
 class Scene(enum.IntEnum):
-    """Video scenes for the Spoonful advertisement."""
-    INTRO = 0       # Hook: "A calmer kitchen"
-    PROBLEM = 1     # Fridge staring, "What should I cook?"
-    AI_CHEF = 2     # AI Chef feature
-    RECIPES = 3     # Recipe library
-    TRACKING = 4    # Calorie tracker
-    SHELF = 5       # Saved recipes & shopping list
-    CTA = 6         # Call to action: "Get started for free"
+    
+    INTRO = 0
+    PROBLEM = 1
+    AI_CHEF = 2
+    RECIPES = 3
+    TRACKING = 4
+    SHELF = 5
+    CTA = 6
 
 @dataclass
 class SceneDescription:
-    """Description of a video scene."""
+    
     number: int
     title: str
-    duration: float  # seconds
-    visuals: str     # What's shown on screen
-    voiceover: str   # Narrated text
-    on_screen_text: str  # Text overlay
+    duration: float
+    visuals: str
+    voiceover: str
+    on_screen_text: str
 
-# Define all advertisement scenes
 SCENES: List[SceneDescription] = [
     SceneDescription(
         number=1,
@@ -92,7 +84,7 @@ SCENES: List[SceneDescription] = [
 ]
 
 def generate_script_text() -> str:
-    """Generate the full video script as formatted text."""
+    
     lines = []
     lines.append("=" * 60)
     lines.append("SPOONFUL - VIDEO ADVERTISEMENT SCRIPT")
@@ -135,9 +127,8 @@ def generate_script_text() -> str:
 
     return "\n".join(lines)
 
-
 def generate_telepromprompter() -> str:
-    """Generate a simplified teleprompter view for recording."""
+    
     lines = []
     lines.append("=" * 60)
     lines.append("SPOONFUL - TELEPROMPTER")
@@ -154,7 +145,6 @@ def generate_telepromprompter() -> str:
     lines.append("=" * 60)
 
     return "\n".join(lines)
-
 
 if __name__ == "__main__":
     print(generate_script_text())

@@ -1,34 +1,8 @@
 import { configureTutorial, type TutorialStep } from './tutorial';
 import { navigate } from '../navigation/rootRef';
 
-/**
- * Spoonful onboarding tour — rebuilt in 2.1.2, extended in 3.2.1.
- *
- * Every step is real: the user taps the element the pointer shows and the tour
- * advances by itself (the engine listens to `tutorialAction`). Steps marked
- * `newIn: 4` are only shown to people who already finished an older tour, so
- * nobody has to walk the whole thing twice.
- *
- * Copy exists in all 10 app languages (English is the last fallback only).
- *
- * How to add a step
- * -----------------
- * 1. register a target in the screen:   const tFoo = useTutorialTarget('tut-foo')
- *                                       → <Pressable ref={tFoo.ref} onPress={tFoo.onPress} />
- *    For fields/lists notify the engine:
- *      onChangeText={(v) => { setX(v); tutorialAction('tut-foo'); }}
- *      onScroll={() => tutorialAction('tut-foo')}
- * 2. add an entry below (unique id, targetId = registered id)
- *      expect: 'tap' | 'input' | 'scroll' | 'observe'
- *      before: () => navigate('Main', { screen: 'Shopping' })  // run before showing
- *      focus : () => ref.current?.scrollTo(...)                // bring into view
- *      allowContinue: true -> also offer a "Next" button
- *      newIn : 4           -> only shown to users who finished an older tour
- * 3. raise TOUR_VERSION so everyone sees the new step.
- */
-export const TOUR_VERSION = 4;
+export const TOUR_VERSION = 5;
 
-/** Switch to a bottom tab before the step is shown. */
 const openTab = (screen: string) => () => navigate('Main' as any, { screen } as any);
 
 export const TOUR_STEPS: TutorialStep[] = [
@@ -295,6 +269,83 @@ export const TOUR_STEPS: TutorialStep[] = [
       ru: 'Рецепты других: читать, готовить, оценивать и публиковать свои. Нажмите вкладку.',
     },
   },
+  {
+    id: 'ai-generate',
+    targetId: 'tut-ai-generate',
+    expect: 'tap',
+    before: openTab('Assistant'),
+    padding: 8,
+    newIn: 5,
+    title: {
+      en: 'Try the AI Chef', de: 'Probier den KI-Koch', ar: 'جرّب الشيف الذكي', fr: 'Essaie le Chef IA',
+      es: 'Prueba el Chef IA', it: 'Prova il Chef IA', tr: 'Yapay zeka sefi dene',
+      pt: 'Experimenta o Chef IA', nl: 'Probeer de AI-chef', ru: 'Попробуйте ИИ-повара',
+    },
+    text: {
+      en: 'Three ingredients are already filled in. Tap Generate once and watch the recipe appear as a popup.',
+      de: 'Drei Zutaten sind schon eingetragen. Tippe einmal auf Generieren und schau, wie das Rezept als Popup erscheint.',
+      ar: 'ثلاثة مكوّنات جاهزة. اضغط «توليد» مرة واحدة وشاهد الوصفة تظهر كنافذة.',
+      fr: 'Trois ingredients sont deja remplis. Appuie une fois sur Generer et la recette apparait en fenetre.',
+      es: 'Ya hay tres ingredientes puestos. Pulsa Generar una vez y la receta aparece como ventana.',
+      it: 'Tre ingredienti sono gia inseriti. Tocca Genera una volta e la ricetta appare come finestra.',
+      tr: 'Uc malzeme hazir. Bir kez Olustur a dokun ve tarifin pencere olarak acildigini gor.',
+      pt: 'Tres ingredientes ja estao preenchidos. Toca em Gerar uma vez e a receita aparece numa janela.',
+      nl: 'Drie ingredienten staan al klaar. Tik een keer op Genereren en het recept verschijnt als popup.',
+      ru: 'Три ингредиента уже заполнены. Нажмите «Создать» один раз, и рецепт появится во всплывающем окне.',
+    },
+  },
+  {
+    id: 'community-feed',
+    targetId: 'tut-community-feed',
+    expect: 'observe',
+    allowContinue: true,
+    before: openTab('Community'),
+    padding: 10,
+    newIn: 5,
+    title: {
+      en: 'The community feed', de: 'Der Community-Feed', ar: 'موجز المجتمع', fr: 'Le fil de la communaute',
+      es: 'El feed de la comunidad', it: 'Il feed della community', tr: 'Topluluk akisi',
+      pt: 'O feed da comunidade', nl: 'De community-feed', ru: 'Лента сообщества',
+    },
+    text: {
+      en: 'Swipe a card left or right to flip through recipes. A tap opens the full recipe, and you can cook it right away.',
+      de: 'Wische eine Karte nach links oder rechts, um durch die Rezepte zu blättern. Ein Tipp öffnet das ganze Rezept, und du kannst direkt nachkochen.',
+      ar: 'اسحب البطاقة يميناً أو يساراً للتنقل بين الوصفات، وانقر لفتح الوصفة كاملة والطبخ مباشرة.',
+      fr: 'Glisse une carte a gauche ou a droite pour parcourir les recettes. Un appui ouvre la recette complete.',
+      es: 'Desliza una tarjeta a izquierda o derecha para pasar recetas. Un toque abre la receta completa.',
+      it: 'Scorri una scheda a sinistra o a destra per sfogliare le ricette. Un tocco apre la ricetta intera.',
+      tr: 'Kartlari saga sola kaydirarak tarifler arasinda gez. Dokununca tarifin tamami acilir.',
+      pt: 'Desliza um cartao para a esquerda ou direita para ver receitas. Um toque abre a receita completa.',
+      nl: 'Veeg een kaart naar links of rechts om door recepten te bladeren. Een tik opent het hele recept.',
+      ru: 'Смахивайте карточку влево или вправо, чтобы листать рецепты. Нажатие открывает рецепт целиком.',
+    },
+  },
+  {
+    id: 'tracker-barcode',
+    targetId: 'tut-barcode',
+    expect: 'observe',
+    allowContinue: true,
+    before: openTab('Tracker'),
+    padding: 10,
+    newIn: 5,
+    title: {
+      en: 'Barcode scanner', de: 'Barcode-Scanner', ar: 'ماسح الباركود', fr: 'Scanner de codes',
+      es: 'Escaner de codigos', it: 'Scanner barcode', tr: 'Barkod tarayici',
+      pt: 'Leitor de codigos', nl: 'Barcodescanner', ru: 'Сканер штрихкодов',
+    },
+    text: {
+      en: 'Press and hold this button in the tracker to scan a package. The camera opens, point it at the code and the values land in your day.',
+      de: 'Halte diesen Button im Tracker gedrückt, um eine Packung zu scannen. Die Kamera öffnet sich, du hältst auf den Code, und die Werte landen in deinem Tag.',
+      ar: 'اضغط مطولاً على هذا الزر في المتابعة لمسح عبوة. تفتح الكاميرا، وجّهها إلى الرمز، وتصل القيم إلى يومك.',
+      fr: 'Maintiens ce bouton dans le suivi pour scanner un paquet. La camera s ouvre, vise le code, les valeurs arrivent dans ta journee.',
+      es: 'Manten pulsado este boton en el seguimiento para escanear un paquete. La camara se abre y los valores llegan a tu dia.',
+      it: 'Tieni premuto questo pulsante nel tracker per scansionare una confezione. La fotocamera si apre e i valori finiscono nella giornata.',
+      tr: 'Bir paketi taramak icin takipte bu dugmeye uzun bas. Kamera acilir, kodu goster, degerler gunune islenir.',
+      pt: 'Mantem este botao premido no registo para ler uma embalagem. A camara abre e os valores entram no teu dia.',
+      nl: 'Houd deze knop ingedrukt in de tracker om een pakket te scannen. De camera opent en de waarden komen in je dag.',
+      ru: 'Удерживайте эту кнопку в трекере, чтобы отсканировать упаковку. Камера откроется, наведите на код, значения попадут в день.',
+    },
+  },
       {
     id: 'done',
     expect: 'observe',
@@ -320,27 +371,6 @@ export const TOUR_STEPS: TutorialStep[] = [
 
 configureTutorial({ version: TOUR_VERSION, steps: TOUR_STEPS });
 
-/**
- * Targets used by this tour (all of them are registered by the screens):
- *
- *  tut-tab-Library, tut-tab-Assistant, tut-tab-Saved, tut-tab-Shopping,
- *  tut-tab-Tracker, tut-tab-Community, tut-tab-Household
- *                                                        (navigation/RootTabs)
- *  tut-library-search, tut-library-card                 (LibraryScreen)
- *  tut-detail-save, tut-detail-back, tut-detail-ingredients (RecipeDetailScreen)
- *  tut-shopping-add, tut-shopping-extras                (ShoppingScreen)
- *  tut-barcode, tut-portion                             (TrackerExtras / FoodPortionSheet)
- *  tut-community-feed, tut-community-publish            (CommunityScreen)
- *
- * The last block is used by optional steps: copy the block below, give it a
- * unique id, set `newIn: TOUR_VERSION` so only users with an older tour see it,
- * and register the step again in TOUR_STEPS.
- *
- *   { id: 'tracker-barcode', targetId: 'tut-barcode', expect: 'tap', allowContinue: true,
- *     newIn: 4,
- *     title: { en: 'Scan products', de: 'Produkte scannen', ar: 'امسح المنتجات' },
- *     text:  { en: '…', de: '…', ar: '…' } }
- */
 export const OPTIONAL_STEP_TARGETS = [
   'tut-barcode',
   'tut-portion',

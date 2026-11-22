@@ -1,16 +1,12 @@
-/**
- * Spoonful 2.0.0 feature strings (onboarding, seasonal, "what can I cook",
- * filter presets, sharing, household). Kept in its own module so the main
- * dictionary stays readable; merged into `translations` by i18n.tsx.
- *
- * Placeholders are avoided on purpose (t() has no interpolation) - counts are
- * composed in the screens.
- */
+
+
 export type FeatDict = Record<string, Record<string, string>>;
 
 const en: FeatDict = {
   onb: {
-    welcome: 'Welcome to Spoonful', intro: 'Three quick questions and your kitchen is ready.',
+    planReady: 'Your plan is ready', planReadyDesc: 'Create an account so your plan and recipes stay.',
+    welcome: 'Welcome to Spoonful', intro: '16 quick questions and your kitchen is ready.',
+    nameTitle: 'What is your name?', nameBody: 'So Spoonful knows who is cooking.', namePh: 'Your name',
     skip: 'Skip', next: 'Continue', back: 'Back', finish: 'Start cooking',
     goalTitle: 'What is your goal?', goalDesc: 'We use this for your daily calorie target.',
     lose: 'Lose weight', keep: 'Stay balanced', gain: 'Build muscle',
@@ -44,7 +40,9 @@ expStarted: 'Just started', exp1to2: '1-2 years', exp3to5: '3-5 years', exp5plus
 
 const de: FeatDict = {
   onb: {
-    welcome: 'Willkommen bei Spoonful', intro: 'Drei kurze Fragen, dann ist deine Küche bereit.',
+    planReady: 'Dein Plan steht', planReadyDesc: 'Erstelle ein Konto, damit dein Plan und deine Rezepte bleiben.',
+    welcome: 'Willkommen bei Spoonful', intro: '16 kurze Fragen, dann ist deine Küche bereit.',
+    nameTitle: 'Wie heißt du?', nameBody: 'Damit Spoonful weiß, wer am Herd steht.', namePh: 'Dein Name',
     skip: 'Überspringen', next: 'Weiter', back: 'Zurück', finish: 'Los kochen',
     goalTitle: 'Was ist dein Ziel?', goalDesc: 'Daraus berechnen wir deinen Tagesbedarf.',
     lose: 'Abnehmen', keep: 'Gewicht halten', gain: 'Muskeln aufbauen',
@@ -78,7 +76,9 @@ expStarted: 'Gerade angefangen', exp1to2: '1-2 Jahre', exp3to5: '3-5 Jahre', exp
 
 const fr: FeatDict = {
   onb: {
-    welcome: 'Bienvenue sur Spoonful', intro: 'Trois questions rapides et votre cuisine est prête.',
+    planReady: 'Votre plan est prêt', planReadyDesc: 'Créez un compte pour garder votre plan et vos recettes.',
+    welcome: 'Bienvenue sur Spoonful', intro: '16 questions rapides et votre cuisine est prête.',
+    nameTitle: 'Comment vous appelez-vous ?', nameBody: 'Pour que Spoonful sache qui cuisine.', namePh: 'Votre nom',
     skip: 'Passer', next: 'Continuer', back: 'Retour', finish: 'Cuisiner',
     goalTitle: 'Quel est votre objectif ?', goalDesc: 'Nous en déduisons vos besoins du jour.',
     lose: 'Perdre du poids', keep: 'Rester équilibré', gain: 'Prendre du muscle',
@@ -112,7 +112,9 @@ expStarted: 'Débutant', exp1to2: '1-2 ans', exp3to5: '3-5 ans', exp5plus: '5 an
 
 const es: FeatDict = {
   onb: {
-    welcome: 'Bienvenido a Spoonful', intro: 'Tres preguntas rápidas y tu cocina está lista.',
+    planReady: 'Tu plan está listo', planReadyDesc: 'Crea una cuenta para conservar tu plan y tus recetas.',
+    welcome: 'Bienvenido a Spoonful', intro: '16 preguntas rápidas y tu cocina está lista.',
+    nameTitle: '¿Cómo te llamas?', nameBody: 'Para que Spoonful sepa quién cocina.', namePh: 'Tu nombre',
     skip: 'Omitir', next: 'Continuar', back: 'Atrás', finish: 'A cocinar',
     goalTitle: '¿Cuál es tu objetivo?', goalDesc: 'Con esto calculamos tus calorías diarias.',
     lose: 'Perder peso', keep: 'Mantener el peso', gain: 'Ganar músculo',
@@ -146,7 +148,9 @@ expStarted: 'Empezando', exp1to2: '1-2 años', exp3to5: '3-5 años', exp5plus: '
 
 const it: FeatDict = {
   onb: {
-    welcome: 'Benvenuto in Spoonful', intro: 'Tre domande veloci e la cucina è pronta.',
+    planReady: 'Il tuo piano è pronto', planReadyDesc: 'Crea un account per tenere piano e ricette.',
+    welcome: 'Benvenuto in Spoonful', intro: '16 domande veloci e la cucina è pronta.',
+    nameTitle: 'Come ti chiami?', nameBody: 'Così Spoonful sa chi cucina.', namePh: 'Il tuo nome',
     skip: 'Salta', next: 'Continua', back: 'Indietro', finish: 'Inizia a cucinare',
     goalTitle: 'Qual è il tuo obiettivo?', goalDesc: 'Da qui calcoliamo il tuo fabbisogno.',
     lose: 'Perdere peso', keep: 'Mantenere', gain: 'Aumentare massa',
@@ -180,7 +184,9 @@ expStarted: 'Appena iniziato', exp1to2: '1-2 anni', exp3to5: '3-5 anni', exp5plu
 
 const tr: FeatDict = {
   onb: {
-    welcome: "Spoonful'a hoş geldin", intro: 'Üç kısa soru, mutfağın hazır.',
+    planReady: 'Planın hazır', planReadyDesc: 'Planın ve tariflerin kalsın diye hesap oluştur.',
+    welcome: "Spoonful'a hoş geldin", intro: '16 kısa soru, mutfağın hazır.',
+    nameTitle: 'Sana ne diyelim?', nameBody: 'Spoonful kimin pişirdiğini bilsin.', namePh: 'Adın',
     skip: 'Atla', next: 'Devam', back: 'Geri', finish: 'Pişirmeye başla',
     goalTitle: 'Hedefin ne?', goalDesc: 'Günlük kalori hedefini buna göre hesaplıyoruz.',
     lose: 'Kilo vermek', keep: 'Dengede kalmak', gain: 'Kas kazanmak',
@@ -214,7 +220,9 @@ expStarted: 'Yeni başladım', exp1to2: '1-2 yıl', exp3to5: '3-5 yıl', exp5plu
 
 const pt: FeatDict = {
   onb: {
-    welcome: 'Bem-vindo ao Spoonful', intro: 'Três perguntas rápidas e a sua cozinha está pronta.',
+    planReady: 'O seu plano está pronto', planReadyDesc: 'Crie uma conta para manter o plano e as receitas.',
+    welcome: 'Bem-vindo ao Spoonful', intro: '16 perguntas rápidas e a sua cozinha está pronta.',
+    nameTitle: 'Como podemos chamar você?', nameBody: 'Para o Spoonful saber quem cozinha.', namePh: 'O seu nome',
     skip: 'Saltar', next: 'Continuar', back: 'Voltar', finish: 'Começar a cozinhar',
     goalTitle: 'Qual é o seu objetivo?', goalDesc: 'Usamos isto para o seu alvo de calorias.',
     lose: 'Perder peso', keep: 'Manter o peso', gain: 'Ganhar músculo',
@@ -248,7 +256,9 @@ expStarted: 'A começar', exp1to2: '1-2 anos', exp3to5: '3-5 anos', exp5plus: '5
 
 const nl: FeatDict = {
   onb: {
-    welcome: 'Welkom bij Spoonful', intro: 'Drie korte vragen en je keuken staat klaar.',
+    planReady: 'Je plan staat', planReadyDesc: 'Maak een account zodat je plan en recepten blijven.',
+    welcome: 'Welkom bij Spoonful', intro: '16 korte vragen en je keuken staat klaar.',
+    nameTitle: 'Hoe mogen we je noemen?', nameBody: 'Zodat Spoonful weet wie er kookt.', namePh: 'Je naam',
     skip: 'Overslaan', next: 'Doorgaan', back: 'Terug', finish: 'Begin met koken',
     goalTitle: 'Wat is je doel?', goalDesc: 'Hiermee berekenen we je dagelijkse behoefte.',
     lose: 'Afvallen', keep: 'Op gewicht blijven', gain: 'Spiermassa opbouwen',
@@ -282,14 +292,16 @@ expStarted: 'Net begonnen', exp1to2: '1-2 jaar', exp3to5: '3-5 jaar', exp5plus: 
 
 const ru: FeatDict = {
   onb: {
-    welcome: 'Добро пожаловать в Spoonful', intro: 'Три коротких вопроса — и кухня готова.',
+    planReady: 'Ваш план готов', planReadyDesc: 'Создайте аккаунт, чтобы план и рецепты сохранились.',
+    welcome: 'Добро пожаловать в Spoonful', intro: '16 коротких вопросов - и кухня готова.',
+    nameTitle: 'Как вас зовут?', nameBody: 'Чтобы Spoonful знал, кто готовит.', namePh: 'Ваше имя',
     skip: 'Пропустить', next: 'Далее', back: 'Назад', finish: 'Начать готовить',
     goalTitle: 'Какая у вас цель?', goalDesc: 'По этому считаем дневную норму калорий.',
     lose: 'Похудеть', keep: 'Держать вес', gain: 'Набрать мышцы',
     dietTitle: 'Как вы питаетесь?', dietDesc: 'Рецепты фильтруются соответственно.',
     none: 'Без предпочтений', vegetarian: 'Вегетарианское', vegan: 'Веганское', pescatarian: 'Пескетарианское',
     halal: 'Халяль', kosher: 'Кошерное', glutenFree: 'Без глютена', lactoseFree: 'Без лактозы',
-    allergyTitle: 'Есть аллергии?', allergyDesc: 'Аллергены исключаем строго — безопасность важнее.',
+    allergyTitle: 'Есть аллергии?', allergyDesc: 'Аллергены исключаем строго - безопасность важнее.',
     nuts: 'Орехи', milk: 'Молоко', gluten: 'Глютен', eggs: 'Яйца', soy: 'Соя', fish: 'Рыба', shellfish: 'Морепродукты',
 expStarted: 'Только начал', exp1to2: '1-2 года', exp3to5: '3-5 лет', exp5plus: '5+ лет', expPro: 'Профессионал',
         expTitle: 'Как давно вы готовите?', expDesc: 'Определяет подробность ответов AI-шефа.',
@@ -297,33 +309,35 @@ expStarted: 'Только начал', exp1to2: '1-2 года', exp3to5: '3-5 л
   },
   feat: {
     inSeason: 'Сезонное сейчас', whatCanICook: 'Что я могу приготовить?',
-    whatCanICookHint: 'Введите то, что есть, — покажем лучшие варианты.',
+    whatCanICookHint: 'Введите то, что есть, - покажем лучшие варианты.',
     pantryPlaceholder: 'яйца, рис, помидор', findRecipes: 'Найти рецепты',
     matchPercent: 'совпадение', youHave: 'у вас есть', missing: 'не хватает', haveAll: 'Ничего не хватает',
     groupByTime: 'Группировать по времени', savePreset: 'Сохранить фильтры', applyPreset: 'Применить фильтры',
     deletePreset: 'Удалить', searchEverything: 'Искать везде',
     fromMine: 'Из моих рецептов', fromSaved: 'Из сохранённых', fromLibrary: 'Из библиотеки',
     shareRecipe: 'Поделиться рецептом', inviteFamily: 'Пригласить семью',
-    inviteDesc: 'Готовьте и покупайте вместе — список общий.',
+    inviteDesc: 'Готовьте и покупайте вместе - список общий.',
     household: 'Домашние', joinHousehold: 'Войти по коду', joinHint: 'Введите код из 8 знаков',
     members: 'Участники', leaveHousehold: 'Покинуть группу',
   },
   shop: { prices: 'Цены', total: 'Итого', haveIt: 'Есть', needIt: 'Купить', have: 'Дома', need: 'Купить', multi: 'Отметить несколько', selectAll: 'Все', done: 'Готово', course: 'Подача', starter: 'Закуска', main: 'Основное', dessert: 'Десерт', side: 'Гарнир', drink: 'Напиток', other: 'Другое', quickAddHint: 'Введите «2 кг помидоров», чтобы добавить с количеством.', noPrice: 'Без цены', shareList: 'Поделиться списком' },
   hh: { title: 'Домашние', desc: 'Поделитесь списком с семьёй или соседями.', create: 'Создать группу', invite: 'Создать код приглашения', code: 'Код приглашения', join: 'Присоединиться', joinHint: 'Введите код приглашения', members: 'Участники', leave: 'Покинуть группу', leaveConfirm: 'Покинуть группу?', owner: 'Владелец', member: 'Участник', shareText: 'Присоединяйся к моей группе Spoonful по этому коду' },
-  shr: { share: 'Поделиться рецептом', missing: 'не хватает', addMissing: 'Добавить недостающее', added: 'Добавлено в список', fix: 'Предложить лучший перевод', fixHint: 'Как бы вы написали?', thanks: 'Спасибо — мы проверим.', },
+  shr: { share: 'Поделиться рецептом', missing: 'не хватает', addMissing: 'Добавить недостающее', added: 'Добавлено в список', fix: 'Предложить лучший перевод', fixHint: 'Как бы вы написали?', thanks: 'Спасибо - мы проверим.', },
   x: { water: 'Вода', waterGoal: 'Дневная норма воды', trend: 'Динамика веса', adjustGoal: 'Скорректировать цель', adjustHint: 'С учётом динамики мы советуем', searchFood: 'Найти продукт', searchHint: 'напр. греческий йогурт', barcode: 'Штрихкод', noResults: 'Ничего не найдено', logIt: 'Добавить', per100g: 'на 100 г', challenges: 'Кулинарные челленджи', newChallenge: 'Новый челлендж', challengeTitle: 'Название челленджа', join: 'Участвовать', entries: 'участия', repost: 'Поделиться', block: 'Заблокировать', near: 'Рядом со мной', region: 'Мой регион', scanPhoto: 'Распознать с фото', multiUpload: 'Несколько фото' },
 };
 
 const ar: FeatDict = {
   onb: {
-    welcome: 'مرحبًا بك في Spoonful', intro: 'ثلاثة أسئلة سريعة ويجهز مطبخك.',
+    planReady: 'خطتك جاهزة', planReadyDesc: 'أنشئ حسابًا لتبقى خطتك ووصفاتك.',
+    welcome: 'مرحبًا بك في Spoonful', intro: '16 سؤالًا سريعًا ويجهز مطبخك.',
+    nameTitle: 'بماذا نناديك؟', nameBody: 'ليعرف Spoonful من يطبخ.', namePh: 'اسمك',
     skip: 'تخطٍ', next: 'متابعة', back: 'رجوع', finish: 'ابدأ الطبخ',
     goalTitle: 'ما هدفك؟', goalDesc: 'نستخدم هذا لحساب هدف السعرات اليومي.',
     lose: 'خسارة الوزن', keep: 'الحفاظ على التوازن', gain: 'بناء العضلات',
     dietTitle: 'كيف تأكل؟', dietDesc: 'نُصفّي الوصفات لتناسب اختيارك.',
     none: 'بدون تفضيل', vegetarian: 'نباتي', vegan: 'نباتي صرف', pescatarian: 'سمكي',
     halal: 'حلال', kosher: 'كوشير', glutenFree: 'بدون غلوتين', lactoseFree: 'بدون لاكتوز',
-    allergyTitle: 'هل لديك حساسية؟', allergyDesc: 'نستبعد المسببات بشكل صارم — السلامة أولًا.',
+    allergyTitle: 'هل لديك حساسية؟', allergyDesc: 'نستبعد المسببات بشكل صارم - السلامة أولًا.',
     nuts: 'المكسرات', milk: 'الحليب', gluten: 'الغلوتين', eggs: 'البيض', soy: 'الصويا', fish: 'السمك', shellfish: 'القشريات',
     expTitle: 'منذ متى تطبخ؟', expDesc: 'يحدد مستوى تفصيل الشيف الذكي.',
     expStarted: 'بدأت للتو', exp1to2: '١-٢ سنة', exp3to5: '٣-٥ سنوات', exp5plus: 'أكثر من ٥ سنوات', expPro: 'احترافي',
@@ -331,12 +345,12 @@ const ar: FeatDict = {
   },
   feat: {
     inSeason: 'في الموسم الآن', whatCanICook: 'ماذا أستطيع الطبخ؟',
-    whatCanICookHint: 'اكتب ما لديك — وسنعرض الأنسب.', pantryPlaceholder: 'بيض، أرز، طماطم',
+    whatCanICookHint: 'اكتب ما لديك - وسنعرض الأنسب.', pantryPlaceholder: 'بيض، أرز، طماطم',
     findRecipes: 'ابحث عن وصفات', matchPercent: 'تطابق', youHave: 'لديك', missing: 'ناقص', haveAll: 'لا ينقص شيء',
     groupByTime: 'تجميع حسب الوقت', savePreset: 'حفظ الفلاتر', applyPreset: 'استخدم الفلاتر',
     deletePreset: 'حذف', searchEverything: 'ابحث في الكل', fromMine: 'من وصفاتي', fromSaved: 'من المحفوظات',
     fromLibrary: 'من المكتبة', shareRecipe: 'شارك الوصفة', inviteFamily: 'ادعُ العائلة',
-    inviteDesc: 'اطبخوا واشتروا معًا — قائمة التسوّق مشتركة.',
+    inviteDesc: 'اطبخوا واشتروا معًا - قائمة التسوّق مشتركة.',
     household: 'المنزل', joinHousehold: 'انضم بالرمز', joinHint: 'أدخل رمز الدعوة', members: 'الأعضاء',
     leaveHousehold: 'اترك المنزل',
   },
@@ -354,7 +368,7 @@ const ar: FeatDict = {
   },
   shr: {
     share: 'شارك الوصفة', missing: 'ناقص', addMissing: 'أضف الناقص للقائمة', added: 'أُضيف إلى قائمتك',
-    fix: 'اقترح ترجمة أفضل', fixHint: 'ماذا كنت ستكتب بدلًا منها؟', thanks: 'شكرًا — سنراجعها.',
+    fix: 'اقترح ترجمة أفضل', fixHint: 'ماذا كنت ستكتب بدلًا منها؟', thanks: 'شكرًا - سنراجعها.',
   },
   x: {
     water: 'الماء', waterGoal: 'هدف الماء اليومي', trend: 'اتجاه الوزن', adjustGoal: 'عدّل هدفي',
@@ -367,7 +381,5 @@ const ar: FeatDict = {
 };
 
 export const FEATURES: Record<string, FeatDict> = { en, de, ar, fr, es, it, tr, pt, nl, ru };
-
-
 
 export default FEATURES;

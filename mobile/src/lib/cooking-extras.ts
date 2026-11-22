@@ -1,10 +1,5 @@
-/**
- * Kochmodus-Extras (3.0.0)
- *
- * Speichert lokale Zusatzinfos pro Rezept: Notizen je Schritt (Nr. 16),
- * übersprungene Schritte (Nr. 4), Schritt-Fotos (Nr. 17), Startzeit für den
- * Soll/Ist-Vergleich (Nr. 25) und das zweite Gericht im Parallel-Modus (Nr. 12).
- */
+
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type StepExtras = {
@@ -17,18 +12,11 @@ export type StepExtras = {
 
 export const EMPTY_EXTRAS: StepExtras = { notes: {}, skipped: [], photos: {} };
 
-/**
- * 3.0.0: alles pro **Konto** (Nutzer-ID) getrennt - Notizen, übersprungene
- * Schritte und besonders die Schritt-Fotos. Wechselt jemand das Konto auf
- * demselben Gerät, sieht er nur seine eigenen Fotos. Nichts davon geht in
- * den Haushalt oder in die Cloud.
- */
 const scope = (userId?: string | null) => (userId && userId.length ? userId : 'local');
 const extrasKey = (userId: string, recipeKey: string) => `spoonful:cook-extras:${scope(userId)}:${recipeKey}`;
 const secondKey = (userId: string) => `spoonful:cook-second:${scope(userId)}`;
 const lastActiveKey = (userId: string, recipeKey: string) => `spoonful:cook-last-active:${scope(userId)}:${recipeKey}`;
 
-/** Wie viele Schritt-Fotos pro Rezept gespeichert werden (Speicher schonen). */
 export const MAX_STEP_PHOTOS = 6;
 
 export async function loadExtras(userId: string | undefined, recipeKey: string): Promise<StepExtras> {
@@ -52,12 +40,9 @@ export async function saveExtras(userId: string | undefined, recipeKey: string, 
   try {
     const photos = trimPhotos(data.photos);
     await AsyncStorage.setItem(extrasKey(userId ?? '', recipeKey), JSON.stringify({ ...data, photos, updatedAt: Date.now() }));
-  } catch {
-    /* Speichern darf nie stören */
-  }
+  } catch {}
 }
 
-/** höchstens MAX_STEP_PHOTOS Bilder behalten (älteste zuerst raus) */
 function trimPhotos(photos: Record<string, string>): Record<string, string> {
   const keys = Object.keys(photos);
   if (keys.length <= MAX_STEP_PHOTOS) return photos;
@@ -67,13 +52,10 @@ function trimPhotos(photos: Record<string, string>): Record<string, string> {
   return out;
 }
 
-/** Zeitpunkt der letzten Aktivität (für "Wo war ich?" – Nr. 10). */
 export async function markLastActive(userId: string | undefined, recipeKey: string): Promise<void> {
   try {
     await AsyncStorage.setItem(lastActiveKey(userId ?? '', recipeKey), String(Date.now()));
-  } catch {
-    /* egal */
-  }
+  } catch {}
 }
 
 export async function lastActiveAt(userId: string | undefined, recipeKey: string): Promise<number | null> {
@@ -86,7 +68,6 @@ export async function lastActiveAt(userId: string | undefined, recipeKey: string
   }
 }
 
-/* ── Zweites Gericht parallel kochen (Nr. 12) ─────────────────────────────── */
 export type SecondRecipe = {
   recipeKey: string;
   title: string;
@@ -117,7 +98,5 @@ export async function saveSecondRecipe(userId: string | undefined, recipe: Secon
   try {
     if (!recipe) await AsyncStorage.removeItem(secondKey(userId ?? ''));
     else await AsyncStorage.setItem(secondKey(userId ?? ''), JSON.stringify(recipe));
-  } catch {
-    /* egal */
-  }
+  } catch {}
 }

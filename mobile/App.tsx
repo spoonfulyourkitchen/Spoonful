@@ -5,13 +5,17 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ConvexAuthProvider, useConvexAuth, useQuery } from './src/lib/convex-auth';
+import { useLocalTestStage } from './src/lib/local-test';
+import { ProfileRefreshGate } from './src/components/ProfileRefreshGate';
 import { api } from './src/lib/api';
 import { I18nProvider } from './src/lib/i18n';
 import { AppNoticeHost } from './src/components/AppNotice';
 import { requestNotifications, applyReminders } from './src/lib/notifications';
 import { colors, fonts, getThemeId, subscribeTheme, applyTheme, loadStoredThemeId } from './src/theme';
 import { hydrateOfflineCaches } from './src/lib/offline';
+import { hydrateLocalOnboarded, useLocalOnboarded } from './src/lib/onboarding';
 import { hydrateShoppingLocal } from './src/lib/shopping-local';
+import { hydrateTrackerLocal } from './src/lib/tracker-local';
 import { useRecoveryPending } from './src/lib/recovery';
 import { navigationRef } from './src/navigation/rootRef';
 import type { RootStackParamList } from './src/navigation/types';
@@ -23,16 +27,17 @@ import { BarcodeHost } from './src/components/BarcodeHost';
 import { useSharedVideoLink } from './src/lib/share-target';
 import { navigate } from './src/navigation/rootRef';
 import { AnnouncementGate } from './src/components/AnnouncementGate';
+import { AdminAlertsGate } from './src/components/AdminAlertsGate';
 import { UpdateGate } from './src/components/UpdateGate';
 import { TutorialGate } from './src/components/TutorialGate';
+import { ReviewGate } from './src/components/ReviewGate';
 import { logLoginEvent } from './src/lib/admin-login';
 import { hydrateCrashLog, installGlobalErrorHandler, recordError } from './src/lib/crash-log';
 import { translate, tryReloadApp } from './src/lib/i18n';
 
-// 3.2.2: globale JS-Fehler mitprotokollieren (Absturz-Spur für die Einstellungen).
 installGlobalErrorHandler();
 
-import { SpoonfulLogo as Logo } from './src/components/Logo';
+import { SpoonfulLogoPlain as Logo } from './src/components/Logo';
 
 import { LandingScreen } from './src/screens/LandingScreen';
 import { AuthScreen } from './src/screens/AuthScreen';
@@ -51,8 +56,8 @@ import { AdminScreen } from './src/screens/AdminScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-function useThemeId(): string {
-  return useSyncExternalStore(subscribeTheme, getThemeId, getThemeId);
+function useThemeTick(): void {
+  useSyncExternalStore(subscribeTheme, getThemeId, getThemeId);
 }
 
 function Splash() {
@@ -60,18 +65,11 @@ function Splash() {
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }}>
       <Logo size={72} />
       <Text style={{ fontFamily: fonts.display, fontSize: 22, fontWeight: '800', color: colors.textPrimary, marginTop: 10, letterSpacing: -0.3 }}>spoonful</Text>
-      <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 8 }}>Flipping through the recipe book…</Text>
+      <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 8 }}>{translate('common.loading')}</Text>
     </View>
   );
 }
 
-/**
- * Catches render errors so one screen can never kill the whole app.
- *
- * 3.2.2: Der Fehler landet im Absturz-Protokoll (`lib/crash-log.ts`, sichtbar
- * unter Einstellungen → Letzte Fehler) und der Nutzer kann neu starten, statt
- * nur „nochmal" zu tippen.
- */
 class CrashBoundary extends Component<{ children: React.ReactNode }, { error: string | null }> {
   state = { error: null as string | null };
   static getDerivedStateFromError(error: unknown) {
@@ -85,7 +83,7 @@ class CrashBoundary extends Component<{ children: React.ReactNode }, { error: st
       return (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, paddingHorizontal: 28 }}>
           <Text style={{ fontSize: 17, fontWeight: '700', color: colors.textPrimary, textAlign: 'center' }}>{translate('s.xCrashTitle')}</Text>
-          <Text style={{ fontSize: 12, color: colors.textSecondary, textAlign: 'center', marginTop: 6 }}>{this.state.error}</Text>
+          <Text style={{ fontSize: 13, lineHeight: 20, color: colors.textSecondary, textAlign: 'center', marginTop: 6 }}>{translate('s.errBody')}</Text>
           <Text style={{ fontSize: 11, color: colors.textSecondary, textAlign: 'center', marginTop: 10 }}>
             {translate('s.xCrashSaved')}
           </Text>
@@ -115,13 +113,16 @@ function PublicStack() {
 }
 
 function SignedInStack() {
-  // Ask once (Android 13+) so the app can notify about AI Chef results etc.
   useEffect(() => {
-    void requestNotifications();
-    void applyReminders();
+    void (async () => {
+      const want = await AsyncStorage.getItem('spoonful:want-reminders').catch(() => null);
+      if (want === '0') return;
+      await requestNotifications().catch(() => {});
+      await applyReminders().catch(() => {});
+    })();
   }, []);
 
-  /* 3.2.0: Link aus dem Teilen-Menü (TikTok/Instagram/YouTube) -> AI Chef */
+  
   useSharedVideoLink((url) => {
     navigate('Main', { screen: 'Assistant' } as any);
     void url;
@@ -142,31 +143,35 @@ function SignedInStack() {
         <Stack.Screen name="RecipeForm" component={RecipeFormScreen} options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="Cooking" component={CookingScreen} options={{ animation: 'fade' }} />
       </Stack.Navigator>
-      {/* 3.1.0: Popup für den Bild-Ausschnitt - überall verfügbar */}
+      {}
       <PhotoCropHost />
-      {/* 3.2.0: Barcode-Scanner von überall (z. B. langes Drücken auf den Tracker-Tab) */}
+      {}
       <BarcodeHost />
     </AppShellProvider>
   );
 }
 
 function RootNavigator() {
-  const { isAuthenticated, isLoading } = useConvexAuth();
+  const { isAuthenticated, isLoading, event } = useConvexAuth();
+  const localOnboarded = useLocalOnboarded();
   const recoveryPending = useRecoveryPending();
   const profile = useQuery(api.users.currentUser) as any;
+  const localTestStage = useLocalTestStage();
   const [themeLoaded, setThemeLoaded] = useState(false);
   const [cachedSession, setCachedSession] = useState(false);
   const [sessionHydrated, setSessionHydrated] = useState(false);
   const [authWaitOver, setAuthWaitOver] = useState(false);
   const SESSION_KEY = 'spoonful:session';
-  /** 2.1.2: the admin feed gets exactly one row per app start. */
+  
   const loginLogged = React.useRef(false);
 
   useEffect(() => {
     let alive = true;
     void hydrateOfflineCaches(['mine', 'saved', 'tracker', 'shopping']);
     void hydrateShoppingLocal();
+    void hydrateTrackerLocal();
     void hydrateCrashLog();
+    void hydrateLocalOnboarded();
     AsyncStorage.getItem(SESSION_KEY).then((v) => {
       if (alive) {
         setCachedSession(v === '1');
@@ -179,33 +184,29 @@ function RootNavigator() {
         setThemeLoaded(true);
       }
     }).catch(() => {
-      // Never leave the app stuck on the splash screen.
       if (alive) setThemeLoaded(true);
     });
     return () => { alive = false; };
   }, []);
 
-  // Remember that a signed-in session exists, so a later offline launch can
-  // skip the auth spinner instead of being stuck on the loading screen.
   useEffect(() => {
     if (isLoading) return;
     if (isAuthenticated) {
       setCachedSession(true);
       void AsyncStorage.setItem(SESSION_KEY, '1').catch(() => {});
-      // 2.1.2: admins get a "somebody signed in" entry - once per app start.
       if (!loginLogged.current) {
         loginLogged.current = true;
         void logLoginEvent();
       }
-    } else {
+      return;
+    }
+    if (event === 'SIGNED_OUT') {
       setCachedSession(false);
       void AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
       loginLogged.current = false;
     }
-  }, [isAuthenticated, isLoading]);
+  }, [isAuthenticated, isLoading, event]);
 
-  // If Convex Auth never resolves (e.g. no network at launch), stop waiting
-  // after a few seconds and fall back to the cached session / public stack.
   useEffect(() => {
     if (!isLoading) return;
     const timer = setTimeout(() => setAuthWaitOver(true), 4500);
@@ -216,29 +217,20 @@ function RootNavigator() {
     return <Splash />;
   }
 
-  const signedIn = isAuthenticated || (authWaitOver && cachedSession);
+  const signedIn = isAuthenticated || cachedSession || localTestStage === 'active';
   if (isAuthenticated && recoveryPending) {
     return <ResetPasswordScreen />;
   }
-  // 2.0.0 first-start onboarding: three quick questions, skipped only once.
-  if (isAuthenticated && profile && !profile.onboardedAt) {
+  if (isAuthenticated && profile && !profile.onboardedAt && !localOnboarded) {
     return <OnboardingScreen />;
   }
   return signedIn ? <SignedInStack key="signed" /> : <PublicStack key="public" />;
 }
 
 export default function App() {
-  const themeId = useThemeId();
-  /**
-   * 3.3.0: Tastatur.
-   *
-   * Die App läuft Edge-to-Edge (`edgeToEdgeEnabled=true` bzw. ab Android 15
-   * ohnehin erzwungen) — dadurch wirkt `adjustResize` aus dem Manifest nicht
-   * mehr und die Tastatur legte sich über die Eingabefelder. Deshalb schiebt
-   * jetzt eine eigene `KeyboardAvoidingView` den Inhalt hoch (Android:
-   * `height`, iOS: `padding`). Dialoge haben zusätzlich ihre eigene
-   * KeyboardAvoidingView, weil sie in einem eigenen Fenster liegen.
-   */
+  useThemeTick();
+  
+
   return (
     <SafeAreaProvider>
       <I18nProvider>
@@ -247,22 +239,27 @@ export default function App() {
             style={{ flex: 1 }}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           >
-            <NavigationContainer ref={navigationRef} key={themeId}>
+            <NavigationContainer ref={navigationRef}>
               <CrashBoundary>
                 <RootNavigator />
               </CrashBoundary>
             </NavigationContainer>
           </KeyboardAvoidingView>
-          {/* 3.3.0: gestaltete Meldungen statt System-Dialoge */}
+          {}
           <AppNoticeHost />
-          {/* email confirmation: banner while the mail cannot be sent, lock afterwards */}
+          {}
           <VerifyGate />
-          {/* one-time popup message from the admin panel */}
+          {}
           <AnnouncementGate />
-          {/* 2.1.4: "new update" popup - shown on every start while the version is older */}
+          {}
           <UpdateGate />
-          {/* interactive in-app tour: new users right away, existing users once */}
+          {}
+          <AdminAlertsGate />
+          {}
           <TutorialGate />
+          <ReviewGate />
+          {}
+          <ProfileRefreshGate />
         </ConvexAuthProvider>
       </I18nProvider>
     </SafeAreaProvider>

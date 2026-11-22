@@ -85,8 +85,8 @@ Jeder Punkt nennt den konkreten Weg, damit die Liste etwas wert ist.
 65. ✅ Monstr: letzter Stand erscheint sofort aus dem Zwischenspeicher.
 66. ✅ Video-Rezept: Beschreibung und Untertitel getrennt, und die App sagt,
    woher der Text kam („Aus dem Video-Text zusammengestellt").
-67. ⬜ Video-Rezept: „Text einfügen"-Feld als letzter Ausweg.
-68. ⬜ Video-Rezept: Zwischenspeicher pro Link (derselbe Link = sofort da).
+67. ✅ Video-Rezept: „Text einfügen"-Feld als letzter Ausweg.
+68. ✅ Video-Rezept: Zwischenspeicher pro Link (derselbe Link = sofort da).
 69. ⬜ Instagram/TikTok: bei Login-Sperre ehrlich sagen, warum es nicht geht.
 70. ✅ `withTimeout`/`fetchText` (mit Abbruch) für Anfragen — nichts hängt mehr.
 71. ✅ **Offline-Anzeige mit Anzahl**: „Offline · 3 Änderungen warten".
@@ -118,7 +118,7 @@ Jeder Punkt nennt den konkreten Weg, damit die Liste etwas wert ist.
 89. ✅ Tests laufen wirklich: **55 automatische Prüfungen** (Preise, Video-Text,
    Bild-Ausschnitt, Bildgrößen, Zeitlimits, Absturz-Protokoll).
 90. ✅ `tsc --noEmit` und `eslint --quiet` laufen fehlerfrei durch.
-91. ✅ Prüfskripte: `tools/video-check.mjs`, `tools/monstr-check.mjs`.
+91. ✅ Prüfskripte: `tools/check-version.mjs`, `tools/check-text-encoding.mjs`, `tools/check-apk-secrets.mjs` (keine Geheimnisse im Paket), `tools/check-apk-build.mjs` (Hermes-Bundle, keine Polyfills, native Libs), `tools/video-check.mjs`, `tools/translate-guides.mjs` (Bibliothek auf Englisch halten).
 92. ✅ Prüf-Routine vor jeder Version steht in der README (Typen + Tests + Lint).
 93. ⬜ Ein echtes Gerät mit wenig Speicher (2–3 GB) als Testgerät festlegen.
 94. ⬜ Google Play „Pre-launch report" / Crash-Liste lesen.

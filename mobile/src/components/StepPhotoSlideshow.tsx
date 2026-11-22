@@ -1,10 +1,5 @@
-/**
- * 3.1.0: Diashow der eigenen Schritt-Fotos.
- *
- * Zeigt alle Schritt-Fotos, die der Nutzer für ein Rezept gespeichert hat -
- * pro Bild der Schritt ("Schritt 4") und das Bild selbst. Wichtig: die Fotos
- * liegen **nur beim eigenen Konto** (siehe lib/cooking-extras.ts).
- */
+
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, PanResponder, Pressable, ScrollView, Text, View } from 'react-native';
 import { Camera, ChevronLeft, ChevronRight, X } from 'lucide-react-native';
@@ -16,7 +11,6 @@ import { CroppedImage } from './CroppedImage';
 
 export type StepPhoto = { step: number; uri: string };
 
-/** Lädt die Schritt-Fotos eines Rezepts für dieses Konto. */
 export function useStepPhotos(recipeKey: string, userId?: string | null): { ready: boolean; photos: StepPhoto[] } {
   const [ready, setReady] = useState(false);
   const [photos, setPhotos] = useState<StepPhoto[]>([]);
@@ -54,7 +48,6 @@ export function useStepPhotos(recipeKey: string, userId?: string | null): { read
   return { ready, photos };
 }
 
-/** Vorschaustreifen - öffnet die Diashow. */
 export function StepPhotoStrip({
   photos,
   onOpen,
@@ -85,7 +78,6 @@ export function StepPhotoStrip({
   );
 }
 
-/** Vollbild-Diashow: wischen oder tippen, mit Schritt-Nummer und Schritt-Text. */
 export function StepPhotoSlideshow({
   visible,
   photos,

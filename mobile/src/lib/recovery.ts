@@ -1,9 +1,5 @@
 import { useSyncExternalStore } from 'react';
 
-/**
- * Global flag: the user followed a password-reset link (spoonful://reset) and
- * now has a recovery session, so the app shows the "set new password" screen.
- */
 let pending = false;
 const listeners = new Set<() => void>();
 

@@ -7,15 +7,6 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import java.util.Locale
 
-/**
- * 3.3.0: Vorlesen (Text-to-Speech) für den Kochmodus.
- *
- * Bewusst als kleines eigenes Modul statt als Fremdbibliothek: die App nutzt nur
- * `speak(text, lang)` und `stop()` und bleibt damit unabhängig von zusätzlichen
- * Abhängigkeiten. Die Sprachausgabe läuft über den Android-Systemdienst; ist er
- * nicht vorhanden, meldet `available()` schlicht `false` und die App zeigt den
- * Knopf gar nicht erst an.
- */
 class TtsModule(private val context: ReactApplicationContext) :
   ReactContextBaseJavaModule(context) {
 
@@ -35,7 +26,7 @@ class TtsModule(private val context: ReactApplicationContext) :
     promise.resolve(ready)
   }
 
-  /** `lang` ist ein BCP-47-Tag (z. B. "de-DE", "ar", "en-US"). */
+  
   @ReactMethod
   fun speak(text: String, lang: String, promise: Promise) {
     val engine = tts

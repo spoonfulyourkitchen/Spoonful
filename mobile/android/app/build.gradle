@@ -82,8 +82,8 @@ android {
         applicationId "com.spoonful"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 16
-        versionName "3.3.1"
+        versionCode 28
+        versionName "3.7.0"
     }
     signingConfigs {
         debug {
@@ -109,10 +109,23 @@ android {
         release {
             // Uses the upload key when configured; debug is only a local fallback.
             signingConfig project.hasProperty('MYAPP_UPLOAD_STORE_FILE') ? signingConfigs.release : signingConfigs.debug
-            minifyEnabled enableProguardInReleaseBuilds
+            minifyEnabled false
+            shrinkResources false
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
     }
+    /**
+     * 3.3.3: **keine** ABI-Splits.
+     *
+     * `splits { abi { … } }` liefert statt `app-release.apk` plötzlich
+     * `app-arm64-v8a-release.apk`, `app-universal-release.apk` und so weiter —
+     * jedes Skript, das auf `app-release.apk` wartet, greift dann auf eine alte
+     * Datei zu (genau das ist beim 3.3.3-Versuch passiert). Außerdem braucht ein
+     * per USB/Sideload installiertes Paket alle ABIs.
+     *
+     * Kleinere Downloads pro Gerät bekommt man über das **App Bundle** (`.aab`,
+     * wird mitgebaut) — Play liefert daraus automatisch nur die passende ABI.
+     */
 }
 
 dependencies {

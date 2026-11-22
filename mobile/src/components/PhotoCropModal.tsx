@@ -1,17 +1,5 @@
-/**
- * 3.2.1: Popup zum Festlegen des Bild-Ausschnitts — neu gebaut.
- *
- * Was jetzt geht (genau das, was gewünscht war):
- *  - Man sieht das **komplette Bild** (nicht mehr nur einen Ausschnitt).
- *  - Der **Rahmen** (das, was später angezeigt wird) lässt sich mit einem
- *    Finger **frei über das Bild schieben**.
- *  - Mit **zwei Fingern** lässt sich das Bild **vergrößern/verkleinern**
- *    (wie in anderen Apps); die Stelle unter den Fingern bleibt dabei stehen.
- *  - Gespeichert bleibt „Fokuspunkt + Zoom", deshalb stimmt der Ausschnitt in
- *    jeder Rahmengröße (Karte, Kopfbereich, Diashow).
- *
- * Gespeichert wird über `lib/photo-crop.ts`; angezeigt über `<CroppedImage />`.
- */
+
+
 import React, { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
 import { Image, LayoutChangeEvent, Modal, PanResponder, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { Check, Minus, Move, Plus, RotateCcw, X } from 'lucide-react-native';
@@ -20,9 +8,8 @@ import { colors, fonts, rgbaHelper } from '../theme';
 import { useTranslation } from '../lib/i18n';
 import { cropFromFrame, DEFAULT_CROP, registerPhotoCrop, type PhotoCrop } from '../lib/photo-crop';
 
-/** Seitenverhältnis des Rahmens (Breite : Höhe) - wie die Rezept-Karten. */
 const FRAME_ASPECT = 1.6;
-/** Wie weit man höchstens hineinzoomen kann (relativ zur Vollbild-Anzeige). */
+
 const MAX_PINCH = 6;
 
 type Frame = { x: number; y: number; w: number; h: number };
@@ -54,7 +41,7 @@ export function PhotoCropHost() {
     if (resolve) resolve(result);
   }, []);
 
-  /* ── Größen ─────────────────────────────────────────────────────────────── */
+  
   const stageW = Math.max(200, Math.round(width - 68));
   const stageH = Math.round(stageW * 1.02);
 
@@ -62,7 +49,7 @@ export function PhotoCropHost() {
   const [frame, setFrame] = useState<Frame>({ x: 0, y: 0, w: 0, h: 0 });
   const [view, setView] = useState<ImgView>({ s: 1, ox: 0, oy: 0 });
 
-  /** Kleinstes erlaubtes Maß: das ganze Bild passt genau in die Bühne. */
+  
   const imgPxW = imgSize?.w ?? 0;
   const imgPxH = imgSize?.h ?? 0;
   const minScale = useCallback(
@@ -70,7 +57,7 @@ export function PhotoCropHost() {
     [imgPxW, imgPxH, stageW, stageH],
   );
 
-  /** Startwerte: ganzes Bild sichtbar, Rahmen mittig und groß. */
+  
   const resetView = useCallback(() => {
     if (!imgPxW || !imgPxH) return;
     const s = Math.min(stageW / imgPxW, stageH / imgPxH);
@@ -88,7 +75,7 @@ export function PhotoCropHost() {
     setView({ s, ox: rectX, oy: rectY });
   }, [imgPxW, imgPxH, stageW, stageH]);
 
-  /* Bildgröße holen (API + das geladene Bild als Reserve). */
+  
   useEffect(() => {
     if (!state?.uri) {
       setImgSize(null);
@@ -103,9 +90,7 @@ export function PhotoCropHost() {
         },
         () => undefined,
       );
-    } catch {
-      /* onLoad unten übernimmt */
-    }
+    } catch {}
     return () => {
       alive = false;
     };
@@ -115,14 +100,14 @@ export function PhotoCropHost() {
     resetView();
   }, [resetView, state?.uri]);
 
-  /* ── Gesten: 1 Finger = Rahmen schieben, 2 Finger = zoomen ───────────────── */
+  
   const frameRef = useRef(frame);
   frameRef.current = frame;
   const viewRef = useRef(view);
   viewRef.current = view;
   const imgRef = useRef(imgSize);
   imgRef.current = imgSize;
-  /** Position der Bühne auf dem Bildschirm (um Finger-Punkte umzurechnen). */
+  
   const originRef = useRef({ x: 0, y: 0 });
   const stageBoxRef = useRef<ComponentRef<typeof View> | null>(null);
   const onStageLayout = (e: LayoutChangeEvent) => {
@@ -133,9 +118,7 @@ export function PhotoCropHost() {
       stageBoxRef.current?.measureInWindow?.((x: number, y: number) => {
         originRef.current = { x, y };
       });
-    } catch {
-      /* Notnagel: dann wird eben ohne Ursprung gerechnet */
-    }
+    } catch {}
   };
 
   const gesture = useRef({
@@ -149,7 +132,7 @@ export function PhotoCropHost() {
     view0: { s: 1, ox: 0, oy: 0 } as ImgView,
   });
 
-  /** Bildgrenzen in Bühnen-Koordinaten (damit der Rahmen im Bild bleibt). */
+  
   const imageBounds = () => {
     const img = imgRef.current;
     const v = viewRef.current;
@@ -189,7 +172,6 @@ export function PhotoCropHost() {
         const touches = e.nativeEvent.touches as any as { pageX: number; pageY: number }[];
         const mode = gesture.current.mode;
         const wantPinch = touches.length >= 2;
-        // Finger dazu oder weg: Basis neu setzen, damit nichts springt.
         if ((wantPinch && mode !== 'pinch') || (!wantPinch && mode === 'pinch')) {
           beginGesture(touches, g.dx, g.dy);
           return;
@@ -203,7 +185,6 @@ export function PhotoCropHost() {
           const base = gesture.current.view0;
           const low = minScale();
           const next = clamp((base.s * dist) / gesture.current.dist0, low, low * MAX_PINCH);
-          // Die Bildstelle unter der Finger-Mitte bleibt stehen.
           const px = (gesture.current.mid0.x - origin.x - base.ox) / base.s;
           const py = (gesture.current.mid0.y - origin.y - base.oy) / base.s;
           const nextView = { s: next, ox: mid.x - px * next, oy: mid.y - py * next };
@@ -212,7 +193,6 @@ export function PhotoCropHost() {
           return;
         }
 
-        // Ein Finger: Rahmen innerhalb des Bildes verschieben.
         const f = frameRef.current;
         const bounds = imageBounds();
         const x = clamp(gesture.current.frameX + (g.dx - gesture.current.dx0), bounds.left, Math.max(bounds.left, bounds.right - f.w));
@@ -230,7 +210,7 @@ export function PhotoCropHost() {
     }),
   ).current;
 
-  /* Zoom-Knöpfe (für alle, die nicht kneifen wollen) - zoomen um die Rahmenmitte. */
+  
   const zoomBy = (factor: number) => {
     const low = minScale();
     const v = viewRef.current;
@@ -243,12 +223,12 @@ export function PhotoCropHost() {
     setView(nextView);
   };
 
-  /* ── Rahmen -> gespeicherter Ausschnitt ──────────────────────────────────── */
+  
   const toCrop = (): PhotoCrop => {
     const img = imgSize;
     if (!img?.w || !img?.h || !frame.w || !view.s) return { ...DEFAULT_CROP };
-    /* 3.3.0: Bildgröße mitgeben — damit sitzt der Ausschnitt später exakt,
-       auch wenn die Anzeige die Größe nicht nachladen kann (data-URL). */
+    
+
     return { ...cropFromFrame({ frame, view, imageW: img.w, imageH: img.h }), iw: img.w, ih: img.h };
   };
 
@@ -289,7 +269,6 @@ export function PhotoCropHost() {
           </View>
           <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 4 }}>{t('s.cropHint')}</Text>
 
-          {/* Bühne: das GANZE Bild, darüber der bewegliche Rahmen */}
           <View
             ref={stageBoxRef}
             {...pan.panHandlers}
@@ -320,13 +299,11 @@ export function PhotoCropHost() {
               />
             ) : null}
 
-            {/* Dunkle Bereiche außerhalb des Rahmens */}
             <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, height: Math.max(0, frame.y), backgroundColor: 'rgba(0,0,0,0.55)' }} />
             <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: frame.y + frame.h, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)' }} />
             <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: frame.y, width: Math.max(0, frame.x), height: frame.h, backgroundColor: 'rgba(0,0,0,0.55)' }} />
             <View pointerEvents="none" style={{ position: 'absolute', left: frame.x + frame.w, right: 0, top: frame.y, height: frame.h, backgroundColor: 'rgba(0,0,0,0.55)' }} />
 
-            {/* Rahmen + Raster + Griff */}
             <View
               pointerEvents="none"
               style={{
@@ -366,7 +343,6 @@ export function PhotoCropHost() {
             {t('s.cropPinch')}
           </Text>
 
-          {/* Zoom-Steuerung */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
             <Pressable
               onPress={() => zoomBy(1 / 1.25)}
@@ -397,7 +373,6 @@ export function PhotoCropHost() {
             </Pressable>
           </View>
 
-          {/* Kontrolle: dasselbe Bild klein, mit der Markierung wie später */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 }}>
             <View style={{ width: miniW, height: miniH, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.surfaceMuted }}>
               {state ? <Image source={{ uri: state.uri }} resizeMode="stretch" style={{ width: miniW, height: miniH, opacity: 0.5 }} /> : null}
@@ -444,6 +419,4 @@ export function PhotoCropHost() {
 }
 
 export default PhotoCropHost;
-
-
 

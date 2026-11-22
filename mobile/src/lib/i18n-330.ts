@@ -1,10 +1,5 @@
-/**
- * 3.3.0: fehlende Schlüssel + neue Texte des 3.3.0-Updates in 10 Sprachen.
- *
- * Falls ein Schlüssel hier (und in den anderen Wörterbüchern) fehlt, zeigt die
- * App nicht mehr den rohen Schlüssel an, sondern einen lesbaren Ersatz
- * (siehe `humanizeKey` in `i18n.tsx`).
- */
+
+
 type Dict = Record<string, any>;
 const en: Dict = {
   shopping: {

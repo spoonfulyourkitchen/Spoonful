@@ -1,21 +1,4 @@
--- Spoonful 2.1.4 — version-gated update notices ("new update" box in the admin panel)
---
--- Run once in the Supabase SQL editor (project gmfkleugoxafmvprqatk).
---
--- How it works
---   * the admin posts a notice with the NEW version (e.g. 2.1.4) and the GitHub
---     release link,
---   * `latest_update_notice(p_client_version)` only returns it when the client is
---     OLDER than that version — users who already updated get nothing,
---   * the app shows it as a popup with an "Open the release" button. The popup
---     comes back on EVERY app start while the version is older, and disappears
---     on its own once the user has updated (newer clients get an empty result).
---
--- NOTE: if the app reports "Could not find the function
--- public.post_update_notice in the schema cache", this script has not been run
--- (or was run before this file was saved). Run the whole file and the reload at
--- the end refreshes the PostgREST schema cache; alternatively use
--- Dashboard → Project Settings → API → "Reload schema cache".
+
 
 create table if not exists public.update_notices (
   id          bigserial primary key,
@@ -32,7 +15,6 @@ create index if not exists update_notices_active_idx on public.update_notices (a
 
 alter table public.update_notices enable row level security;
 
--- everyone may read; only admins may write
 drop policy if exists update_notices_read on public.update_notices;
 create policy update_notices_read on public.update_notices for select using (true);
 
@@ -40,7 +22,6 @@ drop policy if exists update_notices_admin_write on public.update_notices;
 create policy update_notices_admin_write on public.update_notices
   for all using (public.is_admin()) with check (public.is_admin());
 
--- 1) compare two dotted versions: version_gt('2.1.4', '2.1.3') -> true ----------
 create or replace function public.version_gt(p_a text, p_b text)
 returns boolean
 language plpgsql
@@ -59,7 +40,6 @@ begin
 end;
 $$;
 
--- 2) the app asks: is there a notice for ME? (empty for up-to-date users) ------
 create or replace function public.latest_update_notice(p_client_version text default '0')
 returns table (
   id bigint, version text, title text, body text, release_url text, created_at timestamptz
@@ -79,7 +59,6 @@ $$;
 
 grant execute on function public.latest_update_notice(text) to anon, authenticated;
 
--- 3) admin: publish a notice ---------------------------------------------------
 create or replace function public.post_update_notice(
   p_version text,
   p_url text,
@@ -111,7 +90,6 @@ $$;
 
 grant execute on function public.post_update_notice(text, text, text, text) to authenticated;
 
--- 4) admin: list / deactivate ---------------------------------------------------
 create or replace function public.list_update_notices()
 returns table (
   id bigint, version text, title text, body text, release_url text, active boolean, created_at timestamptz
@@ -141,19 +119,5 @@ $$;
 
 grant execute on function public.deactivate_update_notice(bigint) to authenticated;
 
--- 5) make the new functions visible to the REST API right away ------------------
 notify pgrst, 'reload schema';
 
--- 6) quick self-test: every line must return true ---------------------------------
--- select to_regprocedure('public.latest_update_notice(text)') is not null as has_latest,
---        to_regprocedure('public.post_update_notice(text,text,text,text)') is not null as has_post,
---        to_regprocedure('public.list_update_notices()') is not null as has_list,
---        to_regprocedure('public.deactivate_update_notice(bigint)') is not null as has_deactivate;
-
--- 7) example: publish the current release (fill in the real tag) ---------------
--- select public.post_update_notice(
---   '2.1.4',
---   'https://github.com/spoonfulyourkitchen/Spoonful/releases/tag/v2.1.4',
---   'New update',
---   'All screens translated, 10 languages, RTL Arabic, update notices.'
--- );

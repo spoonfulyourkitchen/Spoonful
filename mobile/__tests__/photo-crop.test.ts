@@ -1,6 +1,5 @@
-/**
- * 3.2.1: Tests für den Bild-Ausschnitt (Rahmen über dem ganzen Bild).
- */
+
+
 jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn(async () => null),
   setItem: jest.fn(async () => undefined),
@@ -9,7 +8,6 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 
 import { clampCrop, cropFromFrame } from '../src/lib/photo-crop';
 
-/** Bild 2000x1500, Bühne 300x300 -> Vollbild-Maßstab 0.15, Anzeige 300x225. */
 const IMG = { imageW: 2000, imageH: 1500 };
 const VIEW = { s: 0.15, ox: 0, oy: 37.5 };
 
@@ -32,7 +30,6 @@ describe('cropFromFrame', () => {
       ...IMG,
     });
     expect(crop.fx).toBeLessThan(0.45);
-    // Wichtig: clampCrop darf die gewählte Stelle nicht wieder zur Mitte ziehen.
     const limited = clampCrop(crop);
     expect(limited.fx).toBeCloseTo(crop.fx, 3);
   });

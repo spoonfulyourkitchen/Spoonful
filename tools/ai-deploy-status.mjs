@@ -1,9 +1,5 @@
-/**
- * Zeigt, welche Version der Funktion `ai` wirklich läuft und ob der neue Code
- * drin ist (Schnellprüfung nach einem Deploy).
- *
- * Aufruf: node tools/ai-deploy-status.mjs
- */
+
+
 import { readFileSync } from 'node:fs';
 
 const REF = 'gmfkleugoxafmvprqatk';

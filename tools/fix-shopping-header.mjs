@@ -1,4 +1,4 @@
-/** Einmal-Skript: Kopfkommentar der Einkaufsliste geradeziehen + useCallback importieren. */
+
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const file = new URL('../mobile/src/screens/ShoppingScreen.tsx', import.meta.url);

@@ -5,10 +5,6 @@ import { WifiOff } from 'lucide-react-native';
 import { colors } from '../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-/**
- * Retro television "offline" screen (inspired by the classic CSS 404 design).
- * Shows a warm orange TV with "OFFLINE" on the screen — no 404 digits.
- */
 export function OfflineTv({
   title,
   message,
@@ -21,13 +17,11 @@ export function OfflineTv({
   const insets = useSafeAreaInsets();
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, paddingTop: insets.top, paddingHorizontal: 24, paddingBottom: 40 }}>
-      {/* Antenna */}
       <View style={{ width: 72, height: 72, borderRadius: 36, borderWidth: 3, borderColor: '#3f1d00', backgroundColor: '#f27405', alignItems: 'center', justifyContent: 'center', transform: [{ translateY: 46 }] }}>
         <View style={{ width: 26, height: 6, borderRadius: 3, backgroundColor: '#a85103', transform: [{ rotate: '-20deg' }, { translateY: -18 }, { translateX: -8 }] }} />
         <View style={{ width: 30, height: 6, borderRadius: 3, backgroundColor: '#a85103', transform: [{ rotate: '18deg' }, { translateY: -20 }, { translateX: 12 }] }} />
       </View>
 
-      {/* TV set */}
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <View
           style={{
@@ -37,7 +31,6 @@ export function OfflineTv({
             shadowColor: '#7a3a00', shadowOpacity: 0.4, shadowOffset: { width: 4, height: 5 }, shadowRadius: 0, elevation: 4,
           }}
         >
-          {/* screen */}
           <View style={{ width: 186, height: 104, borderRadius: 12, borderWidth: 2, borderColor: '#1d0e01', backgroundColor: '#2a2118', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
             <View style={{ position: 'absolute', top: -30, left: -30, right: -30, height: 48, backgroundColor: 'rgba(255,255,255,0.09)', transform: [{ rotate: '-8deg' }] }} />
             <Text style={{ fontSize: 19, fontWeight: '800', letterSpacing: 4, color: '#fff9f0', textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 4 }}>
@@ -47,7 +40,6 @@ export function OfflineTv({
           </View>
         </View>
 
-        {/* side buttons panel */}
         <View style={{ width: 54, height: 112, borderRadius: 12, borderWidth: 2, borderColor: '#1d0e01', backgroundColor: '#e69635', alignItems: 'center', justifyContent: 'center', gap: 12, transform: [{ translateX: -8 }], shadowColor: '#7a3a00', shadowOpacity: 0.4, shadowOffset: { width: 4, height: 5 }, shadowRadius: 0, elevation: 3 }}>
           <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: '#7f5934', borderWidth: 2, borderColor: '#1d0e01' }} />
           <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: '#7f5934', borderWidth: 2, borderColor: '#1d0e01' }} />
@@ -59,7 +51,6 @@ export function OfflineTv({
         </View>
       </View>
 
-      {/* legs */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: 196 }}>
         <View style={{ width: 22, height: 16, borderBottomWidth: 3, borderColor: '#1d0e01', backgroundColor: '#4d4d4d', transform: [{ translateY: -2 }] }} />
         <View style={{ width: 22, height: 16, borderBottomWidth: 3, borderColor: '#1d0e01', backgroundColor: '#4d4d4d', transform: [{ translateY: -2 }] }} />

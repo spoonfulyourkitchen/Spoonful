@@ -1,9 +1,5 @@
--- Spoonful 2.0.0 database schema (batch 1)
--- Onboarding profile, household/shared shopping list, community extras,
--- water logs, shopping extras, fuzzy catalog search.
--- Documented from the live Supabase project (eu-west-1) so the schema can be recreated.
 
--- New columns
+
 alter table public.shopping_list_items add column if not exists category text;
 alter table public.shopping_list_items add column if not exists course text;
 alter table public.shopping_list_items add column if not exists have boolean;
@@ -17,33 +13,6 @@ alter table public.users add column if not exists onboarded_at bigint;
 alter table public.users add column if not exists region text;
 alter table public.users add column if not exists water_goal_ml integer;
 
--- Row level security policies
--- policy challenge_entries_delete (DELETE) on challenge_entries
--- policy challenge_entries_read (SELECT) on challenge_entries
--- policy challenge_entries_write (INSERT) on challenge_entries
--- policy challenges_insert (INSERT) on challenges
--- policy challenges_read (SELECT) on challenges
--- policy challenges_update (UPDATE) on challenges
--- policy household_invites_read (SELECT) on household_invites
--- policy household_members_leave (DELETE) on household_members
--- policy household_members_read (SELECT) on household_members
--- policy households_delete (DELETE) on households
--- policy households_read (SELECT) on households
--- policy households_write (UPDATE) on households
--- policy reposts_delete (DELETE) on recipe_reposts
--- policy reposts_read (SELECT) on recipe_reposts
--- policy reposts_write (INSERT) on recipe_reposts
--- policy shopping_items_household (ALL) on shopping_list_items
--- policy shopping_list_delete_own (DELETE) on shopping_list_items
--- policy shopping_list_insert_own (INSERT) on shopping_list_items
--- policy shopping_list_select_own (SELECT) on shopping_list_items
--- policy shopping_list_update_own (UPDATE) on shopping_list_items
--- policy corrections_insert (INSERT) on translation_corrections
--- policy corrections_read (SELECT) on translation_corrections
--- policy blocks_own (ALL) on user_blocks
--- policy water_logs_own (ALL) on water_logs
-
--- Functions
 CREATE OR REPLACE FUNCTION public.catalog_page(p jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql

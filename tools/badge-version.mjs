@@ -1,4 +1,4 @@
-/** 3.3.1: „Neu in …" nennt immer die installierte Version (Platzhalter {v}). */
+
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const file = new URL('../mobile/src/lib/i18n-212.ts', import.meta.url);

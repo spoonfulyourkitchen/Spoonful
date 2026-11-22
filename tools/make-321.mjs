@@ -1,13 +1,5 @@
- /**
- * Baut den Stand „3.2.1“ aus dem aktuellen Arbeitsverzeichnis nach:
- * alle **3.2.2-Änderungen** werden entfernt (Funktionen), damit ein
- * Vergleichs-APK entsteht.
- *
- * Wichtig: Nur Funktionen werden zurückgebaut. Die Text-Aufräumung
- * (Übersetzungen) bleibt drin — sie ändert kein Verhalten.
- *
- * Aufruf:  node tools/make-321.mjs [--write]
- */
+ 
+
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'node:fs';
 
 const ROOT = new URL('../', import.meta.url);
@@ -15,7 +7,6 @@ const WRITE = process.argv.includes('--write');
 const read = (rel) => readFileSync(new URL(rel, ROOT), 'utf8');
 const write = (rel, text) => WRITE && writeFileSync(new URL(rel, ROOT), text, 'utf8');
 
-/* ── 1. Dateien, die es in 3.2.1 nicht gab ───────────────────────────────── */
 const DELETE = [
   'mobile/src/lib/image-url.ts',
   'mobile/src/lib/crash-log.ts',
@@ -24,7 +15,6 @@ const DELETE = [
   'mobile/__tests__/stability.test.ts',
 ];
 
-/* ── 2. CroppedImage + RecipeImage zurück auf den 3.2.1-Stand ─────────────── */
 const CROPPED_IMAGE_321 = `import React, { useEffect, useState } from 'react';
 import { Image, LayoutChangeEvent, StyleProp, View, ViewStyle } from 'react-native';
 
@@ -172,7 +162,6 @@ export function RecipeImage({
 export default RecipeImage;
 `;
 
-/* ── 3. Funktionale 3.2.2-Änderungen zurücknehmen ────────────────────────── */
 const REPLACEMENTS = {
   'mobile/src/lib/i18n.tsx': [
     ["import { APP_322 } from './i18n-322';\n", ''],
@@ -255,7 +244,6 @@ const REPLACEMENTS = {
   'mobile/src/config.ts': [["export const APP_VERSION = '3.2.2';", "export const APP_VERSION = '3.2.1';"]],
 };
 
-/* ── 4. Ablauf ───────────────────────────────────────────────────────────── */
 let changed = 0;
 let missing = 0;
 
@@ -277,7 +265,6 @@ console.log('zurückgesetzt: CroppedImage.tsx, RecipeImage.tsx');
 for (const [rel, pairs] of Object.entries(REPLACEMENTS)) {
   const url = new URL(rel, ROOT);
   if (!existsSync(url)) continue;
-  // Zeilenenden vereinheitlichen - die Dateien sind gemischt (LF/CRLF).
   let text = readFileSync(url, 'utf8').replace(/\r\n/g, '\n');
   for (const [from, to] of pairs) {
     if (!text.includes(from)) {
@@ -291,7 +278,6 @@ for (const [rel, pairs] of Object.entries(REPLACEMENTS)) {
   if (WRITE) writeFileSync(url, text, 'utf8');
 }
 
-/* Absturz-Bereich in den Einstellungen entfernen (ganzer Block). */
 const settingsUrl = new URL('mobile/src/screens/SettingsScreen.tsx', ROOT);
 let settings = readFileSync(settingsUrl, 'utf8');
 const start = settings.indexOf('        {/* 3.2.2: Absturz-Protokoll');
@@ -308,5 +294,4 @@ if (start >= 0 && end > start) {
 
 console.log(`\n${changed} Änderungen ${WRITE ? 'geschrieben' : 'geplant'}, ${missing} fehlend.`);
 process.exit(missing > 0 ? 1 : 0);
-
 

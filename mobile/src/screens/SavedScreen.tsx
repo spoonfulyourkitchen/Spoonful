@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
-import { Bookmark, Heart, Play, ShoppingCart, Trash2 } from 'lucide-react-native';
+import { Bookmark, Heart, Play, Plus, ShoppingCart, Trash2 } from 'lucide-react-native';
+import { CollectionModal } from '../components/CollectionModal';
 import { useMutation, useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';
 import { colors } from '../theme';
@@ -8,18 +9,43 @@ import { Page } from '../navigation/Shell';
 import { navigate } from '../navigation/rootRef';
 import { Chip, EmptyState, GlassCard, PageHeader, SearchField } from '../components/ui';
 import { asRecipeFromDoc } from '../lib/recipe';
-import { useCachedList, useOfflineGuard, OfflineBadge } from '../lib/offline';
+import { useCachedList, addPendingOp, getConnNow } from '../lib/offline';
+import { loadDraft, saveDraft } from '../lib/draft';
 import { useTranslation } from '../lib/i18n';
 
 export function SavedScreen() {
   const savedLive = useQuery(api.savedRecipes.list);
-  const { data: saved, offline } = useCachedList('saved', savedLive);
-  const collections = useQuery(api.collections?.list);
-  const { requireOnline } = useOfflineGuard();
+  const { data: saved, apply } = useCachedList('saved', savedLive);
+  const collections = useQuery(api.collections.list);
   const updateSaved = useMutation(api.savedRecipes.update);
   const removeSaved = useMutation(api.savedRecipes.remove);
   const [search, setSearch] = useState('');
   const [active, setActive] = useState<string>('all');
+  const [filtersReady, setFiltersReady] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    loadDraft<{ search?: string; active?: string }>('saved-list').then((d) => {
+      if (!alive) return;
+      if (d && typeof d === 'object') {
+        if (typeof d.search === 'string') setSearch(d.search);
+        if (typeof d.active === 'string') setActive(d.active);
+      }
+      setFiltersReady(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!filtersReady) return;
+    const timer = setTimeout(() => {
+      void saveDraft('saved-list', { search, active });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [filtersReady, search, active]);
+  const [collectionsOpen, setCollectionsOpen] = useState(false);
   const { t } = useTranslation();
   const items: any[] = saved ?? [];
   const colls: any[] = collections ?? [];
@@ -36,15 +62,37 @@ export function SavedScreen() {
     });
   }, [saved, search, active]);
 
+  
+
   const toggleFavorite = (doc: any) => {
-    if (!requireOnline('You are offline')) return;
-    try {
-      updateSaved({ id: doc._id, favorite: !doc.favorite, notes: doc.notes ?? '', collectionIds: doc.collectionIds ?? [] });
-    } catch { /* reactive */ }
+    const next = !doc.favorite;
+    apply((prev: any[]) => prev.map((r: any) => (r._id === doc._id ? { ...r, favorite: next } : r)));
+    void (async () => {
+      const payload = { id: doc._id, favorite: next, notes: doc.notes ?? '', collectionIds: doc.collectionIds ?? [] };
+      if (getConnNow() === 'offline') {
+        await addPendingOp('saved.update', payload);
+        return;
+      }
+      try {
+        await updateSaved(payload);
+      } catch {
+        await addPendingOp('saved.update', payload);
+      }
+    })();
   };
   const onRemove = (doc: any) => {
-    if (!requireOnline('You are offline')) return;
-    try { removeSaved({ id: doc._id }); } catch { /* reactive */ }
+    apply((prev: any[]) => prev.filter((r: any) => r._id !== doc._id));
+    void (async () => {
+      if (getConnNow() === 'offline') {
+        await addPendingOp('saved.remove', { id: doc._id });
+        return;
+      }
+      try {
+        await removeSaved({ id: doc._id });
+      } catch {
+        await addPendingOp('saved.remove', { id: doc._id });
+      }
+    })();
   };
   const countFor = (g: string) =>
     g === 'all' ? items.length
@@ -56,8 +104,14 @@ export function SavedScreen() {
   return (
     <Page>
       <View style={{ paddingHorizontal: 18, paddingTop: 12 }}>
-        {offline ? <OfflineBadge /> : null}
-        <PageHeader eyebrow={t('saved.privateShelf')} title={t('saved.title')} />
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+          <View style={{ flex: 1 }}>
+            <PageHeader eyebrow={t('saved.privateShelf')} title={t('saved.title')} />
+          </View>
+          <Pressable onPress={() => setCollectionsOpen(true)} accessibilityRole="button" accessibilityLabel={t('s.collectionManage')} hitSlop={4} style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', marginTop: 22, backgroundColor: colors.accentSoft }}>
+            <Plus size={20} color={colors.accent} strokeWidth={2.5} />
+          </Pressable>
+        </View>
         <SearchField value={search} onChangeText={setSearch} placeholder={t('saved.searchSaved')} style={{ marginBottom: 10 }} />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 }}>
           <Chip label={`${t('saved.allSaved')} · ${countFor('all')}`} active={active === 'all'} onPress={() => setActive('all')} icon={<Bookmark size={13} color={colors.accent} />} />
@@ -85,6 +139,7 @@ export function SavedScreen() {
           )}
         />
       )}
+      <CollectionModal visible={collectionsOpen} collections={colls} mode="manage" onClose={() => setCollectionsOpen(false)} />
     </Page>
   );
 }

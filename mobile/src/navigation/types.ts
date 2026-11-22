@@ -1,15 +1,7 @@
-/**
- * Shared root navigator param list + navigation ref.
- * Kept in its own module so the shell/drawer can navigate without circular
- * imports from App.tsx.
- */
-
 export type RootStackParamList = {
-  // public
   Landing: undefined;
-  Auth: undefined;
+  Auth: { register?: boolean } | undefined;
   Legal: { page: 'impressum' | 'datenschutz' | 'cookies' | 'agb' };
-  // signed-in shell
   Main: { screen?: string } | undefined;
   Dashboard: undefined;
   Library: undefined;
@@ -34,7 +26,6 @@ export type RootStackParamList = {
     protein?: number;
     carbs?: number;
     fat?: number;
-    /* 2.1.5: Kochmodus in der angezeigten Sprache */
     recipeKey?: string;
     translatedTitle?: string;
     translatedSteps?: string[];

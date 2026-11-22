@@ -20,16 +20,6 @@ import {
   type TutorialStep,
 } from '../lib/tutorial';
 
-/**
- * The visual part of the tour: dimmed background, spotlight on the target,
- * an animated pointer and the coach mark with progress, skip options and the
- * finish screen.
- *
- * Nothing here blocks the tour: the dimmed panes swallow taps, but the
- * spotlight is a real hole, so the element the pointer shows can be pressed.
- */
-
-/** Hint per expected action - resolved through the i18n dictionary. */
 const HINT_KEYS: Record<string, string> = {
   tap: 'tut.hintTap',
   input: 'tut.hintInput',
@@ -52,7 +42,7 @@ export function TutorialOverlay() {
   const { width: screenW, height: screenH } = useWindowDimensions();
   const [reduceMotion, setReduceMotion] = useState(false);
 
-  /* Accessibility: respect "remove animations". */
+  
   useEffect(() => {
     let alive = true;
     AccessibilityInfo.isReduceMotionEnabled()
@@ -67,7 +57,7 @@ export function TutorialOverlay() {
     };
   }, []);
 
-  /* Screenreader: read the step out loud whenever it changes. */
+  
   const title = resolveTutorialText(step?.title);
   const body = resolveTutorialText(step?.text);
   useEffect(() => {
@@ -80,7 +70,6 @@ export function TutorialOverlay() {
   const spot = useMemo(() => {
     if (!rect) return null;
     if (wide) {
-      // Full-width band (lists, long sections): stays visible while scrolling.
       return {
         x: 5,
         y: Math.max(0, rect.y - 90),
@@ -96,7 +85,7 @@ export function TutorialOverlay() {
     };
   }, [rect, wide, pad, screenW, screenH]);
 
-  /* Animations run on the native driver so the app never stutters. */
+  
   const pulse = useRef(new Animated.Value(0)).current;
   const bounce = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -128,7 +117,7 @@ export function TutorialOverlay() {
   const targetGone = missingTarget || (!!step.targetId && !hasTutorialTarget(step.targetId));
   const hint = needsAction ? t(HINT_KEYS[step.expect] ?? 'tut.hintTap') : '';
 
-  /* Coach mark placement: below the spotlight when there is room, else above. */
+  
   const cardTop = spot
     ? spot.y + spot.height + 14 + 220 < screenH
       ? spot.y + spot.height + 14
@@ -136,30 +125,23 @@ export function TutorialOverlay() {
     : Math.max(80, screenH / 2 - 160);
 
   return (
-    /**
-     * 2.1.1: deliberately *not* a Modal. A React Native Modal gets its own
-     * native window, so nothing underneath it can be tapped - the user could
-     * see the highlighted button through the hole but could not press it.
-     * Rendered as a sibling of the navigator, the dimmed panes have
-     * pointerEvents="none", so taps inside the spotlight reach the real app.
-     */
+    
+
     <View
       pointerEvents="box-none"
       style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, zIndex: 900, elevation: 900 }}
       accessibilityViewIsModal
       importantForAccessibility="yes"
     >
-        {/* Dimming around the target - the target itself stays touchable. */}
         {spot ? (
           <>
-            {/* 2.1.1: these panes swallow touches, so only the highlighted spot
-                stays active - the hole above the target is a real opening and
-                the decorative frame below never blocks it. */}
+            {
+
+}
             <View style={{ position: 'absolute', left: 0, right: 0, top: 0, height: spot.y, backgroundColor: DIM }} />
             <View style={{ position: 'absolute', left: 0, right: 0, top: spot.y + spot.height, bottom: 0, backgroundColor: DIM }} />
             <View style={{ position: 'absolute', left: 0, top: spot.y, width: spot.x, height: spot.height, backgroundColor: DIM }} />
             <View style={{ position: 'absolute', left: spot.x + spot.width, right: 0, top: spot.y, height: spot.height, backgroundColor: DIM }} />
-            {/* spotlight frame */}
             <View
               pointerEvents="none"
               style={{
@@ -167,7 +149,6 @@ export function TutorialOverlay() {
                 borderRadius: 16, borderWidth: 2, borderColor: colors.accent,
               }}
             />
-            {/* ripple */}
             {needsAction && !reduceMotion && !targetGone ? (
               <Animated.View
                 pointerEvents="none"
@@ -182,7 +163,6 @@ export function TutorialOverlay() {
                 }}
               />
             ) : null}
-            {/* 2.1.1: app-coloured pointer symbol instead of an emoji */}
             {needsAction && !targetGone ? (
               <Animated.View
                 pointerEvents="none"
@@ -207,7 +187,6 @@ export function TutorialOverlay() {
           <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: DIM }} />
         )}
 
-        {/* Coach mark */}
         <View style={{ position: 'absolute', left: 16, right: 16, top: cardTop }}>
           <View
             accessible
@@ -218,7 +197,6 @@ export function TutorialOverlay() {
               shadowOpacity: 0.18, shadowRadius: 24, shadowOffset: { width: 0, height: 10 }, elevation: 8,
             }}
           >
-            {/* progress: "Schritt 3 von 8" + global skip */}
             <View style={[{ alignItems: 'center', gap: 10 }, rowDir]}>
               <Text style={{ fontSize: 11.5, fontWeight: '800', color: colors.accent, letterSpacing: 0.3 }}>
                 {t('tut.stepOf', { n: prog.index, total: prog.total })}
@@ -287,7 +265,6 @@ export function TutorialOverlay() {
                 </Pressable>
               )}
               <View style={{ flex: 1 }} />
-              {/* "Weiter" is always there, so a step can never trap the user. */}
               <Pressable
                 onPress={() => {
                   if (isLastStep) {
@@ -319,7 +296,6 @@ export function TutorialOverlay() {
   );
 }
 
-/** Success mark for the last step (2.1.1: app colours, no emoji, no confetti). */
 function SuccessMark({ reduceMotion }: { reduceMotion: boolean }) {
   const anim = useRef(new Animated.Value(0)).current;
   useEffect(() => {

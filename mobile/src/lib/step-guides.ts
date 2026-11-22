@@ -1,18 +1,11 @@
-/**
- * 3.3.0: Coach-Tipps und „Achte auf" pro Schritt.
- *
- * Diese Hinweise kommen nicht mehr aus fest eingebauten Texten, sondern liegen
- * pro Rezept und Schritt in der Bibliothek (`public.recipe_step_guides`) und
- * werden vom Rezept-Bot erzeugt und direkt hochgeladen. Fehlen sie noch, liefert
- * diese Funktion `null` — die Oberfläche zeigt dann einen Hinweis, dass die
- * Schritt-Hinweise noch vorbereitet werden (statt erfundener Tipps).
- */
+
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
 
 export type StepGuide = { index: number; coach: string | null; look: string | null };
 
-const CACHE_PREFIX = 'spoonful:step-guides:v1:';
+const CACHE_PREFIX = 'spoonful:step-guides:v2:';
 
 function cacheKey(recipeId: string): string {
   return `${CACHE_PREFIX}${recipeId}`;
@@ -29,10 +22,6 @@ function parse(rows: any[] | null | undefined): StepGuide[] | null {
     }));
 }
 
-/**
- * Hinweise für ein Rezept holen (erst Speicher, dann Netz). Was im Speicher
- * liegt, gewinnt sofort — der Kochmodus muss auch ohne Netz vollständig sein.
- */
 export async function loadStepGuides(recipeId: string): Promise<StepGuide[] | null> {
   const id = String(recipeId ?? '').trim();
   if (!id) return null;
@@ -41,9 +30,7 @@ export async function loadStepGuides(recipeId: string): Promise<StepGuide[] | nu
   try {
     const raw = await AsyncStorage.getItem(cacheKey(id));
     if (raw) cached = parse(JSON.parse(raw));
-  } catch {
-    /* kein/ungültiger Zwischenspeicher */
-  }
+  } catch {}
   if (cached && cached.length) return cached;
 
   try {
@@ -58,13 +45,9 @@ export async function loadStepGuides(recipeId: string): Promise<StepGuide[] | nu
     if (fresh && fresh.length) {
       try {
         await AsyncStorage.setItem(cacheKey(id), JSON.stringify(data));
-      } catch {
-        /* Speicher voll — dann eben ohne Zwischenspeicher */
-      }
+      } catch {}
       return fresh;
     }
-  } catch {
-    /* offline oder Tabelle fehlt noch */
-  }
+  } catch {}
   return cached;
 }

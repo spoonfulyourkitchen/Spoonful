@@ -13,7 +13,6 @@ export type PickedPhoto = {
 
 const SHARED_OPTIONS = {
   mediaType: 'photo' as const,
-  // 2.0.0: automatic compression (smaller files, quicker uploads, less data)
   quality: 0.7 as const,
   selectionLimit: 1,
   includeBase64: true,
@@ -21,11 +20,6 @@ const SHARED_OPTIONS = {
   maxHeight: 1600,
 };
 
-/**
- * 2.1.1: barcode photos must stay razor sharp - every pixel counts when the
- * decoder looks for thin bars, so this variant keeps the full resolution and
- * skips the compression of the normal photo flow.
- */
 const SCAN_OPTIONS = {
   mediaType: 'photo' as const,
   quality: 1 as const,
@@ -56,58 +50,39 @@ async function run(source: 'camera' | 'library', options: Record<string, unknown
   }
 }
 
-/** Open the system gallery (Android 13+ photo picker — no permission needed). */
 export async function pickFromGallery(): Promise<PickedPhoto | null> {
   return run('library');
 }
 
-/** Open the camera (image-picker requests the CAMERA permission on demand). */
 export async function takePhoto(): Promise<PickedPhoto | null> {
   return run('camera');
 }
 
-/** 2.1.1: maximum resolution + quality - used by the barcode scanner. */
 export async function takeSharpPhoto(): Promise<PickedPhoto | null> {
   return run('camera', { ...SCAN_OPTIONS });
 }
 
-/** 2.1.1: pick an uncompressed photo from the gallery for scanning. */
 export async function pickSharpPhoto(): Promise<PickedPhoto | null> {
   return run('library', { ...SCAN_OPTIONS });
 }
 
-/**
- * 3.0.0: komprimierte Fotos für einzelne Koch-Schritte.
- *
- * Schritt-Fotos bleiben **beim eigenen Konto**: sie werden nicht in den
- * Haushalt hochgeladen, sondern nur lokal (pro Nutzer-ID) gespeichert.
- * Deshalb wird hier base64 mitgeliefert - die App legt daraus eine data-URL
- * an, es gibt keinen Upload.
- */
 const STEP_OPTIONS = {
   mediaType: 'photo' as const,
-  quality: 0.5 as const, // klein halten: die Bilder landen im Gerätespeicher
+  quality: 0.5 as const,
   selectionLimit: 1,
   includeBase64: true,
   maxWidth: 1080,
   maxHeight: 1080,
 };
 
-/** Foto für einen Schritt aufnehmen (Kamera, komprimiert, base64). */
 export async function takeStepPhoto(): Promise<PickedPhoto | null> {
   return run('camera', { ...STEP_OPTIONS });
 }
 
-/** Foto für einen Schritt aus der Galerie wählen (komprimiert, base64). */
 export async function pickStepPhoto(): Promise<PickedPhoto | null> {
   return run('library', { ...STEP_OPTIONS });
 }
 
-/**
- * Upload a picked photo to Supabase Storage and return a public URL.
- * Returns null when the bucket does not exist yet (or the device is offline)
- * so the caller can fall back to a device-local image.
- */
 export async function uploadPhotoToServer(
   base64: string | undefined,
   mime?: string,
@@ -139,7 +114,6 @@ export async function uploadPhotoToServer(
   }
 }
 
-/** Open the gallery and pick several photos at once (2.0.0, multi upload). */
 export async function pickManyFromGallery(limit = 6): Promise<PickedPhoto[]> {
   try {
     const res = await launchImageLibrary({
@@ -165,11 +139,6 @@ export async function pickManyFromGallery(limit = 6): Promise<PickedPhoto[]> {
   }
 }
 
-/**
- * Upload queue for photos (2.0.0): when the device is offline (or the upload
- * fails) the picture is kept in the offline queue and sent as soon as the app
- * is online again - nothing is lost, no error popup.
- */
 export async function uploadPhotoOrQueue(
   base64: string | undefined,
   mime: string | undefined,
@@ -180,15 +149,11 @@ export async function uploadPhotoOrQueue(
   if (url) return url;
   try {
     await queue({ base64, mime: mime || 'image/jpeg' });
-  } catch {
-    /* the queue is best effort, the caller keeps the local image */
-  }
+  } catch {}
   return null;
 }
 
 function decodeBase64(b64: string): Uint8Array {
-  // Hermes ships a global atob; read it defensively so a missing polyfill
-  // cannot crash the upload flow with a "not a function" error.
   const decoder = (globalThis as any).atob as ((data: string) => string) | undefined;
   if (typeof decoder !== 'function') throw new Error('base64 decoding is unavailable on this device');
   const binary = decoder(b64);

@@ -1,20 +1,7 @@
-/**
- * Country catalogue (2.1.2).
- *
- * Two jobs:
- *  1. sort the country/cuisine filter of the library A→Z (the user asked for
- *     "Afghanistan … Z" and wrote all names in English),
- *  2. be the scaffold for the recipe pipeline: 100 recipes per country.
- *
- * Adding recipes: see `recipe-catalog.ts` — every country has 100 slots, and
- * `db/2.1.2-catalog-100-per-country.sql` documents the upload.
- *
- * Names are English on purpose (they are the filter values and the DB
- * `cuisine` column); the UI label comes straight from here.
- */
+
+
 export type Country = { code: string; name: string };
 
-/** Country list, already alphabetical (A → Z). */
 export const COUNTRIES: Country[] = [
   { code: 'AF', name: 'Afghanistan' },
   { code: 'AL', name: 'Albania' },
@@ -146,17 +133,14 @@ export const COUNTRIES: Country[] = [
   { code: 'ZW', name: 'Zimbabwe' },
 ];
 
-/** Alphabetical A→Z, case/diacritic-insensitive (English names). */
 export function sortCountriesAZ(list: { name: string }[]): { name: string }[] {
   return [...list].sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
 }
 
-/** Sorts the library filter values (DB `cuisine` strings) the same way. */
 export function sortFilterValuesAZ(values: string[]): string[] {
   return [...values].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }));
 }
 
-/** Country name for an ISO code (used by the catalogue progress view). */
 export function countryName(code: string): string {
   return COUNTRIES.find((c) => c.code === code)?.name ?? code;
 }

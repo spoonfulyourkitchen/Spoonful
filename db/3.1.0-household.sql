@@ -1,16 +1,7 @@
--- Spoonful 3.1.0 — Haushalt komplett: 20 Funktionen
---
--- Baut auf 3.0.0-household-cooking.sql auf (Kochstand) und ergänzt alles, was
--- ein Haushalt braucht: Mitglieder + Rollen, Pinnwand, Aufgaben, Wochenplan,
--- Vorratskammer, Ausgaben, Aktivitäts-Feed, geteilte Rezepte und Statistik.
---
--- Einmal im Supabase SQL Editor ausführen. Fehlt dieses SQL, läuft die App
--- normal weiter - die Haushalts-Seite zeigt dann nur Mitglieder und Kochen.
 
-/* ── Rolle im Haushalt (fehlt bisher) ──────────────────────────────────────── */
+
 alter table public.users add column if not exists household_role text default 'member';
 
-/* ── Haushalts-ID des angemeldeten Nutzers ─────────────────────────────────── */
 create or replace function public.my_household_id()
 returns uuid
 language sql
@@ -23,7 +14,6 @@ $$;
 
 grant execute on function public.my_household_id() to authenticated;
 
-/* ── Mitglieder + Rollen ───────────────────────────────────────────────────── */
 create or replace function public.household_members()
 returns table (user_id uuid, name text, email text, image text, role text, household_role text, last_seen timestamptz)
 language plpgsql
@@ -94,7 +84,6 @@ $$;
 
 grant execute on function public.rename_household(text) to authenticated;
 
-/* ── Statistik (Funktion 19) ───────────────────────────────────────────────── */
 create or replace function public.household_stats()
 returns table (members int, cooking_sessions int, tasks_open int, tasks_done int, expenses_sum numeric, pantry_items int, plan_entries int)
 language plpgsql
@@ -123,9 +112,6 @@ $$;
 
 grant execute on function public.household_stats() to authenticated;
 
-/* ── Tabellen ─────────────────────────────────────────────────────────────── */
-
--- Funktion 11: Pinnwand / kurze Nachrichten
 create table if not exists public.household_notes (
   id           uuid primary key default gen_random_uuid(),
   household_id uuid not null,
@@ -135,7 +121,6 @@ create table if not exists public.household_notes (
   created_at   timestamptz not null default now()
 );
 
--- Funktion 10: Aufgaben (wer macht was)
 create table if not exists public.household_tasks (
   id           uuid primary key default gen_random_uuid(),
   household_id uuid not null,
@@ -148,7 +133,6 @@ create table if not exists public.household_tasks (
   done_at      timestamptz
 );
 
--- Funktion 12/13: Wochenplan (1 = Montag ... 7 = Sonntag)
 create table if not exists public.household_plan (
   id           uuid primary key default gen_random_uuid(),
   household_id uuid not null,
@@ -159,7 +143,6 @@ create table if not exists public.household_plan (
   created_at   timestamptz not null default now()
 );
 
--- Funktion 14: Vorratskammer
 create table if not exists public.household_pantry (
   id           uuid primary key default gen_random_uuid(),
   household_id uuid not null,
@@ -170,7 +153,6 @@ create table if not exists public.household_pantry (
   created_at   timestamptz not null default now()
 );
 
--- Funktion 15: Ausgaben (wer hat was bezahlt)
 create table if not exists public.household_expenses (
   id           uuid primary key default gen_random_uuid(),
   household_id uuid not null,
@@ -181,7 +163,6 @@ create table if not exists public.household_expenses (
   created_at   timestamptz not null default now()
 );
 
--- Funktion 16: Aktivitäts-Feed
 create table if not exists public.household_events (
   id           uuid primary key default gen_random_uuid(),
   household_id uuid not null,
@@ -192,7 +173,6 @@ create table if not exists public.household_events (
   created_at   timestamptz not null default now()
 );
 
--- Funktion 17: Rezepte für den Haushalt teilen
 create table if not exists public.household_shared_recipes (
   id           uuid primary key default gen_random_uuid(),
   household_id uuid not null,
@@ -212,7 +192,6 @@ create index if not exists household_expenses_hh_idx on public.household_expense
 create index if not exists household_events_hh_idx on public.household_events (household_id, created_at desc);
 create index if not exists household_shared_hh_idx on public.household_shared_recipes (household_id, created_at desc);
 
-/* ── Zugriffsschutz: nur der eigene Haushalt ──────────────────────────────── */
 do $$
 declare
   t text;

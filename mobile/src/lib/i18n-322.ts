@@ -1,7 +1,5 @@
-/**
- * 3.2.2: Texte für die Stabilitäts-Runde
- * (Absturz-Protokoll, wartende Offline-Änderungen, Kochmodus fortsetzen).
- */
+
+
 export const APP_322: Record<string, Record<string, any>> = {
   de: {
     s: {

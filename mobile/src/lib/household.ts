@@ -1,9 +1,5 @@
-/**
- * 3.1.0: Haushalt — Datenebene für die Haushalts-Seite.
- *
- * Alle Aufrufe sind bewusst "freundlich": fehlt das SQL (db/3.1.0-household.sql)
- * oder gibt es keinen Haushalt, kommen leere Listen zurück statt Fehlern.
- */
+
+
 import { requireUserId, supabase } from './supabase';
 
 export type HhMember = {
@@ -41,14 +37,12 @@ export type HhStats = {
   planEntries: number;
 };
 
-/** Fehler, die "Tabelle/Funktion fehlt noch" bedeuten (SQL nicht eingespielt). */
 function missing(error: any): boolean {
   const code = String(error?.code ?? '');
   const text = `${error?.message ?? ''} ${error?.details ?? ''}`;
   return code === '42P01' || code === '42883' || code === 'PGRST202' || /does not exist|could not find the (table|function)|schema cache/i.test(text);
 }
 
-/** Fragt die Datenbank ab und liefert bei fehlendem SQL einfach den Ersatzwert. */
 async function safe<T>(run: () => Promise<T>, fallback: T): Promise<T> {
   try {
     return await run();
@@ -60,8 +54,6 @@ async function safe<T>(run: () => Promise<T>, fallback: T): Promise<T> {
 
 const num = (v: any) => Number(v ?? 0);
 const time = (v: any) => (v ? new Date(v).getTime() : 0);
-
-/* ── Haushalt selbst ──────────────────────────────────────────────────────── */
 
 export async function currentHouseholdId(): Promise<string | null> {
   return safe(async () => {
@@ -118,8 +110,6 @@ export async function fetchStats(): Promise<HhStats | null> {
   }, null);
 }
 
-/* ── Aktivitäts-Feed (Funktion 16) ────────────────────────────────────────── */
-
 export async function fetchEvents(): Promise<HhEvent[]> {
   return safe(async () => {
     const { data, error } = await supabase
@@ -138,7 +128,6 @@ export async function fetchEvents(): Promise<HhEvent[]> {
   }, [] as HhEvent[]);
 }
 
-/** Schreibt eine Zeile in den Feed (Fehler sind egal - nur Komfort). */
 export async function logEvent(actorName: string, kind: string, text: string): Promise<void> {
   await safe(async () => {
     const uid = await requireUserId();
@@ -156,7 +145,6 @@ export async function logEvent(actorName: string, kind: string, text: string): P
   }, null);
 }
 
-/* ── Wochenplan (Funktionen 12 + 13) ──────────────────────────────────────── */
 export async function fetchPlan(): Promise<HhPlanEntry[]> {
   return safe(async () => {
     const { data, error } = await supabase.from('household_plan').select('*').order('day', { ascending: true });
@@ -195,7 +183,6 @@ export async function removePlanEntry(id: string): Promise<void> {
   }, null);
 }
 
-/* ── Vorratskammer (Funktion 14) ──────────────────────────────────────────── */
 export async function fetchPantry(): Promise<HhPantryItem[]> {
   return safe(async () => {
     const { data, error } = await supabase.from('household_pantry').select('*').order('created_at', { ascending: false });
@@ -233,7 +220,6 @@ export async function removePantryItem(id: string): Promise<void> {
   }, null);
 }
 
-/* ── Ausgaben (Funktion 15) ───────────────────────────────────────────────── */
 export async function fetchExpenses(): Promise<HhExpense[]> {
   return safe(async () => {
     const { data, error } = await supabase.from('household_expenses').select('*').order('created_at', { ascending: false }).limit(80);
@@ -274,7 +260,6 @@ export async function removeExpense(id: string): Promise<void> {
   }, null);
 }
 
-/* ── Geteilte Rezepte (Funktion 17) ───────────────────────────────────────── */
 export async function fetchSharedRecipes(): Promise<HhShared[]> {
   return safe(async () => {
     const { data, error } = await supabase.from('household_shared_recipes').select('*').order('created_at', { ascending: false }).limit(60);
@@ -316,7 +301,6 @@ export async function unshareRecipe(id: string): Promise<void> {
   }, null);
 }
 
-/* ── Geteilte Einkaufslisten (3.2.0, max. 2 pro Haushalt) ─────────────────── */
 export type HhShoppingItem = { name: string; checked: boolean };
 export type HhList = {
   id: string;
@@ -349,12 +333,6 @@ export async function fetchHouseholdLists(): Promise<HhList[]> {
   }, [] as HhList[]);
 }
 
-/**
- * Teilt eine Liste mit dem Haushalt. Wirft bei "limit reached" (2 Listen).
- *
- * 3.2.2: Doppel-Tipp-Schutz (Punkt 85). Vorher konnte ein zweites Tippen
- * parallel dieselbe Liste anlegen — dann stand sie zweimal im Haushalt.
- */
 let shareInFlight = false;
 
 export async function shareHouseholdList(title: string, items: HhShoppingItem[]): Promise<{ ok: boolean; error?: string }> {
@@ -385,8 +363,6 @@ export async function removeHouseholdList(id: string): Promise<void> {
   }, null);
 }
 
-/* ── Gemeinsame Einkaufsliste (Funktionen 13/16) ──────────────────────────── */
-/** Namen (z. B. aus dem Wochenplan) auf die geteilte Einkaufsliste setzen. */
 export async function addNamesToShopping(names: string[], recipeTitle?: string): Promise<number> {
   return safe(async () => {
     const uid = await requireUserId();
@@ -407,8 +383,6 @@ export async function addNamesToShopping(names: string[], recipeTitle?: string):
   }, 0);
 }
 
-
-/* ── Aufgaben (Funktion 10) ───────────────────────────────────────────────── */
 export async function fetchTasks(): Promise<HhTask[]> {
   return safe(async () => {
     const { data, error } = await supabase.from('household_tasks').select('*').order('created_at', { ascending: false });
@@ -460,7 +434,6 @@ export async function removeTask(id: string): Promise<void> {
   }, null);
 }
 
-/* ── Pinnwand (Funktion 11) ───────────────────────────────────────────────── */
 export async function fetchNotes(): Promise<HhNote[]> {
   return safe(async () => {
     const { data, error } = await supabase.from('household_notes').select('*').order('created_at', { ascending: false }).limit(40);

@@ -6,6 +6,7 @@ import { api } from '../lib/api';
 import { colors, fonts } from '../theme';
 import { useTranslation, deviceLanguageNeedsChoice, wasLanguagePickerShown, markLanguagePickerShown, clearDeviceLanguageAsk } from '../lib/i18n';
 import { TutorialOverlay } from './TutorialOverlay';
+import { IS_WEB } from '../lib/platform';
 import { LanguagePicker } from './LanguagePicker';
 import {
   hydrateTutorial,
@@ -15,24 +16,15 @@ import {
   startTutorial,
   useTutorial,
 } from '../lib/tutorial';
-// Registers the step configuration as a side effect of loading the gate.
 import '../lib/tutorial-steps';
 
-/**
- * Wires the tour into the app (2.0.0):
- *
- * - brand new users: the tour starts right after registration/onboarding,
- * - existing users: it starts once on the next app start, as long as the tour
- *   was not completed (skipped users get the "continue" pill instead),
- * - a completed tour only reopens when a newer tour version adds new steps,
- * - "continue later" keeps the exact step and offers the pill on the next start.
- */
 export function TutorialGate() {
   const { t, lang } = useTranslation();
   const { visible, progress } = useTutorial();
   const profile = useQuery(api.users.currentUser) as any;
   const [ready, setReady] = useState(false);
   const [pillHidden, setPillHidden] = useState(false);
+  const isWeb = IS_WEB;
   const startedRef = useRef(false);
 
   useEffect(() => {
@@ -49,29 +41,27 @@ export function TutorialGate() {
     };
   }, []);
 
-  // Auto start once per app run - never in guest mode (no profile yet).
   useEffect(() => {
-    if (!ready || startedRef.current || profile === undefined) return;
+    if (isWeb || !ready || startedRef.current || profile === undefined) return;
     startedRef.current = true;
     void (async () => {
       if (!(await shouldAutoStart())) return;
-      // Brand new accounts (just onboarded) get the tour straight away,
-      // everyone else after the shell has settled.
       const onboardedAt = Number(profile?.onboardedAt ?? 0);
       const isFresh = onboardedAt > 0 && Date.now() - onboardedAt < 10 * 60 * 1000;
+      if (!isFresh) return;
       setTimeout(() => {
         void startTutorial();
-      }, isFresh ? 1200 : 2200);
+      }, 1200);
     })();
   }, [ready, profile]);
 
   const showPill =
     ready &&
+    !isWeb &&
     !visible &&
     !pillHidden &&
     (progress.state === 'paused' || progress.state === 'skipped' || progress.state === 'failed_target');
 
-  // 2.1.2: the phone language is not translated -> soft hint with a picker.
   const [langHint, setLangHint] = useState(false);
   useEffect(() => {
     if (!ready || wasLanguagePickerShown()) return;
@@ -88,7 +78,7 @@ export function TutorialGate() {
 
   return (
     <>
-      <TutorialOverlay />
+      {isWeb ? null : <TutorialOverlay />}
       {showPill ? (
         <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: 92, alignItems: 'center' }}>
           <View

@@ -1,5 +1,5 @@
-import React from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Pressable, ScrollView, Text, View } from 'react-native';
 import { useWindowDimensions } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,7 +12,6 @@ import {
   MessageCircle,
   ShoppingCart,
   UsersRound,
-  Zap,
 } from 'lucide-react-native';
 
 import { colors } from '../theme';
@@ -21,6 +20,7 @@ import { openBarcode } from '../components/BarcodeHost';
 import { setPendingBarcode } from '../lib/scan-bus';
 import { useTranslation } from '../lib/i18n';
 import { useTutorialTarget } from '../lib/tutorial';
+
 import { LibraryScreen } from '../screens/LibraryScreen';
 import { MyRecipesScreen } from '../screens/MyRecipesScreen';
 import { AssistantScreen } from '../screens/AssistantScreen';
@@ -72,6 +72,14 @@ const SCREENS: Record<RootTabScreenNames, React.ComponentType<any>> = {
 
 function TabIcon({ name, focused }: { name: RootTabScreenNames; focused: boolean }) {
   const Icon = ICONS[name];
+  const scale = useRef(new Animated.Value(1)).current;
+  const glow = useRef(new Animated.Value(focused ? 1 : 0)).current;
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scale, { toValue: focused ? 1.12 : 1, damping: 9, stiffness: 240, mass: 0.6, useNativeDriver: true }),
+      Animated.timing(glow, { toValue: focused ? 1 : 0, duration: 180, useNativeDriver: true }),
+    ]).start();
+  }, [focused, scale, glow]);
   return (
     <View
       style={{
@@ -80,10 +88,23 @@ function TabIcon({ name, focused }: { name: RootTabScreenNames; focused: boolean
         borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: focused ? colors.accentSoft : 'transparent',
       }}
     >
-      <Icon size={21} strokeWidth={focused ? 2.5 : 2} color={focused ? colors.accent : colors.textSecondary} />
+      <Animated.View
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          top: 0,
+          bottom: 0,
+          borderRadius: 14,
+          backgroundColor: colors.accentSoft,
+          opacity: glow,
+        }}
+      />
+      <Animated.View style={{ transform: [{ scale }] }}>
+        <Icon size={21} strokeWidth={focused ? 2.5 : 2} color={focused ? colors.accent : colors.textSecondary} />
+      </Animated.View>
     </View>
   );
 }
@@ -107,10 +128,6 @@ function TabLabel({ name, focused }: { name: RootTabScreenNames; focused: boolea
   );
 }
 
-/**
- * One tab of the bottom bar. Each tab doubles as a tutorial target, so the tour
- * can highlight it and only finish the step when the user really taps it.
- */
 function TabButton({
   name,
   focused,
@@ -122,7 +139,7 @@ function TabButton({
   width: number;
   onPress: () => void;
 }) {
-  /* 3.2.0: langes Drücken auf 'Tracker' -> Barcode scannen und direkt tracken */
+  
   const onLongPress =
     name === 'Tracker'
       ? () => {
@@ -155,17 +172,14 @@ function TabButton({
   );
 }
 
-/** Horizontally scrollable bottom bar: same item width as before, extra tabs slide in. */
 function ScrollableTabBar({ state, navigation }: any) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  // Keeps the exact original width per tab; more tabs simply overflow to the right.
   const itemW = Math.max(70, Math.round(width / 5));
-  const themeIsDark = colors.dark;
   return (
     <View
       style={{
-        backgroundColor: themeIsDark ? colors.bottomBar : 'rgba(255,255,255,0.95)',
+        backgroundColor: colors.bottomBar,
         borderTopWidth: 1,
         borderTopColor: colors.cardBorder,
       }}

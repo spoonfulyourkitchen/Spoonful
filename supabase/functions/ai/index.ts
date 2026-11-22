@@ -1,39 +1,8 @@
 import { isDeepSeekPeak, peakSummary } from './peak.ts';
 
-/**
- * Spoonful AI proxy — der OpenRouter-Key bleibt auf dem Server.
- *
- * WICHTIG (Geld sparen):
- *  * Es werden **alle** vorhandenen Keys benutzt: OPENROUTER_API_KEY,
- *    OPENROUTER_API_KEY_2 … _24 (oder OPENROUTER_API_KEYS als Kommaliste).
- *    Pro Anfrage wird rotiert; Keys mit 429/402 werden kurz gesperrt.
- *  * Zuerst laufen immer die **Gratis-Modelle** (pricing == 0, live von
- *    OpenRouter geladen).
- *  * Danach kommt die feste Kette (günstig → teurer):
- *      1. meta-llama/llama-3.1-8b-instruct
- *      2. microsoft/phi-4
- *      3. deepseek/deepseek-v4.1-flash   ← **nur außerhalb der Stoßzeiten**
- *      4. openai/gpt-4o-mini             (letzter Notfall)
- *  * Die bezahlte Kette lässt sich mit OPENROUTER_ALLOW_PAID=0 abschalten;
- *    OPENROUTER_PAID_DAILY_LIMIT begrenzt sie pro Tag (Standard 300).
- *
- * Deployen: Dashboard → Edge Functions → „ai“ → diesen Code einfügen → Deploy.
- * Secrets setzen: OPENROUTER_API_KEY, OPENROUTER_API_KEY_2 … (bis _24).
- */
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 const PAID_MODEL = Deno.env.get('OPENROUTER_PAID_MODEL') ?? 'openai/gpt-4o-mini';
 
-/**
- * Die **drei besten Gratis-Modelle** (vorher wurde live eine lange Liste
- * geladen und durchprobiert — das hat jeden Aufruf langsam gemacht).
- *
- * Reihenfolge nach Erfahrung aus dem Rezept-Bot:
- *  1. ling-3.0-flash-vl  — sehr schnell, gutes Deutsch
- *  2. gemma-4-31b-it     — starke Anweisungstreue (JSON)
- *  3. nemotron-3-super-120b — stärkstes Modell der Gratis-Gruppe
- *
- * Über das Secret OPENROUTER_FREE_MODELS (Kommaliste) änderbar, ohne Deploy.
- */
 const BEST_FREE_MODELS: string[] = [
   'inclusionai/ling-3.0-flash-vl:free',
   'google/gemma-4-31b-it:free',
@@ -48,19 +17,6 @@ function freeModelList(): string[] {
   return custom.length ? custom.slice(0, 3) : BEST_FREE_MODELS;
 }
 
-/**
- * Bezahlte Kette: **nur als letzter Notfall** (erst wenn alle Gratis-Modelle
- * gescheitert sind) und nur innerhalb des Tageslimits.
- *
- * Abschalten:   OPENROUTER_ALLOW_PAID=0   → dann läuft ausschließlich Gratis.
- * Limit:        OPENROUTER_PAID_DAILY_LIMIT=50  (0 = kein Limit)
- *
- * Kosten je Anfrage (OpenRouter, Stand September 2026, Richtwerte):
- *  llama-3.1-8b-instruct  ~0,0002 $   (billigstes Modell der Kette)
- *  phi-4                  ~0,0004 $
- *  deepseek-v4.1-flash    ~0,001 $ off-peak (in der Stoßzeit doppelt so teuer)
- *  gpt-4o-mini            ~0,001 $    (letzter Ausweg)
- */
 const MODEL_CHAIN: string[] = [
   'meta-llama/llama-3.1-8b-instruct',
   'microsoft/phi-4',
@@ -68,18 +24,12 @@ const MODEL_CHAIN: string[] = [
   'openai/gpt-4o-mini',
 ];
 
-/** Modelle, die nur außerhalb der DeepSeek-Stoßzeit erlaubt sind. */
 const PEAK_RESTRICTED = ['deepseek/deepseek-v4.1-flash'];
 
-/** Bezahlte Kette erlaubt? (OPENROUTER_ALLOW_PAID=0 schaltet sie komplett ab.) */
 const PAID_ALLOWED = !['0', 'false', 'no', 'off'].includes(
   String(Deno.env.get('OPENROUTER_ALLOW_PAID') ?? '1').toLowerCase(),
 );
 
-/**
- * Sicherheitsnetz gegen hohe Rechnungen: höchstens so viele bezahlte Anfragen
- * pro Tag (Standard 100 ≈ wenige Cent). 0 = kein Limit.
- */
 const PAID_DAILY_LIMIT = Math.max(
   0,
   Number(Deno.env.get('OPENROUTER_PAID_DAILY_LIMIT') ?? 100) || 0,
@@ -97,13 +47,10 @@ function notePaidCall() {
   paidCalls.count += 1;
 }
 
-
-/** Ist dieses Modell jetzt erlaubt? (DeepSeek nur außerhalb der Stoßzeit) */
 export function modelAllowedNow(model: string, now: Date = new Date()): boolean {
   if (PEAK_RESTRICTED.includes(model) && isDeepSeekPeak(now)) return false;
   return true;
 }
-
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -118,7 +65,6 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-/** Alle verfügbaren Keys (bis zu 20+). */
 function readKeys(): string[] {
   const out: string[] = [];
   const add = (v?: string | null) => {
@@ -133,7 +79,6 @@ function readKeys(): string[] {
   return out;
 }
 
-/** Keys, die gerade gesperrt sind (429/402), kurz überspringen. */
 const blockedUntil = new Map<string, number>();
 function liveKeys(keys: string[]): string[] {
   const now = Date.now();
@@ -141,14 +86,12 @@ function liveKeys(keys: string[]): string[] {
   return open.length ? open : keys;
 }
 
-/** Gratis-Modelle für diesen Aufruf (feste kurze Liste — kein Live-Abruf mehr). */
 function freeModels(): string[] {
   return freeModelList();
 }
 
 type Attempt = { ok: boolean; status: number; content?: string; detail?: string };
 
-/** Ein einzelner Versuch bei OpenRouter. */
 async function attempt(key: string, model: string, body: Record<string, unknown>, withJson: boolean): Promise<Attempt> {
   try {
     const res = await fetch(ENDPOINT, {
@@ -175,7 +118,6 @@ async function attempt(key: string, model: string, body: Record<string, unknown>
   }
 }
 
-/** Liest die "role"-Angabe aus einem bereits geprüften JWT. */
 function jwtRole(token: string): string {
   try {
     const payload = token.split('.')[1] ?? '';
@@ -186,13 +128,6 @@ function jwtRole(token: string): string {
   }
 }
 
-/**
- * 3.2.3: Tageslimit prüfen und verbrauchen.
- *
- * Die Zählung liegt in der Datenbank (`public.ai_usage_consume`), damit sie
- * geräteübergreifend gilt und nicht durch einen Neustart der App zurückgesetzt
- * werden kann. Mods/Admins bekommen `unlimited: true`.
- */
 const AI_DAILY_LIMIT = Math.max(0, Number(Deno.env.get('AI_DAILY_LIMIT') ?? '3') || 3);
 
 type QuotaResult = { allowed: boolean; used: number; limit: number; remaining: number; unlimited?: boolean } | null;
@@ -200,7 +135,7 @@ type QuotaResult = { allowed: boolean; used: number; limit: number; remaining: n
 async function consumeQuota(token: string): Promise<QuotaResult> {
   const url = `${Deno.env.get('SUPABASE_URL') ?? ''}/rest/v1/rpc/ai_usage_consume`;
   const anon = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-  if (!url.startsWith('http') || !anon) return null; /* kein Limit möglich → nicht blockieren */
+  if (!url.startsWith('http') || !anon) return null; 
   try {
     const res = await fetch(url, {
       method: 'POST',
@@ -243,14 +178,8 @@ Deno.serve(async (req: Request) => {
     return json({ error: 'invalid JSON body' }, 400);
   }
 
-  /**
-   * 3.2.3: Tageslimit — 3 Nutzungen pro Nutzer und Tag, alle drei Chef-
-   * Funktionen zusammen. Mods/Admins sind ausgenommen (das entscheidet die
-   * Datenbankfunktion anhand von `public.users.role`).
-   *
-   * Der Zugriff passiert mit dem JWT des Nutzers, damit `auth.uid()` in der
-   * Datenbankfunktion gesetzt ist.
-   */
+  
+
   const usage = await consumeQuota(token);
   if (usage && usage.allowed === false) {
     return json(
@@ -279,8 +208,8 @@ Deno.serve(async (req: Request) => {
     ],
   };
 
-  /* 1) Die drei besten Gratis-Modelle der Reihe nach (je 1 Versuch).
-        Bewusst kurz gehalten: jeder zusätzliche Versuch kostet nur Zeit. */
+  
+
   const pool = liveKeys(keys);
   const models = freeModels();
   const errors: string[] = [];
@@ -300,7 +229,7 @@ Deno.serve(async (req: Request) => {
       const first = await attempt(key, model, body, true);
       if (first.ok) {
         if (paid) notePaidCall();
-        /* `paid: true` heißt: kein Gratis-Modell hat geantwortet. */
+        
         return json({
           content: first.content,
           model,
@@ -325,11 +254,11 @@ Deno.serve(async (req: Request) => {
           });
         }
         errors.push(`${model}: ${second.status} ${String(second.detail ?? '').slice(0, 80)}`);
-        break; /* Modell kann kein JSON → nächstes Modell */
+        break; 
       }
       errors.push(`${model}: ${first.status} ${String(first.detail ?? '').slice(0, 80)}`);
-      if (first.status === 429 || first.status === 402) continue; /* nächster Key */
-      break; /* anderer Fehler → nächstes Modell */
+      if (first.status === 429 || first.status === 402) continue; 
+      break; 
     }
     return null;
   };
@@ -339,9 +268,8 @@ Deno.serve(async (req: Request) => {
     if (done) return done;
   }
 
-  /* 2) Letzter Notfall: billige Kette, nur außerhalb der DeepSeek-Stoßzeit
-        und nur innerhalb des Tageslimits. Dafür bekommt sie eine eigene,
-        frische Zeitgrenze — sonst wäre sie nach den Gratis-Versuchen tot. */
+  
+
   deadline = Date.now() + 30_000;
   if (PAID_ALLOWED) {
     for (const model of MODEL_CHAIN) {
@@ -356,7 +284,7 @@ Deno.serve(async (req: Request) => {
       const done = await tryModel(model, true);
       if (done) return done;
     }
-    /* Letzter Notfall, falls konfiguriert und nicht schon in der Kette. */
+    
     if (PAID_MODEL && !MODEL_CHAIN.includes(PAID_MODEL) && modelAllowedNow(PAID_MODEL) && paidBudgetLeft()) {
       const paid = await tryModel(PAID_MODEL, true);
       if (paid) return paid;

@@ -1,12 +1,6 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-/* ============================================================================
-   Spoonful RN theme engine.
-   Mirrors the web app: 20 selectable themes applied as opaque tokens,
-   persisted under "spoonful-theme-id". Default theme is Warm Cream.
-   ========================================================================== */
-
 export type ThemeDef = {
   id: string;
   name: string;
@@ -49,8 +43,6 @@ export const themes: ThemeDef[] = [
   { id: 'berry-dark', name: 'Berry Dark', tagline: 'Deep plum with berry accents', colors: ['#1a1025', '#2d1b4e', '#f5f0ff', '#c084fc', '#3b2560'], dark: true, bodyBg: '#1a1025', textPrimary: '#f5f0ff', textSecondary: '#a78bfa', cardBg: '#2d1b4e', cardBorder: 'rgba(167,139,250,0.16)', accent: '#c084fc', accentText: '#1a1025', headerBg: '#1a1025', bottomBarBg: '#1a1025' },
 ];
 
-/* ------------------- color math (hex / rgb / rgba) ----------------------- */
-
 type RGBA = { r: number; g: number; b: number; a: number };
 
 function parseColor(color: string): RGBA | null {
@@ -82,7 +74,6 @@ function rgba(c: RGBA, alpha: number): string {
   return `rgba(${c.r}, ${c.g}, ${c.b}, ${alpha})`;
 }
 
-/** Relative luminance (0..1) of a color – used to pick readable button text. */
 function luminance(color: string): number {
   const c = parseColor(color);
   if (!c) return 0;
@@ -93,7 +84,6 @@ function luminance(color: string): number {
   return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b);
 }
 
-/** Mix two colors (0 = a, 1 = b) so call buttons can follow the theme accent. */
 function mix(a: string, b: string, t: number): string {
   const x = parseColor(a);
   const y = parseColor(b);
@@ -105,16 +95,12 @@ function mix(a: string, b: string, t: number): string {
 }
 
 export function readableText(bg: string): string {
-  // Pick whichever of black/white has the higher contrast ratio - a fixed
-  // luminance threshold picked white on e.g. #38bdf8 or #c084fc, which is
-  // exactly what made buttons unreadable in some themes.
   const l = luminance(bg);
-  const contrastWithDark = (l + 0.05) / 0.0566; // #141414
+  const contrastWithDark = (l + 0.05) / 0.0566;
   const contrastWithWhite = 1.05 / (l + 0.05);
   return contrastWithDark >= contrastWithWhite ? '#141414' : '#ffffff';
 }
 
-/** WCAG contrast ratio between two colours. */
 function contrastRatio(a: string, b: string): number {
   const la = luminance(a);
   const lb = luminance(b);
@@ -123,12 +109,6 @@ function contrastRatio(a: string, b: string): number {
 
 const MIN_BUTTON_CONTRAST = 4.5;
 
-/**
- * Nudges a surface away from its text colour until the contrast is guaranteed.
- * This is what makes the button design safe in *every* theme: a pale accent
- * gets a touch darker, a bright one a touch lighter, until text on it is
- * readable - no per-theme hand tuning needed.
- */
 function surfaceForContrast(bg: string, text: string, min = MIN_BUTTON_CONTRAST): string {
   let out = bg;
   if (contrastRatio(out, text) >= min) return out;
@@ -139,7 +119,6 @@ function surfaceForContrast(bg: string, text: string, min = MIN_BUTTON_CONTRAST)
   return out;
 }
 
-/** Keeps a preferred foreground colour but darkens/lightens it to stay readable. */
 function foregroundOn(bg: string, preferred: string, min = MIN_BUTTON_CONTRAST): string {
   if (contrastRatio(bg, preferred) >= min) return preferred;
   const dir = luminance(bg) > 0.2 ? '#000000' : '#ffffff';
@@ -153,12 +132,6 @@ function foregroundOn(bg: string, preferred: string, min = MIN_BUTTON_CONTRAST):
 export function themeById(id: string): ThemeDef {
   return themes.find((t) => t.id === id) || themes[0];
 }
-
-/* ---------------------------------------------------------------------------
-   Palette — concrete tokens consumed by every component. `colors` is mutated
-   in place by applyTheme() so components reading `colors.*` during render see
-   the active theme (the root navigator is re-keyed on theme change).
-   ------------------------------------------------------------------------- */
 
 export type Palette = {
   id: string;
@@ -212,14 +185,14 @@ export type Palette = {
   bottomBar: string;
   shadowStrong: string;
   shadowSoft: string;
-  /* ---------- Helper-Keys ---------- */
-  overlayMuted: string;    /* Halbtransparentes Overlay (z.B. Modal-Hintergrund) */
-  overlayStrong: string;   /* Stärkeres Overlay (z.B. Vollbild-Modal) */
-  borderSolid: string;     /* 1px feste Border-Farbe */
-  borderStrong: string;    /* 2px starke Border-Farbe */
-  muted: string;           /* Dezente Text-/Trennfarbe */
-  mutedSoft: string;       /* Noch dezenter, z.B. für kleine Labels */
-  pageBg: string;          /* Seiten-Hintergrund (Library, Rezept-Detail) */
+  
+  overlayMuted: string;    
+  overlayStrong: string;   
+  borderSolid: string;     
+  borderStrong: string;    
+  muted: string;           
+  mutedSoft: string;       
+  pageBg: string;          
 };
 
 function computePalette(theme: ThemeDef): Palette {
@@ -230,22 +203,15 @@ function computePalette(theme: ThemeDef): Palette {
   const accentSoft = flattenOver(rgba(accentRgba, 0.12), theme.bodyBg);
   const accentSofter = flattenOver(rgba(accentRgba, 0.08), theme.bodyBg);
   const accentTint = flattenOver(rgba(accentRgba, 0.16), theme.bodyBg);
-  // Never trust the hand-written accentText: pick black or white by luminance
-  // so text on an accent surface is readable in every theme.
   const accentTextSafe = readableText(theme.accent);
-  // the accent surface is nudged until that text is guaranteed readable
   const accentSurface = surfaceForContrast(theme.accent, accentTextSafe);
-  // Visible button/UI stroke. Many light themes define `cardBorder` as a
-  // translucent white (a glass highlight), which is invisible when used as a
-  // border on a light page - that is what made buttons look "broken" there.
   const textRgba = parseColor(theme.textPrimary) || { r: 0, g: 0, b: 0, a: 1 };
   const strokeColor = flattenOver(rgba(textRgba, theme.dark ? 0.22 : 0.16), theme.bodyBg);
   const dark = theme.dark;
-  /** Opaque tint of a status colour, blended over the page background. */
+  
   const tint = (r: number, g: number, b: number, alpha: number) =>
     flattenOver(rgba({ r, g, b, a: 1 }, alpha), theme.bodyBg);
 
-  // Status surfaces first, then a foreground that is guaranteed readable on it
   const successBg = dark ? tint(22, 163, 74, 0.18) : '#d1fae5';
   const roseBg = dark ? tint(225, 29, 72, 0.18) : '#ffe4e6';
   const cyanBg = dark ? tint(14, 116, 144, 0.2) : '#cffafe';
@@ -282,23 +248,12 @@ function computePalette(theme: ThemeDef): Palette {
     slate500: theme.textSecondary,
     slate400: theme.textSecondary,
     white: '#ffffff',
-    // Definitive button design (same rules for every theme):
-    //  · primary  = the theme accent, text picked by luminance (never white on
-    //    a pale accent, never black on a dark one)
-    //  · pressed  = same accent, darkened a touch
-    //  · secondary= surfaceMuted tint + the visible `cardBorder` stroke
-    //  · ghost    = the card surface, textPrimary
     darkButton: accentSurface,
     darkButtonText: accentTextSafe,
-    // pressed stays readable: darker when the label is white, lighter when dark
     darkButtonPressed: surfaceForContrast(
       mix(accentSurface, accentTextSafe === '#ffffff' ? '#000000' : '#ffffff', 0.14),
       accentTextSafe,
     ),
-    // Status colours follow the theme as well: light themes use soft pastel
-    // backgrounds with deep foregrounds, dark themes a translucent tint of the
-    // same hue over the page background with a light foreground. Without this
-    // those buttons/chips stayed bright in dark themes.
     success: foregroundOn(successBg, dark ? '#4ade80' : '#15803d'),
     successBg,
     rose: foregroundOn(roseBg, dark ? '#fb7185' : '#be123c'),
@@ -317,7 +272,7 @@ function computePalette(theme: ThemeDef): Palette {
     bottomBar,
     shadowStrong: 'rgba(48,87,105,0.14)',
     shadowSoft: 'rgba(0,0,0,0.06)',
-    /* ---------- Helper-Keys ---------- */
+    
     overlayMuted: rgba({ r: 0, g: 0, b: 0, a: 1 }, 0.28),
     overlayStrong: rgba({ r: 0, g: 0, b: 0, a: 1 }, 0.65),
     borderSolid: strokeColor,
@@ -351,12 +306,8 @@ export function getThemeId(): string {
   return currentTheme.id;
 }
 
-/**
- * 3.2.3: Das Haupt-Theme („Warm Cream") zeigt keine Glasmorphismus-Optik mehr:
- * Hintergrund und Karten sind dann flächig/clean statt durchscheinend.
- */
 export function usesSolidStyle(): boolean {
-  return getThemeId() === 'warm-cream';
+  return true;
 }
 
 export function isDarkTheme(): boolean {
@@ -369,7 +320,7 @@ export function applyTheme(themeId: string) {
   Object.assign(colors, computePalette(theme));
   try {
     AsyncStorage.setItem(THEME_STORAGE_KEY, theme.id);
-  } catch { /* ignore */ }
+  } catch {  }
   notifyThemeChanged();
 }
 
@@ -377,24 +328,14 @@ export async function loadStoredThemeId(): Promise<string> {
   try {
     const stored = await AsyncStorage.getItem(THEME_STORAGE_KEY);
     if (stored && themes.some((t) => t.id === stored)) return stored;
-  } catch { /* ignore */ }
+  } catch {  }
   return 'warm-cream';
 }
-
-/* ---------------------------------------------------------------------------
-   Typography. Web uses Playfair Display (display) + Inter (body). The RN app
-   falls back to a platform serif until the real TTFs are added under
-   android/app/src/main/assets/fonts (then set the two names below).
-   ------------------------------------------------------------------------- */
 
 export const fonts = {
   display: Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' }) as string | undefined,
   body: undefined as string | undefined,
 };
-
-/* ---------------------------------------------------------------------------
-   Shared helpers (kept API-compatible for existing call sites).
-   ------------------------------------------------------------------------- */
 
 export function difficultyColor(level: 'easy' | 'medium' | 'hard' | string) {
   if (level === 'easy') return { fg: colors.easy, bg: colors.easyBg };
@@ -402,13 +343,11 @@ export function difficultyColor(level: 'easy' | 'medium' | 'hard' | string) {
   return { fg: colors.medium, bg: colors.mediumBg };
 }
 
-/* ---------- Helper-Farben (können auch direkt genutzt werden) ---------- */
 export function rgbaHelper(hex: string, alpha: number) {
   const c = parseColor(hex) || { r: 0, g: 0, b: 0, a: 1 };
   return `rgba(${c.r},${c.g},${c.b},${alpha})`;
 }
 
-/** Layered soft, cool-toned shadow used by Spoonful glass panels. */
 export function glassShadow(level: 'sm' | 'md' | 'lg' | 'xl' = 'md') {
   const map = {
     sm: { shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },

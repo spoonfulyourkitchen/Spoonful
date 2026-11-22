@@ -1,13 +1,5 @@
-/**
- * SQL direkt auf das Supabase-Projekt ausführen (Management API „Run a query“).
- *
- * Nutzung:
- *   node tools/db-run.mjs --file tools/sql/xy.sql
- *   node tools/db-run.mjs --sql "select count(*) from shared_recipes"
- *
- * Token kommt aus `SUPABASE_ACCESS_TOKEN` oder aus der (git-ignorierten)
- * `.env.local`. Das ist derselbe Weg, über den die Funktion `ai` deployt wird.
- */
+
+
 import { readFileSync } from 'node:fs';
 
 const REF = 'gmfkleugoxafmvprqatk';

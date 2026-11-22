@@ -1,8 +1,5 @@
-/**
- * 3.2.0: Texte für die neue Einkaufsliste, die Haushalts-Listen, den
- * eingeklappten Koch-Assistenten, die Community-Filter, den Profil-Editor
- * und die Produktsuche.
- */
+
+
 export const APP_320: Record<string, Record<string, any>> = {
   de: {
     s: { shopOpen: 'offene Posten', shopEmptyBody: 'Tipp: Bei jedem Rezept gibt es Add to shopping list - diese Posten landen hier.', shopOwn: 'Ohne Rezept', shopToHousehold: 'Zum Haushalt', shopLimit: 'Der Haushalt hat schon 2 Listen', shopShareFail: 'Teilen hat nicht geklappt', shopSharedToHh: 'Im Haushalt geteilt', shopNeedHousehold: 'Du brauchst zuerst einen Haushalt', shopClearDone: 'Erledigte löschen', chefDietary: 'Ernährung', chefOptions: 'Chef-Optionen', chefMore: 'mehr Optionen', chefLess: 'weniger Optionen', chefLighter: 'leichter', chefKid: 'für Kinder', chefCuisine: 'Küche', chefReadyIn: 'Fertig in', chefDiffHeat: 'Schwierigkeit & Schärfe', chefAny: 'egal', commFilters: 'Filter', commSort: 'Sortierung', commDifficulty: 'Schwierigkeit', commAnyDiff: 'Jede Schwierigkeit', profileTitle: 'Profil', profileSub: 'Alle Angaben an einer Stelle ändern.', profileEdit: 'Profil bearbeiten', profileName: 'Name', profileRegion: 'Region', profileAllergies: 'Allergien', profileWater: 'Wasserziel (ml)', profileGoal: 'Ziel', profileGoal_lose: 'Abnehmen', profileGoal_maintain: 'Halten', profileGoal_gain: 'Zunehmen', profileExperience: 'Kocherfahrung', profileExp_beginner: 'Anfänger', profileExp_intermediate: 'Mittel', profileExp_advanced: 'Fortgeschritten', profileSave: 'Speichern', scanSearchPh: 'Produkt suchen (Name)', scanSearchGo: 'Suchen', scanNoHits: 'Keine Treffer', hhLists: 'Geteilte Listen', hhListsHint: 'Bis zu 2 Listen - tippen zum Abhaken.', hhListTake: 'Zurückholen', hhListRemove: 'Löschen' },

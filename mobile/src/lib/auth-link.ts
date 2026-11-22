@@ -2,13 +2,6 @@ import { Linking } from 'react-native';
 import { supabase } from './supabase';
 import { setRecoveryPending } from './recovery';
 
-/**
- * Auth deep-link handling for Spoonful.
- *
- * Supabase emails now point to:
- *  - spoonful://auth/callback for sign-in / confirmation
- *  - spoonful://reset for password reset (→ shows the "new password" screen)
- */
 export const AUTH_REDIRECT_URL = 'spoonful://auth/callback';
 export const RESET_REDIRECT_URL = 'spoonful://reset';
 
@@ -25,9 +18,7 @@ function collectParams(url: string): URLSearchParams {
       p.forEach((v, k) => {
         if (!out.has(k)) out.set(k, v);
       });
-    } catch {
-      /* ignore malformed fragment */
-    }
+    } catch {}
   }
   return out;
 }
@@ -47,7 +38,6 @@ export async function handleAuthUrl(rawUrl: string): Promise<boolean> {
       if (isRecovery) setRecoveryPending(true);
     };
 
-    // PKCE-style callback: ?code=…
     const code = params.get('code');
     if (code) {
       const { error: e } = await supabase.auth.exchangeCodeForSession(code);
@@ -56,7 +46,6 @@ export async function handleAuthUrl(rawUrl: string): Promise<boolean> {
       return true;
     }
 
-    // Implicit flow: #access_token=…&refresh_token=…
     const accessToken = params.get('access_token');
     const refreshToken = params.get('refresh_token');
     if (accessToken && refreshToken) {
@@ -69,7 +58,6 @@ export async function handleAuthUrl(rawUrl: string): Promise<boolean> {
       return true;
     }
 
-    // Fallback: token_hash links (older magic-link / recovery format)
     const tokenHash = params.get('token_hash');
     if (tokenHash && type) {
       const { error: e } = await supabase.auth.verifyOtp({
@@ -86,7 +74,6 @@ export async function handleAuthUrl(rawUrl: string): Promise<boolean> {
   return false;
 }
 
-/** Start listening for deep links while the app is running + cold start. */
 export function initAuthLinkHandling(): () => void {
   let cancelled = false;
   const sub = Linking.addEventListener('url', ({ url }) => {
@@ -98,15 +85,13 @@ export function initAuthLinkHandling(): () => void {
       if (!cancelled && url) void handleAuthUrl(url);
     })
     .catch(() => {
-      /* noop */
+      
     });
 
   return () => {
     cancelled = true;
     try {
       sub.remove();
-    } catch {
-      /* noop */
-    }
+    } catch {}
   };
 }

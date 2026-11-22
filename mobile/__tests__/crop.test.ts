@@ -1,26 +1,13 @@
-/**
- * 3.3.1: Test für den Bild-Ausschnitt.
- *
- * Der Fehler „es wird immer die Mitte angezeigt" ist nur nachrechenbar, wenn
- * beide Seiten derselben Rechnung geprüft werden:
- *   1. das Popup (PhotoCropModal) rechnet den Rahmen in den gespeicherten
- *      Ausschnitt um (`cropFromFrame`),
- *   2. die Anzeige (CroppedImage) rechnet daraus die sichtbare Stelle aus.
- *
- * Der Test prüft, dass der gewählte Punkt (Rahmenmitte) nachher genau in der
- * Mitte des sichtbaren Bereichs liegt — und zwar auch, wenn Bild und Rahmen
- * unterschiedliche Seitenverhältnisse haben.
- */
+
+
 import { clampCrop, cropFromFrame, isCropDefault } from '../src/lib/photo-crop';
 
-/* Der Ausschnitt-Speicher nutzt AsyncStorage — im Test reicht ein Ersatz. */
 jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn(async () => null),
   setItem: jest.fn(async () => undefined),
   removeItem: jest.fn(async () => undefined),
 }));
 
-/** Bild-Anzeige im Popup: „contain" auf der Bühne. */
 function contain(imageW: number, imageH: number, stageW: number, stageH: number) {
   const s = Math.min(stageW / imageW, stageH / imageH);
   const drawnW = imageW * s;
@@ -28,7 +15,6 @@ function contain(imageW: number, imageH: number, stageW: number, stageH: number)
   return { s, ox: (stageW - drawnW) / 2, oy: (stageH - drawnH) / 2 };
 }
 
-/** Sichtbarer Bildbereich (Pixel) so, wie CroppedImage es zeichnet. */
 function visibleRegion(
   crop: { fx: number; fy: number; zoom: number; iw?: number; ih?: number },
   frameW: number,
@@ -50,17 +36,16 @@ function visibleRegion(
   };
 }
 
-/** Center of the frame in image pixels (what the user selected). */
 function frameCenter(crop: { fx: number; fy: number; iw?: number; ih?: number }) {
   return { cx: crop.fx * (crop.iw as number), cy: crop.fy * (crop.ih as number) };
 }
 
 describe('Bild-Ausschnitt', () => {
   const cases: [number, number][] = [
-    [3000, 2000], // Querformat
-    [2000, 3000], // Hochformat
-    [2000, 2000], // quadratisch
-    [4000, 1000], // sehr breit
+    [3000, 2000], 
+    [2000, 3000], 
+    [2000, 2000], 
+    [4000, 1000], 
   ];
 
   for (const [iw, ih] of cases) {
@@ -69,7 +54,7 @@ describe('Bild-Ausschnitt', () => {
       const view = contain(iw, ih, stage, stage);
       const rect = { x: 0, y: 0, w: stage, h: stage };
 
-      /* Der Rahmnen wird bewusst in eine Ecke gezogen (nicht die Mitte). */
+      
       const w = 130;
       const h = w / 1.6;
       const frame = { w, h, x: rect.x + 6, y: rect.y + 6 };
@@ -77,7 +62,7 @@ describe('Bild-Ausschnitt', () => {
       const crop = cropFromFrame({ frame, view, imageW: iw, imageH: ih });
       const withSize = { ...crop, iw, ih };
 
-      /* Anzeige in einer anderen Rahmengröße als im Popup. */
+      
       const vis = visibleRegion(withSize, 300, 300);
       const selected = frameCenter(withSize);
 
@@ -86,7 +71,7 @@ describe('Bild-Ausschnitt', () => {
       expect(selected.cy).toBeGreaterThan((vis.y0 + vis.y1) / 2 - 1);
       expect(selected.cy).toBeLessThan((vis.y0 + vis.y1) / 2 + 1);
 
-      /* Die Mitte des Bildes darf NICHT die Antwort sein. */
+      
       const middle = { x: iw / 2, y: ih / 2 };
       const farFromMiddle = Math.abs(selected.cx - middle.x) > iw * 0.08 || Math.abs(selected.cy - middle.y) > ih * 0.08;
       expect(farFromMiddle).toBe(true);
@@ -109,7 +94,7 @@ describe('Bild-Ausschnitt', () => {
 
   it('mittiger Rahmen ergibt Standard-Ausschnitt', () => {
     const view = contain(1000, 1000, 300, 300);
-    /* Rahmen wirklich mittig: Mitte der Bühne (150|150) */
+    
     const w = 100;
     const h = w / 1.6;
     const crop = cropFromFrame({

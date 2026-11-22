@@ -2,12 +2,14 @@ import React from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Bookmark, ChefHat, Flame, Library, Plus, Sparkles, UsersRound } from 'lucide-react-native';
 import { useQuery } from '../lib/convex-auth';
+import { useLocalPrefs } from '../lib/local-prefs';
 import { api } from '../lib/api';
 import { colors, readableText, subscribeTheme } from '../theme';
 import { Page } from '../navigation/Shell';
 import { navigate } from '../navigation/rootRef';
 import { GlassCard } from '../components/ui';
 import { useCachedList, OfflineBadge } from '../lib/offline';
+import { computeTargets, useNutritionProfile } from '../lib/nutrition-profile';
 import { useTranslation } from '../lib/i18n';
 
 function greeting(t: (k: string) => string) {
@@ -16,16 +18,11 @@ function greeting(t: (k: string) => string) {
 }
 function suggestion(t: (k: string) => string) {
   const h = new Date().getHours();
-  const month = new Date().getMonth();
-  const title = t('s.dashSub');
-  if (h < 10) return { title, hint: t('dashboard.suffix1') };
-  if (h < 14) return { title, hint: t('dashboard.suffix2') };
-  if (h < 18) return { title, hint: t('dashboard.suffix3') };
-  if (month === 11 || month <= 1) return { title, hint: t('dashboard.suffix3') };
-  return { title, hint: t('dashboard.suffix3') };
+  if (h < 10) return { hint: t('dashboard.suffix1') };
+  if (h < 14) return { hint: t('dashboard.suffix2') };
+  return { hint: t('dashboard.suffix3') };
 }
 
-/** Stable day bucket for a timestamp; '' for missing/invalid values. */
 function dayKey(ts: unknown): string {
   const n = Number(ts);
   if (!Number.isFinite(n) || n <= 0) return '';
@@ -37,6 +34,7 @@ function dayKey(ts: unknown): string {
 
 export function DashboardScreen() {
   const { t } = useTranslation();
+  const profile = useNutritionProfile();
   const user = useQuery(api.users.currentUser);
   const mineLive = useQuery(api.recipes.list);
   const { data: mineData, offline } = useCachedList('mine', mineLive);
@@ -47,14 +45,14 @@ export function DashboardScreen() {
   const mine: any[] = mineData ?? [];
   const saved: any[] = savedData ?? [];
   const entries: any[] = entriesData ?? [];
-  const name = user?.name?.split(' ')[0] || 'Chef';
+  const localPrefs = useLocalPrefs();
+  const name = user?.name?.split(' ')[0] || localPrefs.name?.split(' ')[0] || 'Chef';
   const sug = suggestion(t);
   const todayCal = entries
     .filter((e: any) => dayKey(e.eatenAt) === dayKey(Date.now()))
     .reduce((s: number, e: any) => s + (Number(e.calories) || 0), 0);
-  const kcalGoal = 2200;
+  const kcalGoal = computeTargets(profile).budget;
   const kcalPct = kcalGoal > 0 ? Math.max(0, Math.min(100, Math.round((todayCal / kcalGoal) * 100))) : 0;
-  const remaining = Math.max(0, kcalGoal - todayCal);
   let streak = 0;
   for (let i = 0; i < 400; i++) {
     const d = dayKey(Date.now() - i * 86400000);
@@ -70,7 +68,6 @@ export function DashboardScreen() {
           {greeting(t)}, {name}
         </Text>
         <Text style={{ fontSize: 28, fontWeight: '800', color: colors.textPrimary, letterSpacing: -0.5 }}>{t('landing.tagline')}</Text>
-        <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: 5 }}>{t('s.dashSub')}</Text>
 
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
           <Stat icon={<ChefHat size={18} color={colors.accent} />} value={`${mine.length}`} label={t('s.mineTitle')} />
@@ -83,11 +80,18 @@ export function DashboardScreen() {
         {todayCal > 0 ? (
           <GlassCard pad={14} radius={20} style={{ marginTop: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>Daily goal · {kcalGoal} kcal</Text>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: kcalPct >= 100 ? colors.rose : colors.success }}>
-                {remaining > 0 ? `${remaining} left` : 'Goal reached'}
-                {streak > 1 ? ` · 🔥${streak}` : ''}
-              </Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>{t('tracker.caloriesToday')}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                {streak > 1 ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                    <Flame size={13} color={colors.accent} />
+                    <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.accent, fontVariant: ['tabular-nums'] }}>{streak}</Text>
+                  </View>
+                ) : null}
+                <Text style={{ fontSize: 13, fontWeight: '800', color: kcalPct >= 100 ? colors.rose : colors.success, fontVariant: ['tabular-nums'] }}>
+                  {todayCal} / {kcalGoal} {t('common.kcal')}
+                </Text>
+              </View>
             </View>
             <View style={{ height: 8, borderRadius: 4, backgroundColor: colors.surfaceMuted, marginTop: 8, overflow: 'hidden' }}>
               <View style={{ height: 8, width: `${kcalPct}%`, borderRadius: 4, backgroundColor: kcalPct >= 100 ? colors.rose : colors.accent }} />
@@ -96,7 +100,7 @@ export function DashboardScreen() {
         ) : null}
 
         <GlassCard pad={16} radius={22} style={{ marginTop: 14 }}>
-          <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textPrimary }}>{sug.title}</Text>
+          <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textPrimary }}>{t('s.dashSub')}</Text>
           <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>{sug.hint}</Text>
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
             <Pressable onPress={() => navigate('Main', { screen: 'Library' })} style={quickPill}>
@@ -129,7 +133,6 @@ export function DashboardScreen() {
   );
 }
 
-/* 2.0.0 theme fix: rebuilt on every theme change. */
 function buildDashboardStyles() {
   return {
     label: {
@@ -156,7 +159,7 @@ function Stat({ icon, value, label: l }: { icon: React.ReactNode; value: string;
   return (
     <GlassCard pad={12} radius={18} style={{ flex: 1, alignItems: 'center' }}>
       {icon}
-      <Text style={{ fontSize: 20, fontWeight: '800', color: colors.textPrimary, marginTop: 6 }}>{value}</Text>
+      <Text style={{ fontSize: 20, fontWeight: '800', color: colors.textPrimary, marginTop: 6, fontVariant: ['tabular-nums'] }}>{value}</Text>
       <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>{l}</Text>
     </GlassCard>
   );

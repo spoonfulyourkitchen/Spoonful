@@ -1,13 +1,5 @@
-/**
- * Kochmodus: Coach-Tipps (2.1.5)
- *
- * Vorher gab es pro Phase genau EINEN Tipp - der wiederholte sich bei jedem
- * Schritt, was genervt hat. Jetzt:
- *   * 3 Tipps + 2 "Worauf achten"-Hinweise pro Phase,
- *   * die Auswahl hängt vom Schritt ab (gleicher Schritt = gleicher Tipp),
- *   * derselbe Tipp kommt nie zweimal hintereinander,
- *   * alles in allen 10 App-Sprachen.
- */
+
+
 export type CoachPhase = 'start' | 'prep' | 'combine' | 'cook' | 'finish' | 'next';
 
 type PhaseText = { tips: string[]; looks: string[] };
@@ -15,7 +7,6 @@ type CoachDict = Record<CoachPhase, PhaseText>;
 
 export const COACH_PHASES: CoachPhase[] = ['start', 'prep', 'combine', 'cook', 'finish', 'next'];
 
-/** Erkennt die Phase aus dem Schritt-Text (englische Rezepttexte). */
 export function detectPhase(step: string, index: number, total: number): CoachPhase {
   const text = String(step || '').toLowerCase();
   if (index === total - 1 || /(serve|plate|garnish|finish|top with|enjoy|rest before serving)/.test(text)) return 'finish';
@@ -27,21 +18,21 @@ export function detectPhase(step: string, index: number, total: number): CoachPh
 }
 
 const de: CoachDict = {
-  start: { tips: ['Lies den Schritt einmal ganz, bevor du anfängst.', 'Stell alles bereit, was du gleich brauchst – dann läuft es ruhiger.', 'Lieber langsam anfangen als hektisch werden: nichts brennt an, wenn du vorbereitet bist.'], looks: ['Alles bereit? Dann los.', 'Schritt verstanden? Sonst einmal neu lesen.'] },
-  prep: { tips: ['Gleichmäßig schneiden – so gart alles zur selben Zeit.', 'Abwiegen statt schätzen: das macht den Unterschied im Ergebnis.', 'Erst alles vorbereiten, dann die Pfanne heiß werden lassen.'], looks: ['Alles geschnitten und abgewogen?', 'Sind die Stücke etwa gleich groß?'] },
-  combine: { tips: ['Von unten nach oben mischen – so bleibt nichts am Rand hängen.', 'Flüssigkeit erst zur Hälfte, dann nach und nach zugeben.', 'Einmal abschmecken, dann noch einmal: Salz wirkt erst nach dem Umrühren richtig.'], looks: ['Gleichmäßig verteilt, keine Klumpen?', 'Passt die Konsistenz zur Beschreibung?'] },
-  cook: { tips: ['Lieber etwas niedrigere Hitze und dafür länger – das schützt vor Anbrennen.', 'Nicht ständig rühren, sonst entsteht keine Bräunung.', 'Deckel drauf für zart, offen für Farbe.'], looks: ['Farbe und Geruch wie beschrieben?', 'Gleichmäßiges Zischen statt Spritzen?'] },
-  finish: { tips: ['Vor dem Servieren noch einmal abschmecken.', 'Kurz ruhen lassen – dann verteilt sich der Saft und es bleibt saftig.', 'Teller kurz vorwärmen, dann bleibt es länger heiß.'], looks: ['Sieht es aus wie im Rezept?', 'Ist alles gleichzeitig fertig? Dann servieren.'] },
-  next: { tips: ['In deinem Tempo weiter – es muss nicht schnell gehen.', 'Wenn etwas klebt: einen Schluck Wasser dazu und weiterrühren.', 'Zwischendurch abschmecken, dann bleibt nichts dem Zufall überlassen.'], looks: ['Passt es zur Beschreibung?', 'Bereit für den nächsten Schritt?'] },
+  start: { tips: ['Lies den Schritt einmal ganz, bevor du anfängst.', 'Stell alles bereit, was du gleich brauchst, dann läuft es ruhiger.', 'Lieber langsam anfangen als hektisch werden: nichts brennt an, wenn du vorbereitet bist.'], looks: ['Alles bereit? Dann los.', 'Schritt verstanden? Sonst einmal neu lesen.'] },
+  prep: { tips: ['Gleichmäßig schneiden, so gart alles zur selben Zeit.', 'Abwiegen statt schätzen: das macht den Unterschied im Ergebnis.', 'Erst alles vorbereiten, dann die Pfanne heiß werden lassen.'], looks: ['Alles geschnitten und abgewogen?', 'Sind die Stücke etwa gleich groß?'] },
+  combine: { tips: ['Von unten nach oben mischen, so bleibt nichts am Rand hängen.', 'Flüssigkeit erst zur Hälfte, dann nach und nach zugeben.', 'Einmal abschmecken, dann noch einmal: Salz wirkt erst nach dem Umrühren richtig.'], looks: ['Gleichmäßig verteilt, keine Klumpen?', 'Passt die Konsistenz zur Beschreibung?'] },
+  cook: { tips: ['Lieber etwas niedrigere Hitze und dafür länger, das schützt vor Anbrennen.', 'Nicht ständig rühren, sonst entsteht keine Bräunung.', 'Deckel drauf für zart, offen für Farbe.'], looks: ['Farbe und Geruch wie beschrieben?', 'Gleichmäßiges Zischen statt Spritzen?'] },
+  finish: { tips: ['Vor dem Servieren noch einmal abschmecken.', 'Kurz ruhen lassen, dann verteilt sich der Saft und es bleibt saftig.', 'Teller kurz vorwärmen, dann bleibt es länger heiß.'], looks: ['Sieht es aus wie im Rezept?', 'Ist alles gleichzeitig fertig? Dann servieren.'] },
+  next: { tips: ['In deinem Tempo weiter, es muss nicht schnell gehen.', 'Wenn etwas klebt: einen Schluck Wasser dazu und weiterrühren.', 'Zwischendurch abschmecken, dann bleibt nichts dem Zufall überlassen.'], looks: ['Passt es zur Beschreibung?', 'Bereit für den nächsten Schritt?'] },
 };
 
 const en: CoachDict = {
-  start: { tips: ['Read this step once before you start – it saves rework.', 'Put out everything you need now and the rest feels calm.', 'Starting slow beats rushing: nothing burns while you are prepared.'], looks: ['Everything ready? Go ahead.', 'Step clear? Re-read it once if not.'] },
-  prep: { tips: ['Cut evenly – that way everything cooks in the same time.', 'Weigh instead of guessing: it decides how the dish turns out.', 'Prep first, then let the pan get hot.'], looks: ['Everything cut and weighed?', 'Are the pieces roughly the same size?'] },
-  combine: { tips: ['Mix from the bottom up so nothing stays stuck at the edge.', 'Add liquid in halves, not all at once.', 'Taste once, stir, then taste again – salt needs a moment.'], looks: ['Evenly mixed, no lumps?', 'Does the texture match the description?'] },
+  start: { tips: ['Read this step once before you start, it saves rework.', 'Put out everything you need now and the rest feels calm.', 'Starting slow beats rushing: nothing burns while you are prepared.'], looks: ['Everything ready? Go ahead.', 'Step clear? Re-read it once if not.'] },
+  prep: { tips: ['Cut evenly, that way everything cooks in the same time.', 'Weigh instead of guessing: it decides how the dish turns out.', 'Prep first, then let the pan get hot.'], looks: ['Everything cut and weighed?', 'Are the pieces roughly the same size?'] },
+  combine: { tips: ['Mix from the bottom up so nothing stays stuck at the edge.', 'Add liquid in halves, not all at once.', 'Taste once, stir, then taste again, salt needs a moment.'], looks: ['Evenly mixed, no lumps?', 'Does the texture match the description?'] },
   cook: { tips: ['A little less heat and a little more time protects against burning.', 'Do not stir constantly or it will never brown.', 'Lid on for tender, lid off for colour.'], looks: ['Colour and smell as described?', 'Steady sizzle instead of spitting?'] },
   finish: { tips: ['Taste once more right before serving.', 'Let it rest briefly so the juices settle and it stays juicy.', 'Warm the plates so it stays hot longer.'], looks: ['Does it look like the picture?', 'Everything ready at once? Serve it.'] },
-  next: { tips: ['Carry on at your own pace – there is no rush.', 'Sticking? A splash of water and keep stirring.', 'Taste as you go so nothing is left to chance.'], looks: ['Does it match the description?', 'Ready for the next step?'] },
+  next: { tips: ['Carry on at your own pace, there is no rush.', 'Sticking? A splash of water and keep stirring.', 'Taste as you go so nothing is left to chance.'], looks: ['Does it match the description?', 'Ready for the next step?'] },
 };
 
 const es: CoachDict = {
@@ -61,7 +52,6 @@ const it: CoachDict = {
   finish: { tips: ['Assaggia un ultima volta prima di servire.', 'Lascia riposare un momento: i succhi si distribuiscono e resta morbido.', 'Scalda i piatti così resta caldo più a lungo.'], looks: ['Somiglia alla foto?', 'Tutto pronto insieme? Servi.'] },
   next: { tips: ['Prosegui con calma, non c è fretta.', 'Si attacca? Un po d acqua e continua a mescolare.', 'Assaggia mentre procedi per non lasciare nulla al caso.'], looks: ['Corrisponde alla descrizione?', 'Pronto per il passo successivo?'] },
 };
-
 
 const ar: CoachDict = {
   start: { tips: ['اقرأ الخطوة كاملة قبل أن تبدأ.', 'جهّز كل ما تحتاجه الآن ليصبح كل شيء هادئاً.', 'البدء بهدوء أفضل من العجلة: لا شيء يحترق وأنت مستعد.'], looks: ['كل شيء جاهز؟ ابدأ.', 'هل الخطوة واضحة؟ أعد قراءتها.'] },
@@ -109,10 +99,10 @@ const nl: CoachDict = {
 };
 
 const ru: CoachDict = {
-  start: { tips: ['Прочитайте шаг полностью, прежде чем начать.', 'Сразу подготовьте всё нужное — дальше будет спокойнее.', 'Лучше начать не спеша: ничего не подгорит, если всё готово.'], looks: ['Всё готово? Начинайте.', 'Шаг понятен? Если нет, перечитайте.'] },
-  prep: { tips: ['Нарезайте одинаково — тогда всё приготовится одновременно.', 'Взвешивайте, а не оценивайте: это решает результат.', 'Сначала подготовьте, потом разогревайте сковороду.'], looks: ['Всё нарезано и взвешено?', 'Кусочки примерно одного размера?'] },
+  start: { tips: ['Прочитайте шаг полностью, прежде чем начать.', 'Сразу подготовьте всё нужное - дальше будет спокойнее.', 'Лучше начать не спеша: ничего не подгорит, если всё готово.'], looks: ['Всё готово? Начинайте.', 'Шаг понятен? Если нет, перечитайте.'] },
+  prep: { tips: ['Нарезайте одинаково - тогда всё приготовится одновременно.', 'Взвешивайте, а не оценивайте: это решает результат.', 'Сначала подготовьте, потом разогревайте сковороду.'], looks: ['Всё нарезано и взвешено?', 'Кусочки примерно одного размера?'] },
   combine: { tips: ['Перемешивайте снизу вверх, чтобы ничего не осталось по краям.', 'Добавляйте жидкость в два приёма, а не сразу.', 'Попробуйте, перемешайте и попробуйте снова: соли нужно время.'], looks: ['Смесь однородная, без комков?', 'Консистенция как в описании?'] },
-  cook: { tips: ['Чуть меньше огня и чуть больше времени — так не подгорит.', 'Не мешайте постоянно, иначе не появится корочка.', 'С крышкой — мягко, без крышки — румяно.'], looks: ['Цвет и запах как в описании?', 'Шипит ровно, без брызг?'] },
+  cook: { tips: ['Чуть меньше огня и чуть больше времени - так не подгорит.', 'Не мешайте постоянно, иначе не появится корочка.', 'С крышкой - мягко, без крышки - румяно.'], looks: ['Цвет и запах как в описании?', 'Шипит ровно, без брызг?'] },
   finish: { tips: ['Попробуйте ещё раз прямо перед подачей.', 'Дайте немного отдохнуть: сок распределится и останется сочным.', 'Подогрейте тарелки, тогда блюдо дольше остаётся горячим.'], looks: ['Похоже на фото?', 'Всё готово одновременно? Подавайте.'] },
   next: { tips: ['Продолжайте в своём темпе, спешить не нужно.', 'Прилипает? Немного воды и продолжайте мешать.', 'Пробуйте по ходу, чтобы ничего не оставлять на волю случая.'], looks: ['Соответствует описанию?', 'Готовы к следующему шагу?'] },
 };
@@ -120,13 +110,11 @@ const ru: CoachDict = {
 const COACH: Record<string, CoachDict> = { de, en, ar, fr, es, it, tr, pt, nl, ru };
 const FALLBACK: CoachDict = en;
 
-/** Sprachen, für die es Coach-Texte gibt (Rest nutzt Englisch). */
 export function coachLanguage(lang: string): string {
   const code = String(lang || 'en').slice(0, 2).toLowerCase();
   return COACH[code] ? code : 'en';
 }
 
-/** Stabiler Hash: derselbe Schritt bekommt immer denselben Tipp. */
 function hash(text: string): number {
   let h = 0;
   for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) % 100003;
@@ -135,10 +123,6 @@ function hash(text: string): number {
 
 const lastTip: Partial<Record<CoachPhase, number>> = {};
 
-/**
- * Tipp + "Worauf achten" für einen Schritt: stabil pro Schritt, aber nie
- * zweimal derselbe Tipp direkt hintereinander.
- */
 export function coachText(phase: CoachPhase, lang: string, seed: string): { tip: string; look: string } {
   const dict = COACH[coachLanguage(lang)] ?? FALLBACK;
   const set = dict[phase] ?? FALLBACK[phase];
@@ -148,5 +132,4 @@ export function coachText(phase: CoachPhase, lang: string, seed: string): { tip:
   lastTip[phase] = index;
   return { tip: set.tips[index], look: set.looks[base % set.looks.length] };
 }
-
 

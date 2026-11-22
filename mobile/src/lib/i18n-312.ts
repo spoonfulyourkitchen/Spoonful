@@ -1,19 +1,17 @@
-/**
- * 3.1.2: Texte für den aufgeräumten Haushalt (QR-Code, Wochenplan aus der
- * Bibliothek, "Mit Haushalt teilen"), den Live-Scanner und den Bild-Ausschnitt.
- */
+
+
 export const APP_312: Record<string, Record<string, any>> = {
   de: {
     s: {
       cropMoveHint: 'Ziehen: der Rahmen zeigt, was angezeigt wird',
-      hhQr: 'QR-Code', hhQrBody: 'Zeig diesen Code – damit tritt man dem Haushalt bei',
+      hhQr: 'QR-Code', hhQrBody: 'Zeig diesen Code, damit tritt man dem Haushalt bei',
       hhCode: 'Beitritts-Code', hhShareHh: 'Mit Haushalt teilen', hhSharedOk: 'Im Haushalt geteilt',
       hhPickRecipe: 'Rezept wählen', hhPlanFromLib: 'Bibliothek', hhPlanFromMine: 'Meine Rezepte',
       hhPlanFromSaved: 'Gespeichert', hhPlanEmpty: 'Noch nichts geplant', hhMore: 'Mehr anzeigen', hhLess: 'Weniger anzeigen',
       hhShoppingSection: 'Einkauf', hhPlanSection: 'Wochenplan', hhTasksSection: 'Aufgaben',
       shopShareHh: 'Mit Haushalt teilen', shopSharedOk: 'Für den Haushalt geteilt',
-      scanLive: 'Code im Bild halten', scanLiveHint: 'Wird automatisch erkannt – kein Foto nötig',
-      scanFallback: 'Stattdessen Foto aufnehmen', scanNoCamera: 'Kamera nicht erlaubt – bitte Foto nutzen',
+      scanLive: 'Code im Bild halten', scanLiveHint: 'Wird automatisch erkannt, kein Foto nötig',
+      scanFallback: 'Stattdessen Foto aufnehmen', scanNoCamera: 'Kamera nicht erlaubt, bitte Foto nutzen',
     },
   },
   en: {

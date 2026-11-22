@@ -15,13 +15,6 @@ import { BARCODE_L10N, pick } from '../lib/l10n';
 import { portionGrams, scaleToPortion, type FoodHit, type PortionMode } from '../lib/foodFacts';
 import { TutorialTarget } from './TutorialTarget';
 
-/**
- * Portion chooser for products with per-100 g values (2.1.0).
- *
- * After a scan (or a search hit) the user decides how much they actually ate:
- * one portion, 100 g, the whole package or a custom amount in grams. The
- * tracker entry is then written with the scaled kcal/protein/carbs/fat.
- */
 export function FoodPortionSheet({
   hit,
   visible,

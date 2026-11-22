@@ -1,10 +1,4 @@
--- Spoonful 3.0.0 — gemeinsam kochen im Haushalt
---
--- Verbindet den Kochmodus mit dem Haushalt: jeder sieht, bei welchem Schritt
--- die anderen gerade sind ("Familienmodus"), und kann dorthin springen.
--- Ohne Haushalt passiert nichts (dann ist household_id null).
---
--- Einmal im Supabase SQL Editor ausführen.
+
 
 create table if not exists public.household_cooking (
   id           uuid primary key default gen_random_uuid(),
@@ -16,15 +10,13 @@ create table if not exists public.household_cooking (
   step_total   int         not null default 1,
   done_steps   int         not null default 0,
   updated_at   timestamptz not null default now(),
-  unique (user_id)          -- eine aktive Koch-Session pro Nutzer
+  unique (user_id)          
 );
 
 create index if not exists household_cooking_hh_idx on public.household_cooking (household_id, updated_at desc);
 
 alter table public.household_cooking enable row level security;
 
--- Schreiben darf jeder nur seine eigene Zeile,
--- lesen darf man den eigenen Haushalt (und immer die eigene Zeile).
 drop policy if exists household_cooking_write_own on public.household_cooking;
 create policy household_cooking_write_own on public.household_cooking
   for all to authenticated
@@ -39,7 +31,6 @@ create policy household_cooking_read_household on public.household_cooking
     or household_id = (select u.household_id from public.users u where u.id = auth.uid())
   );
 
--- Koch-Fortschritt setzen/aktualisieren
 create or replace function public.set_cooking_state(
   p_recipe_key text,
   p_title text,
@@ -86,7 +77,6 @@ $$;
 
 grant execute on function public.set_cooking_state(text, text, int, int, int) to authenticated;
 
--- Wer kocht gerade was im Haushalt? (nur die letzten 12 Stunden)
 create or replace function public.household_cooking_state()
 returns table (
   user_id uuid, name text, recipe_key text, title text,
@@ -108,7 +98,6 @@ $$;
 
 grant execute on function public.household_cooking_state() to authenticated;
 
--- Koch-Session beenden (z. B. beim Verlassen des Kochmodus)
 create or replace function public.stop_cooking_state()
 returns void
 language sql

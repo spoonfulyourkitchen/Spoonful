@@ -1,7 +1,5 @@
-/**
- * 3.2.2: Zusatz-Texte, die beim Aufräumen der festen Texte aufgefallen sind
- * (Bestätigungs-Banner, Code-Fenster, Foto-Meldung).
- */
+
+
 export const I18N_TEXTS_EXTRA: Record<string, Record<string, any>> = {
   de: { s: { xConfirmBanner: 'Bestätige deine E-Mail-Adresse, um dein Konto fertig einzurichten.', xConfirmTitle: 'E-Mail bestätigen', xConfirmBody: 'Wir haben einen 8-stelligen Code an {mail} geschickt. Gib ihn im Konto-Bildschirm ein, um Spoonful freizuschalten.', xSignOutBody: 'Du kannst dich nach der Bestätigung wieder anmelden.', xReportHelp: 'Hilf uns, {title} für alle korrekt zu halten.', xTellMore: 'Sag uns mehr (erforderlich)', xAddOptional: 'Noch etwas hinzufügen? (optional)' , xReadyToServe: '{title} ist servierfertig.' , xValidUntil: 'gültig bis {date}' , chefSwipe1: '← Wischen: beschreiben · nochmal wischen: Video-Link', chefSwipe2: '← Weiter zum Video-Link · → zurück zu den Zutaten', chefSwipe3: '→ zurück zur Beschreibung' , statRecipesLive: '{n}+ Rezepte' , statLangsLive: '{n} Sprachen' , aiQuotaA11y: '{n} von {limit} KI-Nutzungen heute übrig' } },
   en: { s: { xConfirmBanner: 'Confirm your email address to finish setting up your account.', xConfirmTitle: 'Confirm your email', xConfirmBody: 'We sent an 8 digit confirmation code to {mail}. Enter it in the account screen to unlock Spoonful.', xSignOutBody: 'You can sign in again after confirming your email.', xReportHelp: 'Help us keep {title} accurate for everyone.', xTellMore: 'Tell us more (required)', xAddOptional: 'Anything to add? (optional)' , xReadyToServe: '{title} is ready to serve.' , xValidUntil: 'valid until {date}' , chefSwipe1: '← Swipe to describe · swipe again for a video link', chefSwipe2: '← Continue to the video link · → back to ingredients', chefSwipe3: '→ back to describing' , statRecipesLive: '{n}+ recipes' , statLangsLive: '{n} languages' , aiQuotaA11y: '{n} of {limit} AI requests left today' } },

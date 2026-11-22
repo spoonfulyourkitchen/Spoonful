@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -11,23 +12,25 @@ import {
   TextInput,
   View,
 } from 'react-native';
-/* 3.3.0: Meldungen im App-Design statt System-Dialog */
+
 import { Alert } from '../lib/alert';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  ArrowLeft, Bookmark, Check, Clock3, Flame, Globe, Play, Share2,
+  ArrowLeft, ArrowUp, Bookmark, Check, Clock3, Flame, Globe, Play, Share2,
   ShoppingCart, Trash2, Pencil, UsersRound, Zap,
 } from 'lucide-react-native';
 import { useAction, useMutation, useQuery } from '../lib/convex-auth';
-import { api } from '../lib/api';
+import { api, SHARE_RETRY_WAIT_MS } from '../lib/api';
 import { colors, difficultyColor, rgbaHelper, subscribeTheme } from '../theme';
 import { navigate, goBack } from '../navigation/rootRef';
 import { AppButton, GlassCard, InfoBox, SectionLabel } from '../components/ui';
 import { RecipeImage } from '../components/RecipeImage';
 import { StepPhotoSlideshow, StepPhotoStrip, useStepPhotos } from '../components/StepPhotoSlideshow';
 import { ReportPhotoButton } from '../components/ReportPhotoButton';
+import { CollectionModal } from '../components/CollectionModal';
 import { useTranslation } from '../lib/i18n';
+import { addPendingOp, getConnNow } from '../lib/offline';
 import { LibraryRecipe, difficultyLabel, formatCuisine, recipeLines, totalMinutes } from '../lib/recipe';
 import { TutorialTarget } from '../components/TutorialTarget';
 import { tutorialAction, useTutorialTarget } from '../lib/tutorial';
@@ -40,7 +43,12 @@ export function RecipeDetailScreen({ route }: any) {
   const recipe: LibraryRecipe | undefined = inlineRecipe;
   const recipeKey = inlineRecipe?.id ?? recipeId ?? inlineRecipe?.recipeKey ?? '';
 
+  
+  const scrollRef = useRef<any>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
   const savedList = useQuery(api.savedRecipes.list);
+  const collections = useQuery(api.collections.list) as any[] | undefined;
   const myShares = useQuery((api.sharing as any).myShares) as any[] | undefined;
   const saveRecipe = useMutation(api.savedRecipes.save);
   const removeSaved = useMutation(api.savedRecipes.remove);
@@ -53,14 +61,16 @@ export function RecipeDetailScreen({ route }: any) {
   const reportCorrection = useMutation(api.translate.reportCorrection);
   const [translated, setTranslated] = useState<any>(null);
   const [showTranslation, setShowTranslation] = useState(false);
-  // 2.0.0 (102): report a better wording for the automatic translation.
   const [fixOpen, setFixOpen] = useState(false);
   const [fixText, setFixText] = useState('');
   const [translating, setTranslating] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
+  const [logPortions, setLogPortions] = useState(1);
+  const [logBusy, setLogBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [retryAt, setRetryAt] = useState<number | null>(null);
-  /* 3.1.0: Diashow der eigenen Schritt-Fotos (pro Konto) */
+  
   const myProfile = useQuery(api.users.currentUser) as any;
   const { photos: stepPhotos } = useStepPhotos(recipeKey, myProfile?.id);
   const [slideshowOpen, setSlideshowOpen] = useState(false);
@@ -72,13 +82,32 @@ export function RecipeDetailScreen({ route }: any) {
   };
 
   const savedDoc = savedList?.find((s: any) => s.recipeKey === recipeKey);
-  const isSaved = !!savedDoc && detailSource !== 'mine';
+  
 
-  /* Tutorial targets (tour): back arrow, bookmark and the ingredients card. */
+  const savedOnServer = savedList === undefined ? null : !!(savedList as any[]).find((s: any) => s.recipeKey === recipeKey);
+  const [saveOptimistic, setSaveOptimistic] = useState<boolean | null>(null);
+  const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
+  useEffect(() => {
+    setSaveOptimistic(null);
+  }, [savedOnServer]);
+  const isSaved = (saveOptimistic ?? savedOnServer ?? false) && detailSource !== 'mine';
+  const savePop = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!isSaved) return;
+    Animated.sequence([
+      Animated.spring(savePop, { toValue: 1.2, damping: 7, stiffness: 320, mass: 0.6, useNativeDriver: true }),
+      Animated.spring(savePop, { toValue: 1, damping: 13, stiffness: 210, mass: 0.7, useNativeDriver: true }),
+    ]).start();
+  }, [isSaved, savePop]);
+
+  
   const backTarget = useTutorialTarget('tut-detail-back', { onPress: () => goBack() });
-  const saveTarget = useTutorialTarget('tut-detail-save', { onPress: () => void toggleSave() });
+  const saveTarget = useTutorialTarget('tut-detail-save', { onPress: () => {
+    if (isSaved) void toggleSave();
+    else setCollectionPickerOpen(true);
+  } });
 
-  /** 33 + 113: share the recipe as text - in the translated version if active. */
+  
   const shareAsText = async () => {
     if (!recipe) return;
     const body = [
@@ -95,15 +124,13 @@ export function RecipeDetailScreen({ route }: any) {
     ].join('\n');
     try {
       await Share.share({ title: view.title, message: body });
-    } catch {
-      /* ignored */
-    }
+    } catch {}
   };
 
   const startCooking = () => {
     if (!recipe) return;
-    /* 2.1.5: der Kochmodus übernimmt die gerade angezeigte Sprache - ist das
-       Rezept übersetzt, kommt es auch übersetzt in den Kochmodus. */
+    
+
     const useTr = showTranslation && !!translated;
     const cookSteps = (useTr ? translated.steps : recipe.steps) ?? [];
     const cookIngredients = (useTr ? translated.ingredients : recipe.ingredients) ?? [];
@@ -123,37 +150,51 @@ export function RecipeDetailScreen({ route }: any) {
     });
   };
 
-  const toggleSave = async () => {
-    if (!recipe || busy) return;
-    setBusy(true);
-    try {
-      if (isSaved && savedDoc) {
+  
+  const toggleSave = async (collectionId: string | null = null) => {
+    if (!recipe) return;
+    const next = !isSaved;
+    setSaveOptimistic(next);
+    if (!next) {
+      flash(t('s.savedRemoved'));
+      try {
+        if (!savedDoc) return;
+        if (getConnNow() === 'offline') {
+          await addPendingOp('saved.remove', { id: savedDoc._id });
+          return;
+        }
         await removeSaved({ id: savedDoc._id });
-        flash('Removed from Saved');
-      } else {
-        await saveRecipe({
-          recipeKey: recipeKey || recipe.title,
-          title: recipe.title,
-          description: recipe.description ?? '',
-          ingredients: recipe.ingredients ?? [],
-          steps: recipe.steps ?? [],
-          prepTime: recipe.prepTime ?? 0,
-          cookTime: recipe.cookTime ?? 0,
-          cuisine: recipe.cuisine ?? 'Other',
-          dietaryRestrictions: recipe.dietaryRestrictions ?? [],
-          imageUrl: recipe.imageUrl,
-          difficulty: recipe.difficulty ?? 'medium',
-          calories: recipe.calories,
-          protein: recipe.protein,
-          carbs: recipe.carbs,
-          fat: recipe.fat,
-        });
-        flash('Saved to your collection');
+      } catch (e) {
+        setSaveOptimistic(null);
+        Alert.alert(t('s.xCouldNotUpdate'), e instanceof Error ? e.message : t('common.tryAgain'));
       }
+      return;
+    }
+    const payload = {
+      recipeKey: recipeKey || recipe.title,
+      title: recipe.title,
+      description: recipe.description ?? '',
+      ingredients: recipe.ingredients ?? [],
+      steps: recipe.steps ?? [],
+      prepTime: recipe.prepTime ?? 0,
+      cookTime: recipe.cookTime ?? 0,
+      cuisine: recipe.cuisine ?? 'Other',
+      dietaryRestrictions: recipe.dietaryRestrictions ?? [],
+      imageUrl: recipe.imageUrl,
+      difficulty: recipe.difficulty ?? 'medium',
+      calories: recipe.calories,
+      protein: recipe.protein,
+      carbs: recipe.carbs,
+      fat: recipe.fat,
+      collectionIds: collectionId ? [collectionId] : [],
+    };
+    try {
+      if (getConnNow() === 'offline') await addPendingOp('saved.save', payload);
+      else await saveRecipe(payload);
+      flash(t('s.savedToCollection'));
     } catch (e) {
-      Alert.alert(t('s.xCouldNotUpdate'), e instanceof Error ? e.message : 'Please try again.');
-    } finally {
-      setBusy(false);
+      setSaveOptimistic(null);
+      Alert.alert(t('s.xCouldNotUpdate'), e instanceof Error ? e.message : t('common.tryAgain'));
     }
   };
 
@@ -167,7 +208,7 @@ export function RecipeDetailScreen({ route }: any) {
     setBusy(true);
     try {
       await addToShopping({ items: names.map((name) => ({ name, recipeKey, recipeTitle: recipe.title })) });
-      flash('Ingredients added to your shopping list');
+      flash(t('shr.added'));
     } catch (e) {
       Alert.alert(t('s.xCouldNotAdd'), e instanceof Error ? e.message : 'Please try again.');
     } finally {
@@ -175,25 +216,28 @@ export function RecipeDetailScreen({ route }: any) {
     }
   };
 
-  const logThisMeal = async () => {
-    if (!recipe || busy) return;
-    setBusy(true);
+  const confirmLog = async () => {
+    if (!recipe || logBusy) return;
+    const portions = Math.max(1, Math.min(12, logPortions));
+    setLogBusy(true);
     try {
       await logMeal({
-        title: recipe.title,
-        calories: recipe.calories ?? 0,
-        protein: recipe.protein ?? 0,
-        carbs: recipe.carbs ?? 0,
-        fat: recipe.fat ?? 0,
+        title: portions > 1 ? `${recipe.title} x${portions}` : recipe.title,
+        calories: Math.round((recipe.calories ?? 0) * portions),
+        protein: Math.round((recipe.protein ?? 0) * portions),
+        carbs: Math.round((recipe.carbs ?? 0) * portions),
+        fat: Math.round((recipe.fat ?? 0) * portions),
         eatenAt: Date.now(),
       });
-      flash('Logged to your tracker');
+      setLogOpen(false);
+      flash(lang === 'de' ? 'Im Tracker eingetragen' : 'Logged to your tracker');
     } catch (e) {
       Alert.alert(t('s.xCouldNotLog'), e instanceof Error ? e.message : 'Please try again.');
     } finally {
-      setBusy(false);
+      setLogBusy(false);
     }
   };
+
 
   const onTranslate = async () => {
     if (showTranslation) {
@@ -227,32 +271,23 @@ export function RecipeDetailScreen({ route }: any) {
   const shareDoc = (myShares ?? []).find((s: any) => s.sourceRecipeId === recipeId);
   const shareStatus: 'none' | 'pending' | 'approved' | 'rejected' = shareDoc?.status ?? 'none';
 
-  // Client-side cooldown after a rejection so the same recipe cannot be
-  // re-submitted over and over (server-side rate limiting still recommended).
-  const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+  
+
   const shareRetryKey = `spoonful:share-retry:${recipeId ?? ''}`;
+  const reviewedAt = Number((shareDoc as any)?.reviewedAt ?? NaN);
+  const retryUntil = Number.isFinite(reviewedAt) ? reviewedAt + SHARE_RETRY_WAIT_MS : NaN;
   useEffect(() => {
     if (shareStatus !== 'rejected') return;
-    let alive = true;
-    AsyncStorage.getItem(shareRetryKey)
-      .then((raw) => {
-        if (!alive) return;
-        const t = raw ? Number(raw) : NaN;
-        if (Number.isFinite(t) && t > Date.now()) { setRetryAt(t); return; }
-        if (Number.isFinite(t)) { void AsyncStorage.removeItem(shareRetryKey).catch(() => {}); setRetryAt(null); return; }
-        const until = Date.now() + COOLDOWN_MS;
-        setRetryAt(until);
-        void AsyncStorage.setItem(shareRetryKey, String(until)).catch(() => {});
-      })
-      .catch(() => {});
-    return () => { alive = false; };
-  }, [shareStatus, shareRetryKey, COOLDOWN_MS]);
+    const until = Number.isFinite(retryUntil) ? retryUntil : Date.now() + SHARE_RETRY_WAIT_MS;
+    setRetryAt(until);
+    void AsyncStorage.setItem(shareRetryKey, String(until)).catch(() => {});
+  }, [shareStatus, shareRetryKey, retryUntil]);
 
   const submitShare = async () => {
     setBusy(true);
     try {
       await shareRecipe({ recipeId });
-      flash('Sent for review — an admin will approve it before it goes live.');
+      flash('Sent for review - an admin will approve it before it goes live.');
     } catch (e) {
       Alert.alert(t('s.xCouldNotShare'), e instanceof Error ? e.message : 'Please try again.');
     } finally {
@@ -267,7 +302,7 @@ export function RecipeDetailScreen({ route }: any) {
       return;
     }
     if (shareStatus === 'pending') {
-      flash('Already sent — waiting for the admin review.');
+      flash('Already sent - waiting for the admin review.');
       return;
     }
     if (shareStatus === 'rejected') {
@@ -322,7 +357,7 @@ export function RecipeDetailScreen({ route }: any) {
           try {
             removeRecipe({ id: recipeId });
             goBack();
-          } catch { /* reactive */ }
+          } catch {  }
         },
       },
     ]);
@@ -351,9 +386,16 @@ export function RecipeDetailScreen({ route }: any) {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={{ paddingBottom: 190 + insets.bottom }}
         showsVerticalScrollIndicator={false}
-        onScroll={() => tutorialAction('tut-detail-ingredients')}
+        onScroll={(e) => {
+          tutorialAction('tut-detail-ingredients');
+          const y = e.nativeEvent.contentOffset.y;
+          
+
+          setShowScrollTop((prev) => (prev ? y > 500 : y > 900));
+        }}
         scrollEventThrottle={16}
       >
         <View>
@@ -373,7 +415,6 @@ export function RecipeDetailScreen({ route }: any) {
           </View>
         </View>
 
-        {/* 3.1.0: eigene Schritt-Fotos als Diashow (nur das eigene Konto) */}
         {stepPhotos.length ? (
           <View style={{ paddingHorizontal: 18 }}>
             <StepPhotoStrip
@@ -419,10 +460,10 @@ export function RecipeDetailScreen({ route }: any) {
           {hasNutrition ? (
             <GlassCard pad={10} radius={20} style={{ marginTop: 16 }}>
               <View style={{ flexDirection: 'row' }}>
-                <InfoBox label="kcal" value={recipe.calories != null ? `${recipe.calories}` : '—'} accent />
-                <InfoBox label="protein" value={recipe.protein != null ? `${recipe.protein}g` : '—'} />
-                <InfoBox label="carbs" value={recipe.carbs != null ? `${recipe.carbs}g` : '—'} />
-                <InfoBox label="fat" value={recipe.fat != null ? `${recipe.fat}g` : '—'} />
+                <InfoBox label="kcal" value={recipe.calories != null ? `${recipe.calories}` : '-'} accent />
+                <InfoBox label="protein" value={recipe.protein != null ? `${recipe.protein}g` : '-'} />
+                <InfoBox label="carbs" value={recipe.carbs != null ? `${recipe.carbs}g` : '-'} />
+                <InfoBox label="fat" value={recipe.fat != null ? `${recipe.fat}g` : '-'} />
               </View>
             </GlassCard>
           ) : null}
@@ -472,7 +513,6 @@ export function RecipeDetailScreen({ route }: any) {
             </GlassCard>
           </TutorialTarget>
 
-
           <SectionLabel style={{ marginTop: 20 }}>{t('recipe.steps')}</SectionLabel>
           {recipeLines(view.steps).map((step: string, i: number) => (
             <View key={i} style={{ flexDirection: 'row', marginBottom: 12 }}>
@@ -499,7 +539,6 @@ export function RecipeDetailScreen({ route }: any) {
         </View>
       </ScrollView>
 
-      {/* 2.0.0 (102): suggest a better translation */}
       <Modal visible={fixOpen} transparent animationType="slide" onRequestClose={() => setFixOpen(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
           <View style={{ flex: 1, backgroundColor: colors.overlayStrong, justifyContent: 'flex-end' }}>
@@ -545,34 +584,56 @@ export function RecipeDetailScreen({ route }: any) {
         </View>
       ) : null}
 
+      {showScrollTop ? (
+        <Pressable
+          onPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}
+          hitSlop={8}
+          style={({ pressed }) => [{ position: 'absolute', right: 18, bottom: 84 + insets.bottom, width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder, opacity: pressed ? 0.8 : 0.96 }]}
+          accessibilityLabel={t('s.backToTop')}
+        >
+          <ArrowUp size={20} color={colors.textPrimary} strokeWidth={2.2} />
+        </Pressable>
+      ) : null}
+
+      <CollectionModal
+        visible={collectionPickerOpen}
+        collections={collections ?? []}
+        mode="pick"
+        onChoose={(collectionId) => { setCollectionPickerOpen(false); void toggleSave(collectionId); }}
+        onClose={() => setCollectionPickerOpen(false)}
+      />
+
       <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 18, paddingTop: 10, paddingBottom: 12 + insets.bottom, backgroundColor: colors.header, borderTopWidth: 1, borderTopColor: colors.cardBorder }}>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {detailSource !== 'mine' ? (
             <Pressable
               ref={saveTarget.ref as any}
               collapsable={false}
-              onPress={saveTarget.onPress}
+              onPress={() => {
+                if (isSaved) void toggleSave();
+                else setCollectionPickerOpen(true);
+              }}
               disabled={busy}
               style={({ pressed }) => [{ width: 50, height: 50, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: isSaved ? colors.success : colors.card, opacity: pressed ? 0.8 : 1 }]}
             >
-              {isSaved ? <Check size={22} color={colors.card} strokeWidth={2.6} /> : <Bookmark size={22} color={colors.textPrimary} strokeWidth={2} />}
+              <Animated.View style={{ transform: [{ scale: savePop }] }}>
+                {isSaved ? <Check size={22} color={colors.card} strokeWidth={2.6} /> : <Bookmark size={22} color={colors.textPrimary} strokeWidth={2} />}
+              </Animated.View>
             </Pressable>
           ) : null}
           <Pressable onPress={addIngredientsToList} disabled={busy} style={({ pressed }) => [actionBtnSecondary, pressed && { opacity: 0.82 }]} accessibilityLabel={t('shopping.title')}>
             <ShoppingCart size={20} color={colors.textPrimary} strokeWidth={2} />
           </Pressable>
-          {/* 33 + 113: share / print as text (translated if active) - icon only */}
           <Pressable onPress={() => void shareAsText()} disabled={busy} style={({ pressed }) => [actionBtnSecondary, pressed && { opacity: 0.82 }]} accessibilityLabel={t('shr.share')}>
             <Share2 size={20} color={colors.textPrimary} strokeWidth={2} />
           </Pressable>
-          {/* 102: report a better translation (only while a translation is shown) */}
           {showingTr ? (
             <Pressable onPress={() => setFixOpen(true)} disabled={busy} style={({ pressed }) => [actionBtnSecondary, pressed && { opacity: 0.82 }]} accessibilityLabel={t('shr.fix')}>
               <Pencil size={20} color={colors.textPrimary} strokeWidth={2} />
             </Pressable>
           ) : null}
           {detailSource !== 'mine' ? (
-            <Pressable onPress={logThisMeal} disabled={busy} style={({ pressed }) => [actionBtnSecondary, pressed && { opacity: 0.82 }]} accessibilityLabel={t('s.xLogMeal')}>
+            <Pressable onPress={() => { setLogPortions(1); setLogOpen(true); }} disabled={busy} style={({ pressed }) => [actionBtnSecondary, pressed && { opacity: 0.82 }]} accessibilityLabel={t('s.xLogMeal')}>
               <Zap size={20} color={colors.textPrimary} strokeWidth={2} />
             </Pressable>
           ) : (
@@ -584,14 +645,14 @@ export function RecipeDetailScreen({ route }: any) {
                 shareStatus === 'approved' ? { backgroundColor: colors.roseBg, borderColor: rgbaHelper('#e11d48', 0.3) } : null,
                 pressed && { opacity: 0.82 },
               ]}
-              accessibilityLabel={shareStatus === 'approved' ? 'Remove from community' : 'Share with the community'}
+              accessibilityLabel={shareStatus === 'approved' ? 'Remove from community' : t('shr.share')}
             >
               {shareStatus === 'approved' ? (
                 <Trash2 size={20} color={colors.rose} strokeWidth={2} />
               ) : shareStatus === 'pending' ? (
                 <Clock3 size={20} color={colors.medium} />
               ) : (
-                /* community = the people icon */
+                
                 <UsersRound size={20} color={colors.textPrimary} strokeWidth={2} />
               )}
             </Pressable>
@@ -599,15 +660,42 @@ export function RecipeDetailScreen({ route }: any) {
         </View>
         <AppButton label={busy ? 'Working…' : t('dialog.startCooking')} variant="dark" style={{ marginTop: 8 }} icon={<Flame size={18} color={colors.darkButtonText} />} onPress={startCooking} />
       </View>
+
+      <Modal visible={logOpen} transparent animationType="fade" onRequestClose={() => setLogOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: colors.overlayStrong, alignItems: 'center', justifyContent: 'center', padding: 22 }}>
+          <View style={{ width: '100%', maxWidth: 380, borderRadius: 24, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder, padding: 20 }}>
+            <Text style={{ fontSize: 19, fontWeight: '800', color: colors.textPrimary }}>
+              {lang === 'de' ? 'Wie viele Portionen?' : 'How many servings?'}
+            </Text>
+            <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 4 }}>
+              {recipe?.calories ?? 0} {t('common.kcal')} {lang === 'de' ? 'pro Portion' : 'per serving'}
+            </Text>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 18, marginTop: 18 }}>
+              <Pressable onPress={() => setLogPortions((v) => Math.max(1, v - 1))} accessibilityRole="button" accessibilityLabel="minus" style={{ width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted }}>
+                <Text style={{ fontSize: 22, fontWeight: '700', color: colors.textPrimary }}>-</Text>
+              </Pressable>
+              <Text style={{ minWidth: 44, textAlign: 'center', fontSize: 30, fontWeight: '800', color: colors.textPrimary, fontVariant: ['tabular-nums'] }}>{logPortions}</Text>
+              <Pressable onPress={() => setLogPortions((v) => Math.min(12, v + 1))} accessibilityRole="button" accessibilityLabel="plus" style={{ width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted }}>
+                <Text style={{ fontSize: 22, fontWeight: '700', color: colors.textPrimary }}>+</Text>
+              </Pressable>
+            </View>
+
+            <Text style={{ textAlign: 'center', fontSize: 19, fontWeight: '800', color: colors.accent, marginTop: 14 }}>
+              {Math.round((recipe?.calories ?? 0) * logPortions)} {t('common.kcal')}
+            </Text>
+
+            <AppButton label={logBusy ? '…' : lang === 'de' ? 'Eintragen' : 'Log meal'} variant="dark" style={{ marginTop: 14 }} onPress={() => void confirmLog()} />
+            <Pressable onPress={() => setLogOpen(false)} style={{ marginTop: 10, alignItems: 'center' }} accessibilityRole="button">
+              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textSecondary }}>{t('common.cancel')}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
-/* 2.0.0 theme fix: these were plain module-level constants, so they were
-   coloured once with the palette of the boot theme. After a theme switch the
-   round back button and the whole action row kept the old colours and looked
-   broken. They are rebuilt on every theme change now - and because a fresh
-   object is assigned, React really re-applies the style. */
 function buildDetailStyles() {
   return {
     roundBtn: {
@@ -637,7 +725,6 @@ subscribeTheme(() => {
   actionGhost = detailStyles.actionGhost;
   actionBtnSecondary = detailStyles.actionBtnSecondary;
 });
-
 
 function MetaPill({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (

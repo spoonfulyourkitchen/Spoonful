@@ -1,9 +1,5 @@
-/**
- * In Dateien ohne `useTranslation` werden die neuen Tags über `translate()`
- * benutzt (gleiche Übersetzungen, nur ohne Hook).
- *
- * Aufruf: node tools/fix-translate.mjs [--write]
- */
+
+
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const BASE = new URL('../mobile/src/screens/', import.meta.url);

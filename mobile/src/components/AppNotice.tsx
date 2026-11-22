@@ -1,20 +1,8 @@
-/**
- * 3.3.0: Eigene, gestaltete Meldungen statt der System-Dialoge.
- *
- * Vorher kamen viele Hinweise über `Alert.alert(...)` — die sehen auf jedem
- * Handy anders aus („zackig"), übernehmen keine Theme-Farben und lassen sich
- * nicht übersetzen. Diese Komponente zeigt dieselben Informationen als
- * themefarbene Karte in der App:
- *
- *   showNotice({ title, body, actions: [{ label, onPress }] })
- *
- * Genutzt wird ausschließlich das Theme (`colors.*`), es gibt also keine
- * festen Farben und keine festen Texte im Design.
- */
-import React, { useEffect, useState } from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
-import { colors, fonts } from '../theme';
-import { AppButton } from './ui';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, PanResponder, Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AlertTriangle, CheckCircle2, Info, X } from 'lucide-react-native';
+import { colors, fonts, rgbaHelper } from '../theme';
 
 export type NoticeAction = { label: string; onPress?: () => void; variant?: 'accent' | 'dark' | 'ghost' | 'danger' };
 export type Notice = {
@@ -31,7 +19,6 @@ function emit() {
   listeners.forEach((fn) => fn(current));
 }
 
-/** Eine gestaltete Meldung anzeigen. */
 export function showNotice(notice: Notice): void {
   current = notice;
   emit();
@@ -54,56 +41,135 @@ function useNotice(): Notice | null {
   return notice;
 }
 
-/** Einmal im App-Root einhängen. */
+const AUTO_HIDE_MS = 3200;
+
 export function AppNoticeHost() {
   const notice = useNotice();
+  const insets = useSafeAreaInsets();
+  const enter = useRef(new Animated.Value(0)).current;
+  const drag = useRef(new Animated.Value(0)).current;
+  const pan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
+      onPanResponderMove: (_, g) => drag.setValue(Math.min(0, g.dy)),
+      onPanResponderRelease: (_, g) => {
+        if (g.dy < -36) {
+          Animated.timing(enter, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => dismissNotice());
+        } else {
+          Animated.spring(drag, { toValue: 0, damping: 16, stiffness: 220, useNativeDriver: true }).start();
+        }
+      },
+    }),
+  ).current;
+
+  useEffect(() => {
+    if (!notice) return;
+    drag.setValue(0);
+    enter.setValue(0);
+    Animated.spring(enter, { toValue: 1, damping: 16, stiffness: 200, mass: 0.8, useNativeDriver: true }).start();
+    const hasActions = !!notice.actions?.length;
+    if (hasActions || notice.tone === 'error') return;
+    const timer = setTimeout(() => dismissNotice(), AUTO_HIDE_MS);
+    return () => clearTimeout(timer);
+  }, [notice, enter, drag]);
+
   if (!notice) return null;
+
   const tone = notice.tone ?? 'info';
   const accent = tone === 'success' ? colors.success : tone === 'error' ? colors.rose : colors.accent;
-  const toneBg = tone === 'success' ? colors.successBg : tone === 'error' ? colors.roseBg : colors.accentSoft;
-  const actions: NoticeAction[] = notice.actions?.length ? notice.actions : [{ label: 'OK', variant: 'dark' }];
+  const Icon = tone === 'success' ? CheckCircle2 : tone === 'error' ? AlertTriangle : Info;
+  const actions = notice.actions ?? [];
+  const translateY = Animated.add(
+    enter.interpolate({ inputRange: [0, 1], outputRange: [-150, 0] }),
+    drag,
+  );
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={dismissNotice} statusBarTranslucent>
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: colors.overlayStrong }}>
+    <Animated.View
+      pointerEvents="box-none"
+      style={{
+        position: 'absolute',
+        left: 12,
+        right: 12,
+        top: insets.top + 8,
+        zIndex: 1000,
+        transform: [{ translateY }],
+        opacity: enter,
+      }}
+    >
+      <View
+        {...pan.panHandlers}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          gap: 10,
+          borderRadius: 20,
+          borderWidth: 1,
+          borderColor: rgbaHelper(accent, 0.28),
+          backgroundColor: colors.card,
+          paddingLeft: 12,
+          paddingRight: 10,
+          paddingVertical: 11,
+          shadowColor: '#000',
+          shadowOpacity: 0.14,
+          shadowRadius: 18,
+          shadowOffset: { width: 0, height: 8 },
+          elevation: 8,
+        }}
+      >
         <View
           style={{
-            width: '100%',
-            maxWidth: 420,
-            borderRadius: 22,
-            borderWidth: 1,
-            borderColor: colors.cardBorder,
-            backgroundColor: colors.card,
-            padding: 18,
+            width: 26,
+            height: 26,
+            borderRadius: 13,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: rgbaHelper(accent, 0.14),
+            marginTop: 1,
           }}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: accent }} />
-            <Text style={{ flex: 1, fontFamily: fonts.display, fontSize: 17, fontWeight: '800', color: colors.textPrimary }}>
-              {notice.title}
-            </Text>
-          </View>
-          {notice.body ? (
-            <Text style={{ marginTop: 8, fontSize: 14, lineHeight: 21, color: colors.textSecondary }}>{notice.body}</Text>
-          ) : null}
-          <View style={{ marginTop: 16, gap: 8 }}>
-            {actions.map((action, i) => (
-              <AppButton
-                key={`${action.label}-${i}`}
-                label={action.label}
-                variant={action.variant ?? (i === 0 ? 'dark' : 'ghost')}
-                onPress={() => {
-                  dismissNotice();
-                  action.onPress?.();
-                }}
-              />
-            ))}
-          </View>
-          <Pressable onPress={dismissNotice} style={{ marginTop: 10, alignItems: 'center' }}>
-            <View style={{ height: 4, width: 44, borderRadius: 2, backgroundColor: toneBg }} />
-          </Pressable>
+          <Icon size={15} color={accent} strokeWidth={2.4} />
         </View>
+
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontFamily: fonts.display, fontSize: 14.5, fontWeight: '800', color: colors.textPrimary }} numberOfLines={2}>
+            {notice.title}
+          </Text>
+          {notice.body ? (
+            <Text style={{ marginTop: 2, fontSize: 12.5, lineHeight: 18, color: colors.textSecondary }} numberOfLines={3}>
+              {notice.body}
+            </Text>
+          ) : null}
+          {actions.length ? (
+            <View style={{ flexDirection: 'row', gap: 14, marginTop: 8 }}>
+              {actions.map((action, i) => (
+                <Pressable
+                  key={`${action.label}-${i}`}
+                  onPress={() => {
+                    dismissNotice();
+                    action.onPress?.();
+                  }}
+                  hitSlop={6}
+                >
+                  <Text
+                    style={{
+                      fontSize: 12.5,
+                      fontWeight: '800',
+                      color: action.variant === 'danger' ? colors.rose : action.variant === 'ghost' ? colors.textSecondary : accent,
+                    }}
+                  >
+                    {action.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+        </View>
+
+        <Pressable onPress={dismissNotice} hitSlop={10} accessibilityRole="button" style={{ padding: 2 }}>
+          <X size={15} color={colors.textSecondary} />
+        </Pressable>
       </View>
-    </Modal>
+    </Animated.View>
   );
 }

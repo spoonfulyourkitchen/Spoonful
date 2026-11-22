@@ -12,7 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-/* 3.3.0: Meldungen im App-Design statt System-Dialog */
+
 import { Alert } from '../lib/alert';
 import { ChevronRight, Check, Download, FileText, Globe, LogOut, Mail, Palette, Play, ShieldCheck, Star, Trash2, UserRound, Users } from 'lucide-react-native';
 import { useAction, useAuthActions, useMutation, useQuery } from '../lib/convex-auth';
@@ -29,12 +29,8 @@ import { ProfileEditor } from '../components/ProfileEditor';
 import { Popup } from '../components/Popup';
 import { restartTutorial } from '../lib/tutorial';
 import { clearCrashLog, getCrashLog, subscribeCrashLog } from '../lib/crash-log';
-import { useCookingAdvanced } from '../lib/app-prefs';
+import { useAdminQuickReport, useCookingAdvanced } from '../lib/app-prefs';
 
-/**
- * 3.2.2: Einstellungen abonnieren das Absturz-Protokoll — so erscheint ein
- * neuer Fehler sofort in der Liste, ohne dass etwas neu geladen werden muss.
- */
 function useCrashLog() {
   return useSyncExternalStore(subscribeCrashLog, getCrashLog, getCrashLog);
 }
@@ -43,15 +39,19 @@ export function SettingsScreen() {
   const { signOut } = useAuthActions();
   const { t, lang } = useTranslation();
   const user = useQuery(api.users.currentUser);
+  
+  const isAdmin = useQuery(api.admin.isAdmin) === true;
   const [showFeedback, setShowFeedback] = useState(false);
   const errors = useCrashLog();
   const [langOpen, setLangOpen] = useState(false);
-  /** 2.1.2: every confirmation is a popup now (reset, restart, device language). */
+  
   const [popup, setPopup] = useState<{ title: string; body: string; restart?: boolean } | null>(null);
   const [prefs, setPrefs] = useState<NotifPrefs | null>(null);
-  /* 3.1.0: Kochmodus advanced / klassisch */
+  
   const [cookingAdvanced, setCookingAdvancedPref] = useCookingAdvanced();
-  /* 3.2.0: alle Profildaten an einer Stelle bearbeiten */
+  
+  const [quickReport, setQuickReportPref] = useAdminQuickReport();
+  
   const [profileOpen, setProfileOpen] = useState(false);
 
   useEffect(() => {
@@ -62,7 +62,7 @@ export function SettingsScreen() {
 
   const togglePref = (key: keyof NotifPrefs) => {
     setPrefs((prev) => {
-      const base: NotifPrefs = prev ?? { meal: true, drink: true, ai: true, added: true };
+      const base: NotifPrefs = prev ?? { meal: true, drink: true, ai: true, added: true, admin: true };
       const next: NotifPrefs = { ...base, [key]: !base[key] };
       void savePrefs(next);
       return next;
@@ -75,7 +75,6 @@ export function SettingsScreen() {
   const submitFeedback = useMutation(api.feedback.submit);
   const exportMyData = useAction(api.account.exportData);
   const deleteMyAccount = useMutation(api.account.deleteAccount);
-  // 2.0.0: household - share the shopping list with family or flatmates.
   const household = useQuery(api.household.mine) as any;
   const createHousehold = useMutation(api.household.create);
   const makeInvite = useMutation(api.household.invite);
@@ -109,7 +108,7 @@ export function SettingsScreen() {
     }
   };
 
-  /** GDPR: hand the whole export to the share sheet (no server storage). */
+  
   const exportData = async () => {
     try {
       const data = await exportMyData({});
@@ -183,9 +182,9 @@ export function SettingsScreen() {
         <PageHeader eyebrow={t('settings.settings')} title={t('settings.settings')} />
 
         <GlassCard pad={16} radius={20}>
-          <Row label={t('ui.name')} value={user?.name || '—'} />
+          <Row label={t('ui.name')} value={user?.name || '-'} />
           <Divider />
-          <Row label={t('ui.email')} value={user?.email || '—'} />
+          <Row label={t('ui.email')} value={user?.email || '-'} />
         </GlassCard>
 
         <Text style={label}>{t('settings.settings')}</Text>
@@ -206,20 +205,34 @@ export function SettingsScreen() {
           <PrefToggle title={t('ui.notifDrink')} desc={t('ui.notifDrinkDesc')} value={prefs?.drink ?? true} onChange={() => togglePref('drink')} />
           <PrefToggle title={t('ui.notifAi')} desc={t('ui.notifAiDesc')} value={prefs?.ai ?? true} onChange={() => togglePref('ai')} />
           <PrefToggle title={t('ui.notifAdded')} desc={t('ui.notifAddedDesc')} value={prefs?.added ?? true} onChange={() => togglePref('added')} />
+          {isAdmin ? (
+            <PrefToggle title={t('ui.notifAdmin')} desc={t('ui.notifAdminDesc')} value={prefs?.admin ?? true} onChange={() => togglePref('admin')} />
+          ) : null}
         </GlassCard>
 
-        {/* 3.1.0: Cooking Mode Advanced (an = neuer Kochmodus, aus = klassisch) */}
         <Text style={label}>{t('s.advSection')}</Text>
         <GlassCard pad={4} radius={20}>
           <PrefToggle
             title={t('s.advTitle')}
-            desc={t('s.advDesc')}
             value={cookingAdvanced}
             onChange={() => setCookingAdvancedPref(!cookingAdvanced)}
           />
         </GlassCard>
 
-        {/* 3.2.0: Profildaten an einer Stelle bearbeiten */}
+        {isAdmin ? (
+          <>
+            <Text style={label}>{t('s.adminSection')}</Text>
+            <GlassCard pad={4} radius={20}>
+              <PrefToggle
+                title={t('s.adminQuickReport')}
+                desc={t('s.adminQuickReportDesc')}
+                value={quickReport}
+                onChange={() => setQuickReportPref(!quickReport)}
+              />
+            </GlassCard>
+          </>
+        ) : null}
+
         <Text style={label}>{t('s.profileTitle')}</Text>
         <GlassCard pad={4} radius={20}>
           <NavRow
@@ -230,7 +243,6 @@ export function SettingsScreen() {
           />
         </GlassCard>
         <ProfileEditor visible={profileOpen} onClose={() => setProfileOpen(false)} />
-
 
         <Text style={label}>{t('ui.help')}</Text>
         <GlassCard pad={4} radius={20}>
@@ -254,49 +266,12 @@ export function SettingsScreen() {
 
         <Text style={label}>{t('hh.title')}</Text>
         <GlassCard pad={4} radius={20}>
-          {household ? (
-            <>
-              <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
-                <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textPrimary }}>{household.name}</Text>
-                <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 3 }}>
-                  {t('hh.members')}: {(household.members ?? []).map((m: any) => m.name ?? '—').join(', ')}
-                </Text>
-                {invite ? (
-                  <Text style={{ fontSize: 13, color: colors.accent, fontWeight: '800', marginTop: 6 }}>
-                    {t('hh.code')}: {invite}
-                  </Text>
-                ) : null}
-              </View>
-              <Divider style={{ marginLeft: 16 }} />
-              <NavRow icon={<Users size={18} color={colors.accent} />} label={t('hh.invite')} onPress={() => void createInvite()} />
-              <Divider style={{ marginLeft: 16 }} />
-              <NavRow
-                icon={<LogOut size={18} color={colors.rose} />}
-                label={t('hh.leave')}
-                tint={colors.rose}
-                onPress={() =>
-                  Alert.alert(t('hh.leaveConfirm'), t('hh.desc'), [
-                    { text: t('common.cancel'), style: 'cancel' },
-                    { text: t('hh.leave'), style: 'destructive', onPress: () => void hhRun(() => leaveHousehold({})) },
-                  ])
-                }
-              />
-            </>
-          ) : (
-            <>
-              <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
-                <Text style={{ fontSize: 12.5, color: colors.textSecondary, lineHeight: 18 }}>{t('hh.desc')}</Text>
-              </View>
-              <Divider style={{ marginLeft: 16 }} />
-              <NavRow
-                icon={<Users size={18} color={colors.accent} />}
-                label={t('hh.create')}
-                onPress={() => void hhRun(() => createHousehold({ name: t('hh.title') }))}
-              />
-              <Divider style={{ marginLeft: 16 }} />
-              <NavRow icon={<Check size={18} color={colors.accent} />} label={t('hh.join')} onPress={() => setJoinOpen(true)} />
-            </>
-          )}
+          <NavRow
+            icon={<Users size={18} color={colors.accent} />}
+            label={household?.name ?? t('hh.title')}
+            value={household ? `${(household.members ?? []).length}` : undefined}
+            onPress={() => navigate('Main' as any, { screen: 'Household' } as any)}
+          />
         </GlassCard>
 
         <Text style={label}>{t('ui.danger')}</Text>
@@ -351,7 +326,6 @@ export function SettingsScreen() {
         <GlassCard pad={14} style={{ marginTop: 6 }}>
           <Pressable
             onPress={() => {
-              // 2.1.2: full reset (storage + state) and an immediate restart.
               void restartTutorial().then(() =>
                 setPopup({ title: t('tut.resetTitle'), body: t('tut.resetBody') }),
               );
@@ -369,7 +343,6 @@ export function SettingsScreen() {
           </Pressable>
         </GlassCard>
 
-        {/* 3.2.2: Absturz-Protokoll — damit „stürzt dauernd ab" nachvollziehbar wird */}
         <SectionLabel>{t('s.errTitle')}</SectionLabel>
         <GlassCard pad={14} style={{ marginTop: 6 }}>
           {errors.length === 0 ? (
@@ -405,7 +378,6 @@ export function SettingsScreen() {
         <Text style={{ color: colors.textSecondary, fontSize: 12, textAlign: 'center', marginTop: 26 }}>© 2026 Spoonful · v{APP_VERSION}</Text>
       </ScrollView>
 
-      {/* 2.0.0: join a household with the invite code */}
       <Modal visible={joinOpen} transparent animationType="slide" onRequestClose={() => setJoinOpen(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
           <View style={{ flex: 1, backgroundColor: colors.overlayStrong, justifyContent: 'flex-end' }}>
@@ -439,7 +411,6 @@ export function SettingsScreen() {
           </View>
       
         </KeyboardAvoidingView></Modal>
-      {/* 2.1.2: language picker + popups (reset done, restart for RTL) */}
       <LanguagePicker
         visible={langOpen}
         onClose={() => setLangOpen(false)}
@@ -478,7 +449,6 @@ export function SettingsScreen() {
   );
 }
 
-/* 2.0.0 theme fix: rebuilt on every theme change. */
 function buildSectionLabel() {
   return {
     fontSize: 11, fontWeight: '700' as const, color: colors.textSecondary,
@@ -509,12 +479,12 @@ function NavRow({ icon, label: l, value, tint, onPress }: { icon: React.ReactNod
   );
 }
 
-function PrefToggle({ title, desc, value, onChange }: { title: string; desc: string; value: boolean; onChange: () => void }) {
+function PrefToggle({ title, desc, value, onChange }: { title: string; desc?: string; value: boolean; onChange: () => void }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 12 }}>
       <View style={{ flex: 1 }}>
         <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textPrimary }}>{title}</Text>
-        <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>{desc}</Text>
+        {desc ? <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>{desc}</Text> : null}
       </View>
       <Switch value={value} onValueChange={onChange} trackColor={{ false: colors.surfaceMuted, true: colors.accent }} thumbColor="#fff" />
     </View>

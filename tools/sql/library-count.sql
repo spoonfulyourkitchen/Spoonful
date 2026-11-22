@@ -1,5 +1,5 @@
--- 3.3.1: echte Rezeptzahl der Bibliothek — auch ohne Anmeldung abfragbar
--- (die Landing-Seite zeigt damit die echte Zahl statt einer festen Angabe).
+
+
 create or replace function public.library_count()
 returns bigint
 language sql

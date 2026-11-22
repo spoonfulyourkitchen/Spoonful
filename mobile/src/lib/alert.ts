@@ -1,15 +1,5 @@
-/**
- * 3.3.0: `Alert` — aber gestaltet.
- *
- * Die App benutzte bisher `Alert.alert(...)` aus React Native. Diese Dialoge
- * sehen auf jedem Gerät anders aus, übernehmen keine Theme-Farben und passen
- * nicht zur App („zackig"). Dieser Wrapper hat dieselbe Aufrufform, zeigt die
- * Meldung aber als themefarbene Karte in der App (`components/AppNotice`).
- *
- * Verwendung bleibt unverändert:
- *   import { Alert } from '../lib/alert';
- *   Alert.alert(title, message, [{ text, onPress, style }]);
- */
+
+
 import { showNotice, type NoticeAction } from '../components/AppNotice';
 
 type AlertButton = {
@@ -39,7 +29,7 @@ export const Alert = {
   alert(title: string, message?: string, buttons?: AlertButton[], _options?: unknown) {
     toNotice(title, message, buttons);
   },
-  /* Nicht benutzt, aber vorhanden, damit ein Aufruf nicht abstürzt. */
+  
   prompt(title: string, message?: string, buttons?: AlertButton[]) {
     toNotice(title, message, buttons);
   },

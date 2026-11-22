@@ -1,14 +1,5 @@
-/**
- * Live-Prüfung der installierten Supabase-Funktion `ai`.
- *
- * Ablauf (nur mit dem Service-Key, kein Dashboard nötig):
- *  1. Testnutzer anlegen (bestätigt)
- *  2. mit ihm anmelden → echtes Nutzer-JWT holen
- *  3. Funktion `ai` aufrufen und antworten lassen
- *  4. Testnutzer wieder löschen
- *
- * Aufruf:  node tools/ai-live-check.mjs [--keep-user]
- */
+
+
 import { readFileSync } from 'node:fs';
 
 const env = readFileSync(new URL('../.env.local', import.meta.url), 'utf8');
