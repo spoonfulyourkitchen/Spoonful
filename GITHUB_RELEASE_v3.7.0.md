@@ -1,34 +1,33 @@
 ## Spoonful 3.7.0
 
-The personalisation update: your details get a short refresh, meals can be logged straight from your recipes, and library and AI Chef follow your experience level.
+The design update: every page opens with the same dark rounded header and its menu button, the tracker is split into water, barcode, weight and meals, and the shopping list is shared with your household on the server.
 
 **Download:** `Spoonful-v3.7.0.apk` under Assets below. Android 7.0 or newer, arm64 and armv7. Install it as usual, existing installations are updated in place.
 
 ### What is new
 
-**Profile refresh for existing users**
-Anyone who has been around for a while gets a short prompt on start that explains why a few details matter now: allergies, diet, cooking experience, household size, cooking time and cuisines. Recipes, library and AI Chef can only fit if they know these. "Update now" opens a compact version of the onboarding with just those questions, your existing answers are kept. New accounts do not see the prompt, because the onboarding already asks for these details.
+**One header on every page**
+Every screen opens with the same dark header with the rounded lower edge, the page name and the menu button in the top right corner. The old bar with the logo and the wordmark is gone. Buttons are pills, section titles use the accent colour, and the active tab sits in its own pill. Recipe detail, household and the admin screen carry the menu button too.
 
-**Log a meal from your recipes**
-"Log meal" starts with two tabs: one for a recipe from your collection with a portion stepper, one for manual entry. Nutrition values from the recipe go straight into the tracker instead of being typed in again.
+**Household hub**
+Household is a tab hub now: today, tasks, shopping list, weekly plan and members. Leaving removes your own entries, the last member closes the household, and joining again with the code works. Household data lives on the server, not on the device.
 
-**Barcode with a code field**
-The card is called "Barcode" again, and the scanner has a field under the product search to type the number directly. Photo capture stays as the fallback.
+**Shopping list that actually syncs**
+The shopping list is stored on the server and shared with the household. Items added by one member show up for everyone, checkoffs land instantly, and entries from older local versions are migrated once. Leaving the household turns shared entries back into private ones.
 
-**Library cleaned up**
-Filters and the cuisine picker open as centered dialogs, the library stays visible behind them. The cuisine picker sits above the filter, its close button is back, and recipes are sorted by image and alphabet.
-
-**Experience grows with you**
-New accounts start with easy recipes. After about three weeks medium ones join in, after about eight weeks all of them. AI Chef works with the same level.
-
-**AI Chef knows your target weight**
-The prompt now uses current and target weight for portion size and energy density, together with goal, cuisines, allergies and experience.
-
-**Leaner recipe form**
-Photo, title, ingredients, steps. Everything else, meaning times, portions, tags and nutrition, sits collapsed under "Details".
+**Tracker with its own tabs**
+Water, barcode, weight and meals each have their own tab that fills the page: a large water counter with quick amounts, the scanner with its code field, the weight chart with recent entries, and the meal list with calories and macros. Remaining calories and macros sit in the header.
 
 **Smaller things**
-Diet tags and difficulty levels are fully translated, portion display in recipe detail is correct again, household and tracker have their new cards, and the cooking mode texts are clearer.
+The back arrow in the recipe form sits inside the header, leftover duplicate section headers in the tracker are gone, and page changes are instant again, without a white frame in between.
+
+### Also in 3.7.0
+
+- Profile refresh for existing users: a short prompt for allergies, diet, experience, household size, cooking time and cuisines.
+- Log a meal straight from your recipes with a portion stepper.
+- Library filters and the cuisine picker open as dialogs with the library visible behind them.
+- Beginner accounts start with easy recipes and unlock more over time, the AI Chef follows the same level.
+- Leaner recipe form with times, portions, tags and nutrition under Details.
 
 ### Technical
 
@@ -39,4 +38,4 @@ Diet tags and difficulty levels are fully translated, portion display in recipe 
 
 ### Note
 
-The app still talks to the same backend as 3.6.x. Updating from 3.6.1 keeps recipes, shopping list, tracker and household.
+The local-only test button stays limited to localhost development builds.
