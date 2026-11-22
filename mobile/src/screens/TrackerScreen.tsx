@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Modal, PanResponder, Pressable, ScrollView, Text, View, KeyboardAvoidingView, Platform } from 'react-native';
+import { Animated, Modal, Pressable, ScrollView, Text, View, KeyboardAvoidingView, Platform } from 'react-native';
 
 import { useIsFocused } from '@react-navigation/native';
 import { Alert } from '../lib/alert';
@@ -8,7 +8,7 @@ import { useMutation, useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';
 import { colors, fonts, rgbaHelper, readableText, subscribeTheme } from '../theme';
 import { Page } from '../navigation/Shell';
-import { AppButton, EmptyState, GlassCard, PageHeader, TextField } from '../components/ui';
+import { AppButton, GlassCard, PageHeader, TextField } from '../components/ui';
 import { TrackerExtras as TrackerPanel } from '../components/TrackerExtras';
 import { useCachedList, addPendingOp, flushPendingOps, getConnNow } from '../lib/offline';
 import { addWeightLocal } from '../lib/tracker-local';
@@ -122,13 +122,13 @@ export function TrackerScreen() {
   const todayCarbs = roundN(today.reduce((s: number, e: any) => s + (e.carbs ?? 0), 0));
   const todayFat = roundN(today.reduce((s: number, e: any) => s + (e.fat ?? 0), 0));
 
-  const [tab, setTab] = useState<'water' | 'barcode' | 'weight'>('water');
-  const tabKeys = ['water', 'barcode', 'weight'] as const;
+  const [tab, setTab] = useState<'meals' | 'water' | 'barcode' | 'weight'>('meals');
+  const tabKeys = ['meals', 'water', 'barcode', 'weight'] as const;
   const tabRef = useRef(tab);
   tabRef.current = tab;
   const fade = useRef(new Animated.Value(1)).current;
   const shift = useRef(new Animated.Value(0)).current;
-  const goTab = (next: 'water' | 'barcode' | 'weight', dir: number) => {
+  const goTab = (next: 'meals' | 'water' | 'barcode' | 'weight', dir: number) => {
     if (next === tabRef.current) return;
     setTab(next);
     fade.setValue(0);
@@ -143,15 +143,6 @@ export function TrackerScreen() {
     const next = tabKeys[Math.min(tabKeys.length - 1, Math.max(0, i + dir))];
     goTab(next, dir);
   };
-  const swipe = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 16 && Math.abs(g.dx) > Math.abs(g.dy) * 1.3,
-      onPanResponderRelease: (_e, g) => {
-        if (Math.abs(g.dx) < 44) return;
-        stepTab(g.dx < 0 ? 1 : -1);
-      },
-    }),
-  ).current;
 
   const proteinPct = pctOf(todayProtein, proteinGoal);
   const carbsPct = pctOf(todayCarbs, carbsGoal);
@@ -247,10 +238,10 @@ export function TrackerScreen() {
   return (
     <Page>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 0, paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
-        <View {...swipe.panHandlers}>
-          <PageHeader
+        <PageHeader
             eyebrow={t('s.trackEyebrow')}
             title={t('tracker.title')}
+            onSwipe={stepTab}
             right={(
               <Pressable onPress={openForm} style={({ pressed }) => [{ borderRadius: 999, backgroundColor: readableText(colors.darkButton), paddingHorizontal: 13, paddingVertical: 9, opacity: pressed ? 0.85 : 1 }]}>
                 <Text style={{ color: colors.darkButton, fontWeight: '800', fontSize: 13 }}>{t('tracker.logMeal')}</Text>
@@ -283,11 +274,11 @@ export function TrackerScreen() {
                 </View>
               ))}
             </View>
-          </PageHeader>
-        </View>
+        </PageHeader>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 14 }}>
           {([
+            { key: 'meals' as const, label: lang === 'de' ? 'Mahlzeiten' : 'Meals', Icon: Flame },
             { key: 'water' as const, label: t('x.water'), Icon: Droplets },
             { key: 'barcode' as const, label: 'Barcode', Icon: ScanLine },
             { key: 'weight' as const, label: lang === 'de' ? 'Gewicht' : 'Weight', Icon: Scale },
@@ -307,39 +298,54 @@ export function TrackerScreen() {
         </ScrollView>
 
         <Animated.View style={{ opacity: fade, transform: [{ translateX: shift }] }}>
-          <TrackerPanel
-            mode={tab === 'barcode' ? 'food' : tab}
-            onLocalLog={(payload: any) => apply((prev: any[]) => [{ _id: `tmp-${Date.now()}`, ...payload, eatenAt: Date.now() }, ...prev])}
-          />
-        </Animated.View>
-
-        <Text style={tinyLabel}>{t('tracker.today')}</Text>
-        {today.length === 0 ? (
-          <EmptyState
-            icon={<Flame size={24} color={colors.accent} strokeWidth={2} />}
-            title={t('tracker.noMeals')}
-            body={t('s.trackEmptyBody')}
-            action={<AppButton label={t('tracker.logFirst')} variant="dark" icon={<Plus size={16} color={colors.darkButtonText} />} onPress={openForm} />}
-          />
-        ) : (
-          today.map((item: any) => (
-            <View key={item._id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.cardBorder }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textPrimary }}>{item.title}</Text>
-                <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>
-                  {new Date(item.eatenAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  {item.protein != null ? ` · P ${roundN(item.protein)}g` : ''}
-                  {item.carbs != null ? ` · C ${roundN(item.carbs)}g` : ''}
-                  {item.fat != null ? ` · F ${roundN(item.fat)}g` : ''}
-                </Text>
+          {tab === 'meals' ? (
+            <GlassCard pad={20} radius={26} style={{ minHeight: 440 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ flex: 1, fontSize: 11, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase', color: colors.textSecondary }}>{t('tracker.today')}</Text>
+                <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.textPrimary }}>{todayCal} / {kcalGoal} kcal</Text>
               </View>
-              <Text style={{ fontSize: 15, color: colors.accent, fontWeight: '800', marginRight: 12 }}>{item.calories ?? 0} kcal</Text>
-              <Pressable onPress={() => del(item._id)} hitSlop={8}>
-                <Trash2 size={16} color={colors.rose} strokeWidth={2} />
-              </Pressable>
-            </View>
-          ))
-        )}
+              <View style={{ height: 8, borderRadius: 4, backgroundColor: colors.surfaceMuted, marginTop: 10, overflow: 'hidden' }}>
+                <View style={{ height: 8, width: `${pctOf(todayCal, kcalGoal)}%`, borderRadius: 4, backgroundColor: colors.accent }} />
+              </View>
+
+              <View style={{ flex: 1, marginTop: 6 }}>
+                {today.length === 0 ? (
+                  <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 44 }}>
+                    <Flame size={26} color={colors.accent} strokeWidth={2} />
+                    <Text style={{ fontSize: 14.5, fontWeight: '700', color: colors.textSecondary, marginTop: 10 }}>{t('tracker.noMeals')}</Text>
+                  </View>
+                ) : (
+                  today.map((item: any, i: number) => (
+                    <View key={item._id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderBottomWidth: i === today.length - 1 ? 0 : 1, borderBottomColor: colors.cardBorder }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textPrimary }}>{item.title}</Text>
+                        <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>
+                          {new Date(item.eatenAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {item.protein != null ? ` · P ${roundN(item.protein)}g` : ''}
+                          {item.carbs != null ? ` · C ${roundN(item.carbs)}g` : ''}
+                          {item.fat != null ? ` · F ${roundN(item.fat)}g` : ''}
+                        </Text>
+                      </View>
+                      <Text style={{ fontSize: 15, color: colors.accent, fontWeight: '800', marginRight: 10 }}>{item.calories ?? 0} kcal</Text>
+                      <Pressable onPress={() => del(item._id)} hitSlop={8}>
+                        <Trash2 size={16} color={colors.rose} strokeWidth={2} />
+                      </Pressable>
+                    </View>
+                  ))
+                )}
+              </View>
+
+              <AppButton label={t('tracker.logMeal')} variant="dark" icon={<Plus size={16} color={colors.darkButtonText} />} onPress={openForm} style={{ marginTop: 8 }} />
+            </GlassCard>
+          ) : null}
+
+          <View style={{ display: tab === 'meals' ? 'none' : 'flex' }}>
+            <TrackerPanel
+              mode={tab === 'barcode' ? 'food' : tab === 'weight' ? 'weight' : 'water'}
+              onLocalLog={(payload: any) => apply((prev: any[]) => [{ _id: `tmp-${Date.now()}`, ...payload, eatenAt: Date.now() }, ...prev])}
+            />
+          </View>
+        </Animated.View>
 
         <Modal visible={showProfile} transparent animationType="slide" onRequestClose={() => setShowProfile(false)} statusBarTranslucent>
           <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlayStrong }}>

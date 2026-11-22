@@ -225,7 +225,12 @@ export function RootTabs() {
   return (
     <Tab.Navigator
       tabBar={(props) => <ScrollableTabBar {...props} />}
-      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: 'transparent' } }}
+      screenOptions={{
+        headerShown: false,
+        sceneStyle: { backgroundColor: 'transparent' },
+        animation: 'shift',
+        transitionSpec: { animation: 'timing', config: { duration: 320 } },
+      }}
     >
       {ORDER.map((name) => (
         <Tab.Screen key={name} name={name} component={SCREENS[name]} />

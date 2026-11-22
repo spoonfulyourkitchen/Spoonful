@@ -7,7 +7,7 @@ import { ArrowLeft, Camera, ImagePlus, Info, Sparkles } from 'lucide-react-nativ
 import { dairyAssumptions, type DairyAssumption } from '../lib/ai';
 import { useAction, useMutation } from '../lib/convex-auth';
 import { api } from '../lib/api';
-import { colors, readableText } from '../theme';
+import { colors, readableText, rgbaHelper } from '../theme';
 import { goBack } from '../navigation/rootRef';
 import { AppButton, GlassCard, PageHeader, TextField } from '../components/ui';
 import { notifyRecipeAdded } from '../lib/notifications';
@@ -244,14 +244,20 @@ export function RecipeFormScreen({ route }: any) {
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 40 + insets.bottom }} keyboardShouldPersistTaps="handled">
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 0 }}>
-          <Pressable onPress={() => goBack()} style={{ width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder }}>
-            <ArrowLeft size={20} color={colors.textPrimary} />
-          </Pressable>
-          <View style={{ flex: 1 }}>
-            <PageHeader eyebrow={t('s.mineEyebrow')} title={editing ? t('recipe.edit') : t('recipe.createRecipe')} />
-          </View>
-        </View>
+        <PageHeader
+          eyebrow={t('s.mineEyebrow')}
+          title={editing ? t('recipe.edit') : t('recipe.createRecipe')}
+          leading={(
+            <Pressable
+              onPress={() => goBack()}
+              accessibilityRole="button"
+              accessibilityLabel="Back"
+              style={({ pressed }) => [{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: rgbaHelper(readableText(colors.darkButton), 0.16), opacity: pressed ? 0.75 : 1 }]}
+            >
+              <ArrowLeft size={18} color={readableText(colors.darkButton)} />
+            </Pressable>
+          )}
+        />
 
         {draftRestored ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4, marginBottom: 2 }}>

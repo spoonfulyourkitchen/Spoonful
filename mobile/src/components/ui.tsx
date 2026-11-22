@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   ActivityIndicator,
+  PanResponder,
   Pressable,
   StyleProp,
   StyleSheet,
@@ -11,6 +12,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { Menu, Search } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
 
 import { colors, fonts, glassShadow, readableText, rgbaHelper } from '../theme';
 import { useConnectivity } from '../lib/offline';
@@ -352,23 +354,52 @@ export function PageHeader({
   subtitle,
   style,
   right,
+  leading,
   children,
   bleed = 18,
+  onSwipe,
+  swipe = true,
 }: {
   eyebrow?: string;
   title: string;
   subtitle?: string;
   style?: StyleProp<ViewStyle>;
   right?: React.ReactNode;
+  leading?: React.ReactNode;
   children?: React.ReactNode;
   bleed?: number;
+  onSwipe?: (dir: 1 | -1) => void;
+  swipe?: boolean;
 }) {
   const conn = useConnectivity();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const fg = readableText(colors.darkButton);
+  const navigation = useNavigation<any>();
+  const swipeRef = React.useRef(onSwipe);
+  swipeRef.current = onSwipe;
+  const pan = React.useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_e, g) => swipe && Math.abs(g.dx) > 18 && Math.abs(g.dx) > Math.abs(g.dy) * 1.4,
+      onPanResponderRelease: (_e, g) => {
+        if (Math.abs(g.dx) < 48) return;
+        const dir: 1 | -1 = g.dx < 0 ? 1 : -1;
+        if (swipeRef.current) {
+          swipeRef.current(dir);
+          return;
+        }
+        try {
+          const state = navigation.getState();
+          if (!state || state.type !== 'tab') return;
+          const target = state.routes[state.index + dir];
+          if (target) navigation.navigate(target.name as never);
+        } catch {}
+      },
+    }),
+  ).current;
   return (
     <View
+      {...pan.panHandlers}
       style={[
         {
           marginHorizontal: -bleed,
@@ -384,6 +415,7 @@ export function PageHeader({
       ]}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        {leading}
         {eyebrow ? (
           <Text numberOfLines={1} style={{ flex: 1, fontSize: 11, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase', color: rgbaHelper(fg, 0.62) }}>
             {eyebrow}

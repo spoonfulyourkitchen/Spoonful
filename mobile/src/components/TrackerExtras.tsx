@@ -392,7 +392,6 @@ export function TrackerExtras({ onLocalLog, mode }: { onLocalLog?: (payload: any
         ) : null}
       </GlassCard>
 
-      <Collapsible bare title={t('x.water')} open={openSections.water} onToggle={() => toggleSection('water')} />
       {!mode ? (
         <Collapsible bare title={t('x.water')} open={openSections.water} onToggle={() => toggleSection('water')} />
       ) : null}
