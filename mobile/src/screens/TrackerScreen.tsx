@@ -1,12 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, Text, View, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Modal, PanResponder, Pressable, ScrollView, Text, View, KeyboardAvoidingView, Platform } from 'react-native';
 
 import { useIsFocused } from '@react-navigation/native';
 import { Alert } from '../lib/alert';
-import { Flame, Plus, Trash2, X } from 'lucide-react-native';
+import { Droplets, Flame, Plus, Scale, ScanLine, Trash2, X } from 'lucide-react-native';
 import { useMutation, useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';
-import { colors, fonts, subscribeTheme } from '../theme';
+import { colors, fonts, rgbaHelper, readableText, subscribeTheme } from '../theme';
 import { Page } from '../navigation/Shell';
 import { AppButton, EmptyState, GlassCard, PageHeader, TextField } from '../components/ui';
 import { TrackerExtras as TrackerPanel } from '../components/TrackerExtras';
@@ -122,7 +122,37 @@ export function TrackerScreen() {
   const todayCarbs = roundN(today.reduce((s: number, e: any) => s + (e.carbs ?? 0), 0));
   const todayFat = roundN(today.reduce((s: number, e: any) => s + (e.fat ?? 0), 0));
 
-  const calPct = pctOf(todayCal, kcalGoal);
+  const [tab, setTab] = useState<'water' | 'barcode' | 'weight'>('water');
+  const tabKeys = ['water', 'barcode', 'weight'] as const;
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
+  const fade = useRef(new Animated.Value(1)).current;
+  const shift = useRef(new Animated.Value(0)).current;
+  const goTab = (next: 'water' | 'barcode' | 'weight', dir: number) => {
+    if (next === tabRef.current) return;
+    setTab(next);
+    fade.setValue(0);
+    shift.setValue(dir * 40);
+    Animated.parallel([
+      Animated.timing(fade, { toValue: 1, duration: 360, useNativeDriver: true }),
+      Animated.timing(shift, { toValue: 0, duration: 360, useNativeDriver: true }),
+    ]).start();
+  };
+  const stepTab = (dir: number) => {
+    const i = tabKeys.indexOf(tabRef.current);
+    const next = tabKeys[Math.min(tabKeys.length - 1, Math.max(0, i + dir))];
+    goTab(next, dir);
+  };
+  const swipe = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 16 && Math.abs(g.dx) > Math.abs(g.dy) * 1.3,
+      onPanResponderRelease: (_e, g) => {
+        if (Math.abs(g.dx) < 44) return;
+        stepTab(g.dx < 0 ? 1 : -1);
+      },
+    }),
+  ).current;
+
   const proteinPct = pctOf(todayProtein, proteinGoal);
   const carbsPct = pctOf(todayCarbs, carbsGoal);
   const fatPct = pctOf(todayFat, fatGoal);
@@ -217,57 +247,71 @@ export function TrackerScreen() {
   return (
     <Page>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 0, paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
-          <View style={{ flex: 1 }}>
-            <PageHeader eyebrow={t('s.trackEyebrow')} title={t('tracker.title')} />
-          </View>
-          <Pressable onPress={openForm} style={({ pressed }) => [{ marginBottom: 16, borderRadius: 999, backgroundColor: colors.accent, paddingHorizontal: 14, paddingVertical: 10, opacity: pressed ? 0.8 : 1 }]}>
-            <Text style={{ color: colors.accentText, fontWeight: '700', fontSize: 14 }}>
-              {t('tracker.logMeal')}
-            </Text>
-          </Pressable>
+        <View {...swipe.panHandlers}>
+          <PageHeader
+            eyebrow={t('s.trackEyebrow')}
+            title={t('tracker.title')}
+            right={(
+              <Pressable onPress={openForm} style={({ pressed }) => [{ borderRadius: 999, backgroundColor: readableText(colors.darkButton), paddingHorizontal: 13, paddingVertical: 9, opacity: pressed ? 0.85 : 1 }]}>
+                <Text style={{ color: colors.darkButton, fontWeight: '800', fontSize: 13 }}>{t('tracker.logMeal')}</Text>
+              </Pressable>
+            )}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginTop: 6 }}>
+              <Text style={{ fontSize: 38, fontWeight: '900', letterSpacing: -1.4, color: readableText(colors.darkButton), fontVariant: ['tabular-nums'] }}>{remaining}</Text>
+              <Text style={{ fontSize: 12.5, fontWeight: '700', color: rgbaHelper(readableText(colors.darkButton), 0.7), paddingBottom: 7 }}>{t('common.kcal')}</Text>
+              <View style={{ flex: 1 }} />
+              <Pressable onPress={() => setShowProfile(true)} style={({ pressed }) => [{ borderRadius: 999, backgroundColor: rgbaHelper(readableText(colors.darkButton), 0.14), paddingHorizontal: 11, paddingVertical: 6, marginBottom: 4, opacity: pressed ? 0.8 : 1 }]}>
+                <Text style={{ fontSize: 11.5, fontWeight: '800', color: rgbaHelper(readableText(colors.darkButton), 0.9) }}>{t('s.trackAdjust')}</Text>
+              </Pressable>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+              {[
+                { label: t('common.protein'), value: todayProtein, goal: proteinGoal, pct: proteinPct, color: colors.success },
+                { label: t('common.carbs'), value: todayCarbs, goal: carbsGoal, pct: carbsPct, color: colors.cyan },
+                { label: t('common.fat'), value: todayFat, goal: fatGoal, pct: fatPct, color: colors.amber },
+              ].map((m) => (
+                <View key={m.label} style={{ flex: 1, borderRadius: 12, backgroundColor: rgbaHelper(readableText(colors.darkButton), 0.12), padding: 9 }}>
+                  <Text style={{ fontSize: 9.5, fontWeight: '900', letterSpacing: 0.6, textTransform: 'uppercase', color: rgbaHelper(readableText(colors.darkButton), 0.62) }}>{m.label}</Text>
+                  <Text style={{ fontSize: 13.5, fontWeight: '800', color: readableText(colors.darkButton), marginTop: 2 }}>
+                    {Math.round(m.value)}
+                    <Text style={{ fontSize: 9.5, fontWeight: '600', color: rgbaHelper(readableText(colors.darkButton), 0.62) }}> / {m.goal} g</Text>
+                  </Text>
+                  <View style={{ height: 3, borderRadius: 2, backgroundColor: rgbaHelper(readableText(colors.darkButton), 0.18), marginTop: 6, overflow: 'hidden' }}>
+                    <View style={{ height: 3, width: `${m.pct}%`, borderRadius: 2, backgroundColor: m.color }} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          </PageHeader>
         </View>
 
-        <GlassCard pad={18} radius={24}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ fontSize: 11, fontWeight: '800', letterSpacing: 0.7, textTransform: 'uppercase', color: colors.textSecondary }}>
-              {t('s.trackRemaining')}
-            </Text>
-            <View style={{ flex: 1 }} />
-            <Pressable onPress={() => setShowProfile(true)} style={({ pressed }) => [{ borderRadius: 999, backgroundColor: colors.surfaceMuted, paddingHorizontal: 11, paddingVertical: 5, opacity: pressed ? 0.75 : 1 }]}>
-              <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.textSecondary }}>{t('s.trackAdjust')}</Text>
-            </Pressable>
-          </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 14 }}>
+          {([
+            { key: 'water' as const, label: t('x.water'), Icon: Droplets },
+            { key: 'barcode' as const, label: 'Barcode', Icon: ScanLine },
+            { key: 'weight' as const, label: lang === 'de' ? 'Gewicht' : 'Weight', Icon: Scale },
+          ]).map((entry) => {
+            const active = tab === entry.key;
+            return (
+              <Pressable
+                key={entry.key}
+                onPress={() => goTab(entry.key, tabKeys.indexOf(entry.key) > tabKeys.indexOf(tab) ? 1 : -1)}
+                style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 9, backgroundColor: active ? colors.textPrimary : colors.surfaceMuted, opacity: pressed ? 0.85 : 1 }]}
+              >
+                <entry.Icon size={14} color={active ? colors.card : colors.textSecondary} strokeWidth={2.4} />
+                <Text style={{ fontSize: 12.5, fontWeight: '800', color: active ? colors.card : colors.textSecondary }}>{entry.label}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
 
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 7, marginTop: 4 }}>
-            <Text style={{ fontSize: 46, fontWeight: '900', letterSpacing: -1.6, color: remaining < 150 && todayCal > 0 ? colors.rose : colors.textPrimary, fontVariant: ['tabular-nums'] }}>
-              {remaining}
-            </Text>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textSecondary, paddingBottom: 9 }}>{t('common.kcal')}</Text>
-          </View>
-          <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 1 }}>
-            {t('s.trackEaten', { n: todayCal })} · {kcalGoal} {t('common.kcal')} {t('s.perDay')}
-          </Text>
-
-          <View style={{ height: 10, borderRadius: 5, backgroundColor: colors.surfaceMuted, marginTop: 14, overflow: 'hidden' }}>
-            <View style={{ height: 10, width: `${calPct}%`, borderRadius: 5, backgroundColor: colors.accent }} />
-          </View>
-
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
-            <MacroStat label={t('common.protein')} value={todayProtein} goal={proteinGoal} pct={proteinPct} color={colors.success} />
-            <MacroStat label={t('common.carbs')} value={todayCarbs} goal={carbsGoal} pct={carbsPct} color={colors.cyan} />
-            <MacroStat label={t('common.fat')} value={todayFat} goal={fatGoal} pct={fatPct} color={colors.amber} />
-          </View>
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14 }}>
-            <Text style={{ fontSize: 11.5, fontWeight: '600', color: colors.textSecondary }}>
-              {goalLabel}
-              {profile.targetWeight ? ` · ${lang === 'de' ? 'Ziel' : 'Target'} ${profile.targetWeight} ${t('ob.kg')}` : ''}
-            </Text>
-            <View style={{ flex: 1 }} />
-            <Text style={{ fontSize: 11, color: colors.textSecondary }}>{t('s.trackPlan')}</Text>
-          </View>
-        </GlassCard>
+        <Animated.View style={{ opacity: fade, transform: [{ translateX: shift }] }}>
+          <TrackerPanel
+            mode={tab === 'barcode' ? 'food' : tab}
+            onLocalLog={(payload: any) => apply((prev: any[]) => [{ _id: `tmp-${Date.now()}`, ...payload, eatenAt: Date.now() }, ...prev])}
+          />
+        </Animated.View>
 
         <Text style={tinyLabel}>{t('tracker.today')}</Text>
         {today.length === 0 ? (
@@ -296,10 +340,6 @@ export function TrackerScreen() {
             </View>
           ))
         )}
-
-        <TrackerPanel
-          onLocalLog={(payload: any) => apply((prev: any[]) => [{ _id: `tmp-${Date.now()}`, ...payload, eatenAt: Date.now() }, ...prev])}
-        />
 
         <Modal visible={showProfile} transparent animationType="slide" onRequestClose={() => setShowProfile(false)} statusBarTranslucent>
           <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlayStrong }}>
@@ -473,21 +513,6 @@ export function TrackerScreen() {
       </Modal>
       </ScrollView>
     </Page>
-  );
-}
-
-function MacroStat({ label, value, goal, pct, color }: { label: string; value: number; goal: number; pct: number; color: string }) {
-  return (
-    <View style={{ flex: 1, borderRadius: 14, backgroundColor: colors.surfaceMuted, padding: 10 }}>
-      <Text style={{ fontSize: 10, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase', color: colors.textSecondary }}>{label}</Text>
-      <Text style={{ fontSize: 14.5, fontWeight: '800', color: colors.textPrimary, marginTop: 3 }}>
-        {Math.round(value)}
-        <Text style={{ fontSize: 10.5, fontWeight: '600', color: colors.textSecondary }}> / {goal} g</Text>
-      </Text>
-      <View style={{ height: 4, borderRadius: 2, backgroundColor: colors.card, marginTop: 7, overflow: 'hidden' }}>
-        <View style={{ height: 4, width: `${pct}%`, borderRadius: 2, backgroundColor: color }} />
-      </View>
-    </View>
   );
 }
 

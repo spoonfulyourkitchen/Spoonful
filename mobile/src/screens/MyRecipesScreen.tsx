@@ -60,22 +60,23 @@ export function MyRecipesScreen() {
 
   return (
     <Page>
-      <View style={{ paddingHorizontal: 18, paddingTop: 12 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10 }}>
-          <View style={{ flex: 1 }}>
-            <PageHeader eyebrow={t('s.mineEyebrow')} title={t('s.mineTitle')} />
-          </View>
-          <Pressable
-            onPress={openEditor}
-            style={({ pressed }) => [
-              { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, backgroundColor: colors.accent, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 16 },
-              pressed && { opacity: 0.85 },
-            ]}
-          >
-            <Plus size={17} color={colors.accentText} strokeWidth={2.6} />
-            <Text style={{ color: colors.accentText, fontWeight: '700', fontSize: 14 }}>{t('s.mineNew')}</Text>
-          </Pressable>
-        </View>
+      <View style={{ paddingHorizontal: 18 }}>
+        <PageHeader
+          eyebrow={t('s.mineEyebrow')}
+          title={t('s.mineTitle')}
+          right={(
+            <Pressable
+              onPress={openEditor}
+              style={({ pressed }) => [
+                { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, backgroundColor: colors.darkButtonText, paddingHorizontal: 14, paddingVertical: 10 },
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              <Plus size={17} color={colors.darkButton} strokeWidth={2.6} />
+              <Text style={{ color: colors.darkButton, fontWeight: '800', fontSize: 13.5 }}>{t('s.mineNew')}</Text>
+            </Pressable>
+          )}
+        />
       </View>
 
       {mine === undefined ? (

@@ -33,7 +33,7 @@ import {
 
 const PROFILE_KEY = 'spoonful:nutrition-profile';
 
-export function TrackerExtras({ onLocalLog }: { onLocalLog?: (payload: any) => void } = {}) {
+export function TrackerExtras({ onLocalLog, mode }: { onLocalLog?: (payload: any) => void; mode?: 'food' | 'water' | 'weight' } = {}) {
   const { t, lang } = useTranslation();
   const logManual = useMutation(api.calorieEntries.logManual);
   
@@ -291,8 +291,24 @@ export function TrackerExtras({ onLocalLog }: { onLocalLog?: (payload: any) => v
 
   return (
     <>
-      <Collapsible bare title={pick(lang, TRACKER_L10N.scanCardTitle)} open={openSections.food} onToggle={() => toggleSection('food')} />
-      <GlassCard visible={openSections.food} pad={16} radius={20}>
+      {!mode ? (
+        <Collapsible bare title={pick(lang, TRACKER_L10N.scanCardTitle)} open={openSections.food} onToggle={() => toggleSection('food')} />
+      ) : null}
+      <GlassCard visible={!mode ? openSections.food : mode === 'food'} pad={mode === 'food' ? 18 : 16} radius={mode === 'food' ? 26 : 20} style={mode === 'food' ? { minHeight: 430 } : undefined}>
+        {mode === 'food' ? (
+          <Pressable
+            onPress={() => {
+              tutorialAction('tut-barcode');
+              setScannerOpen(true);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={pick(lang, BARCODE_L10N.scanTitle)}
+            style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: 18, paddingVertical: 18, backgroundColor: colors.darkButton, marginBottom: 14, opacity: pressed ? 0.85 : 1 }]}
+          >
+            <Camera size={19} color={colors.darkButtonText} strokeWidth={2.4} />
+            <Text style={{ color: colors.darkButtonText, fontWeight: '800', fontSize: 15 }}>{pick(lang, BARCODE_L10N.scanTitle)}</Text>
+          </Pressable>
+        ) : null}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 10 }}>
             <Search size={15} color={colors.textSecondary} />
@@ -377,53 +393,63 @@ export function TrackerExtras({ onLocalLog }: { onLocalLog?: (payload: any) => v
       </GlassCard>
 
       <Collapsible bare title={t('x.water')} open={openSections.water} onToggle={() => toggleSection('water')} />
-      <GlassCard visible={openSections.water} pad={16} radius={20}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <Droplets size={20} color={colors.cyan} />
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textPrimary }}>
-              {(totalMl / 1000).toFixed(2)} L · {waterPct}%
-            </Text>
-            <Text style={{ fontSize: 11.5, color: colors.textSecondary, marginTop: 2 }}>
-              {t('x.waterGoal')}: {(waterGoalMl / 1000).toFixed(1)} L
-            </Text>
-          </View>
-          <Pressable
-            onPress={undoWater}
-            accessibilityRole="button"
-            accessibilityLabel={t('x.water')}
-            style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' }}
-          >
-            <Minus size={15} color={colors.textPrimary} />
-          </Pressable>
-          <Pressable
-            onPress={() => addWater(250)}
-            accessibilityRole="button"
-            accessibilityLabel="250 ml"
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, height: 34, paddingHorizontal: 12, borderRadius: 17, backgroundColor: colors.darkButton }}
-          >
-            <Plus size={14} color={colors.darkButtonText} />
-            <Text style={{ color: colors.darkButtonText, fontWeight: '800', fontSize: 12 }}>250 ml</Text>
+      {!mode ? (
+        <Collapsible bare title={t('x.water')} open={openSections.water} onToggle={() => toggleSection('water')} />
+      ) : null}
+      <GlassCard visible={!mode ? openSections.water : mode === 'water'} pad={mode === 'water' ? 22 : 16} radius={mode === 'water' ? 26 : 20} style={mode === 'water' ? { minHeight: 440 } : undefined}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Droplets size={18} color={colors.cyan} />
+          <Text style={{ flex: 1, fontSize: 11, fontWeight: '800', letterSpacing: 0.7, textTransform: 'uppercase', color: colors.textSecondary }}>{t('x.water')}</Text>
+          <Pressable onPress={undoWater} accessibilityRole="button" accessibilityLabel={t('x.water')} style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' }}>
+            <Minus size={14} color={colors.textPrimary} />
           </Pressable>
         </View>
-        <View style={{ height: 8, borderRadius: 4, backgroundColor: colors.surfaceMuted, marginTop: 12, overflow: 'hidden' }}>
-          <View style={{ height: 8, width: `${waterPct}%`, backgroundColor: colors.cyan, borderRadius: 4 }} />
+
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginTop: mode === 'water' ? 16 : 4 }}>
+          <Text style={{ fontSize: mode === 'water' ? 56 : 34, fontWeight: '900', letterSpacing: -2, color: colors.textPrimary, fontVariant: ['tabular-nums'] }}>
+            {(totalMl / 1000).toFixed(2)}
+          </Text>
+          <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textSecondary, paddingBottom: 10 }}>L</Text>
+          <View style={{ flex: 1 }} />
+          <Text style={{ fontSize: 13, fontWeight: '800', color: colors.cyan, paddingBottom: 11 }}>{waterPct}%</Text>
+        </View>
+        <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textSecondary, marginTop: -2 }}>{(waterGoalMl / 1000).toFixed(1)} L</Text>
+
+        <View style={{ flexDirection: 'row', gap: 4, marginTop: 16 }}>
+          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => {
+            const on = waterPct >= (i + 1) * 10;
+            return <View key={i} style={{ flex: 1, height: mode === 'water' ? 36 : 22, borderRadius: 7, backgroundColor: on ? colors.cyan : colors.surfaceMuted, opacity: on ? 1 : 0.7 }} />;
+          })}
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 18 }}>
+          {[250, 500, 750].map((ml) => (
+            <Pressable
+              key={ml}
+              onPress={() => addWater(ml)}
+              accessibilityRole="button"
+              accessibilityLabel={ml + ' ml'}
+              style={({ pressed }) => [{ flex: 1, borderRadius: 16, paddingVertical: mode === 'water' ? 16 : 12, alignItems: 'center', backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.8 : 1 }]}
+            >
+              <Text style={{ fontSize: 13.5, fontWeight: '800', color: colors.textPrimary }}>+{ml} ml</Text>
+            </Pressable>
+          ))}
         </View>
       </GlassCard>
 
-      {
-}
-      <Collapsible bare title={pick(lang, TRACKER_L10N.weightTitle)} open={openSections.weight} onToggle={() => toggleSection('weight')} />
-      <GlassCard visible={openSections.weight} pad={16} radius={20}>
+      {!mode ? (
+        <Collapsible bare title={pick(lang, TRACKER_L10N.weightTitle)} open={openSections.weight} onToggle={() => toggleSection('weight')} />
+      ) : null}
+      <GlassCard visible={!mode ? openSections.weight : mode === 'weight'} pad={mode === 'weight' ? 22 : 16} radius={mode === 'weight' ? 26 : 20} style={mode === 'weight' ? { minHeight: 440 } : undefined}>
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 10 }}>
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 12 }}>
             <TextInput
               value={kgInput}
               onChangeText={setKgInput}
               keyboardType="decimal-pad"
               placeholder={pick(lang, TRACKER_L10N.weightPlaceholder)}
               placeholderTextColor={colors.textSecondary}
-              style={{ flex: 1, paddingVertical: 9, color: colors.textPrimary }}
+              style={{ flex: 1, paddingVertical: 11, color: colors.textPrimary }}
             />
             <Text style={{ fontSize: 12.5, color: colors.textSecondary }}>kg</Text>
           </View>
@@ -432,33 +458,35 @@ export function TrackerExtras({ onLocalLog }: { onLocalLog?: (payload: any) => v
             disabled={kgBusy}
             accessibilityRole="button"
             accessibilityLabel={pick(lang, TRACKER_L10N.save)}
-            style={({ pressed }) => [{ borderRadius: 12, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.darkButton, opacity: kgBusy ? 0.6 : pressed ? 0.85 : 1 }]}
+            style={({ pressed }) => [{ borderRadius: 14, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.darkButton, opacity: kgBusy ? 0.6 : pressed ? 0.85 : 1 }]}
           >
             <Text style={{ color: colors.darkButtonText, fontWeight: '800', fontSize: 13 }}>
-              {kgBusy ? '…' : pick(lang, TRACKER_L10N.save)}
+              {kgBusy ? '...' : pick(lang, TRACKER_L10N.save)}
             </Text>
           </Pressable>
         </View>
 
-        {!trend ? (
-          <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 10 }}>{pick(lang, TRACKER_L10N.weightHint)}</Text>
-        ) : (
-          <View style={{ marginTop: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              {trend.delta <= 0 ? <TrendingDown size={18} color={colors.success} /> : <TrendingUp size={18} color={colors.accent} />}
-              <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textPrimary }}>
-                {trend.last} kg · {trend.delta > 0 ? '+' : ''}
-                {trend.delta} kg
-              </Text>
-              <Text style={{ fontSize: 11.5, color: colors.textSecondary }}>({trend.weeks}w)</Text>
+        {trend ? (
+          <View style={{ marginTop: mode === 'weight' ? 18 : 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6 }}>
+              <Text style={{ fontSize: mode === 'weight' ? 54 : 32, fontWeight: '900', letterSpacing: -2, color: colors.textPrimary, fontVariant: ['tabular-nums'] }}>{trend.last}</Text>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textSecondary, paddingBottom: 10 }}>kg</Text>
+              <View style={{ flex: 1 }} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingBottom: 11 }}>
+                {trend.delta <= 0 ? <TrendingDown size={16} color={colors.success} /> : <TrendingUp size={16} color={colors.accent} />}
+                <Text style={{ fontSize: 13, fontWeight: '800', color: trend.delta <= 0 ? colors.success : colors.accent }}>
+                  {trend.delta > 0 ? '+' : ''}
+                  {trend.delta} kg
+                </Text>
+              </View>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: 46, marginTop: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: mode === 'weight' ? 132 : 46, marginTop: 12 }}>
               {trend.points.map((p: any, i: number) => {
                 const values = trend.points.map((x: any) => x.kg);
                 const min = Math.min(...values);
                 const span = Math.max(0.5, Math.max(...values) - min);
-                const h = 8 + ((p.kg - min) / span) * 34;
-                return <View key={i} style={{ flex: 1, height: h, borderRadius: 3, backgroundColor: colors.accentSoft }} />;
+                const h = (mode === 'weight' ? 18 : 8) + ((p.kg - min) / span) * (mode === 'weight' ? 100 : 34);
+                return <View key={i} style={{ flex: 1, height: h, borderRadius: 3, backgroundColor: i === trend.points.length - 1 ? colors.accent : colors.accentSoft }} />;
               })}
             </View>
             {suggestion ? (
@@ -467,12 +495,27 @@ export function TrackerExtras({ onLocalLog }: { onLocalLog?: (payload: any) => v
                 style={({ pressed }) => [{ marginTop: 12, borderRadius: 13, paddingVertical: 12, alignItems: 'center', backgroundColor: colors.darkButton, opacity: pressed ? 0.85 : 1 }]}
               >
                 <Text style={{ color: colors.darkButtonText, fontWeight: '800', fontSize: 13 }}>
-                  {t('x.adjustGoal')} · {goalWord(suggestion)}
+                  {t('x.adjustGoal')} - {goalWord(suggestion)}
                 </Text>
               </Pressable>
             ) : null}
           </View>
-        )}
+        ) : !mode ? (
+          <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 10 }}>{pick(lang, TRACKER_L10N.weightHint)}</Text>
+        ) : null}
+
+        {mode === 'weight' && weightLocal.length > 1 ? (
+          <View style={{ marginTop: 16 }}>
+            {weightLocal.slice(-4).reverse().map((w: any, i: number) => (
+              <View key={String(w.at) + '-' + i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderTopWidth: 1, borderTopColor: colors.cardBorder }}>
+                <Text style={{ flex: 1, fontSize: 12.5, color: colors.textSecondary }}>
+                  {new Date(Number(w.at || Date.now())).toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-US', { day: '2-digit', month: 'short' })}
+                </Text>
+                <Text style={{ fontSize: 13.5, fontWeight: '800', color: colors.textPrimary }}>{w.kg} kg</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
       </GlassCard>
 
       <BarcodeScannerModal visible={scannerOpen} onClose={() => setScannerOpen(false)} onCode={(code) => void onScanned(code)} />
