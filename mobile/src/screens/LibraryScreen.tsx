@@ -26,6 +26,11 @@ import { TutorialTarget } from '../components/TutorialTarget';
 import { tutorialAction, useTutorialTarget } from '../lib/tutorial';
 import { RecipeImage } from '../components/RecipeImage';
 import { LibraryRecipe, asRecipeFromDoc, formatCuisine, formatDiet, difficultyLabel, translateSearchTerm, totalMinutes } from '../lib/recipe';
+
+const ONBOARDING_LIBRARY_CUISINES: Record<string, string> = {
+  cItalian: 'Italian', cAsian: 'Asian', cMexican: 'Mexican',
+  cIndian: 'Indian', cMiddleEast: 'Middle Eastern', cFrench: 'French',
+};
 import { sortFilterValuesAZ } from '../lib/countries';
 import { difficultyColor } from '../theme';
 import { BookLoader } from '../components/BookLoader';
@@ -163,14 +168,23 @@ export function LibraryScreen() {
     if (!filtersReady) return;
     dietInit.current = true;
     const saved = (() => { try { return JSON.parse(filtersRaw.current ?? 'null'); } catch { return null; } })();
-    if (saved && Array.isArray(saved.diets) && saved.diets.length) return;
     const diet = profile.diet || localPrefs.diet || '';
     const allergies = (profile.allergies?.length ? profile.allergies : localPrefs.allergies) ?? [];
     const fromProfile = [DIET_TAGS[diet] ?? '', ...allergies.map((a: string) => ALLERGY_TAGS[a] ?? '')].filter(Boolean);
-    if (fromProfile.length) setDiets(Array.from(new Set(fromProfile)));
+    if ((!saved || !Array.isArray(saved.diets) || !saved.diets.length) && fromProfile.length) {
+      setDiets(Array.from(new Set(fromProfile)));
+    }
     if (!saved || !saved.difficulty) {
       const level = skillLevel(profile.cookingExperience || localPrefs.experience, localPrefs.startedAt);
       setDifficulty(difficultyForSkill(level));
+    }
+    if (!saved || !saved.timeRange) {
+      const minutes = Number(localPrefs.cookTime ?? 0);
+      if (minutes > 0) setTimeRange(minutes <= 15 ? 'under15' : minutes <= 30 ? '15-30' : 'over30');
+    }
+    if (!saved || !saved.cuisine || saved.cuisine === 'all') {
+      const mapped = (localPrefs.cuisines ?? []).map((key: string) => ONBOARDING_LIBRARY_CUISINES[key]).filter(Boolean);
+      if (mapped.length) setCuisine(mapped[0]);
     }
   }, [profile, localPrefs, filtersReady]);
 

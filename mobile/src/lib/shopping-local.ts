@@ -115,6 +115,14 @@ export function restoreLocalItem(item: LocalShoppingItem) {
   apply([...items, item].sort((a, b) => a.at - b.at));
 }
 
+export function resetShoppingLocal(): void {
+  items = [];
+  try {
+    void AsyncStorage.removeItem(STORAGE_KEY);
+  } catch {}
+  emit();
+}
+
 export function clearLocalChecked() {
   apply(items.filter((i) => !i.checked));
 }

@@ -98,6 +98,14 @@ export function useNutritionProfile(): NutritionProfile {
   return useSyncExternalStore(subscribeNutritionProfile, getNutritionProfile, getNutritionProfile);
 }
 
+export async function hasStoredNutritionProfile(): Promise<boolean> {
+  try {
+    return Boolean(await AsyncStorage.getItem(NUTRITION_PROFILE_KEY));
+  } catch {
+    return false;
+  }
+}
+
 export async function hydrateNutritionProfile(): Promise<void> {
   if (loaded) return;
   loaded = true;

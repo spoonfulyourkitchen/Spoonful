@@ -8,7 +8,13 @@ import { useConvexAuth } from '../lib/convex-auth';
 import { addPendingOp } from '../lib/offline';
 import { readLocalPrefs, saveLocalPrefs } from '../lib/local-prefs';
 import { isLocalTestActive } from '../lib/local-test';
-import { DEFAULT_INTRO_ANSWERS, readIntroAnswers, type IntroAnswers } from '../lib/intro-answers';
+import {
+  DEFAULT_INTRO_ANSWERS,
+  readIntroAnswers,
+  saveIntroAnswers,
+  type IntroAnswers,
+} from '../lib/intro-answers';
+import { goalTagFromOnboarding, setNutritionProfile, type Activity, type Sex } from '../lib/nutrition-profile';
 
 const MARKER_KEY = 'spoonful:profile-refresh:v1';
 const SEEN_KEY = 'spoonful:intro-seen';
@@ -26,8 +32,41 @@ const COOK_TIMES = ['15', '30', '45', '60'];
 const CUISINES = ['cItalian', 'cAsian', 'cMexican', 'cIndian', 'cMiddleEast', 'cFrench'];
 const PEOPLE = [1, 2, 3, 4, 5, 6];
 
-type Step = 'intro' | 'diet' | 'allergies' | 'experience' | 'household' | 'time' | 'cuisines' | 'reminders' | 'done';
-const FLOW: Step[] = ['diet', 'allergies', 'experience', 'household', 'time', 'cuisines', 'reminders', 'done'];
+type Step =
+  | 'intro'
+  | 'goal'
+  | 'sex'
+  | 'age'
+  | 'height'
+  | 'weight'
+  | 'activity'
+  | 'target'
+  | 'diet'
+  | 'allergies'
+  | 'experience'
+  | 'household'
+  | 'time'
+  | 'cuisines'
+  | 'reminders'
+  | 'done';
+
+const FLOW: Step[] = [
+  'goal',
+  'sex',
+  'age',
+  'height',
+  'weight',
+  'activity',
+  'target',
+  'diet',
+  'allergies',
+  'experience',
+  'household',
+  'time',
+  'cuisines',
+  'reminders',
+  'done',
+];
 
 export function ProfileRefreshGate() {
   const { t, lang } = useTranslation();
@@ -75,7 +114,9 @@ export function ProfileRefreshGate() {
   };
 
   const complete = async () => {
+    await saveIntroAnswers({ ...answers, completedAt: Date.now() }).catch(() => {});
     await saveLocalPrefs({
+      goal: answers.goal,
       diet: answers.diet,
       allergies: answers.allergies,
       experience: answers.experience,
@@ -83,6 +124,15 @@ export function ProfileRefreshGate() {
       cookTime: answers.cookTime,
       cuisines: answers.cuisines,
     }).catch(() => {});
+    setNutritionProfile({
+      goal: goalTagFromOnboarding(answers.goal),
+      sex: answers.sex,
+      age: answers.age,
+      height: answers.height,
+      weight: answers.weight,
+      activity: answers.activity,
+      targetWeight: answers.targetWeight || undefined,
+    });
     await addPendingOp('profile.save', {
       goal: answers.goal || 'keep',
       diet: answers.diet,
@@ -98,6 +148,20 @@ export function ProfileRefreshGate() {
 
   const copy = useMemo(() => {
     switch (step) {
+      case 'goal':
+        return { title: t('onb.goalTitle'), body: t('onb.goalDesc') };
+      case 'sex':
+        return { title: t('ob.sexTitle'), body: t('ob.sexBody') };
+      case 'age':
+        return { title: t('ob.ageTitle'), body: t('ob.ageBody') };
+      case 'height':
+        return { title: t('ob.heightTitle'), body: t('ob.heightBody') };
+      case 'weight':
+        return { title: t('ob.weightTitle'), body: t('ob.weightBody') };
+      case 'activity':
+        return { title: t('ob.activityTitle'), body: t('ob.activityBody') };
+      case 'target':
+        return { title: t('ob.targetTitle'), body: t('ob.targetBody') };
       case 'diet':
         return { title: t('onb.dietTitle'), body: t('onb.dietDesc') };
       case 'allergies':
@@ -134,11 +198,11 @@ export function ProfileRefreshGate() {
             </View>
             <Text style={{ fontSize: 14, lineHeight: 21, color: colors.textSecondary, marginTop: 12 }}>
               {lang === 'de'
-                ? 'Seit deinem Start sind neue Angaben dazugekommen: Allergien, Ernährung, Kocherfahrung, Haushaltsgröße und Kochzeit. Damit Rezepte, Bibliothek und KI-Koch wirklich zu dir passen, möchten wir sie einmal kurz mit dir ergänzen. Dauert etwa eine Minute, deine bisherigen Angaben bleiben erhalten.'
-                : 'Since you started, new details were added: allergies, diet, cooking experience, household size and cooking time. So recipes, library and AI Chef really fit you, we would like to fill them in with you once. Takes about a minute, your existing answers stay.'}
+                ? 'Seit deinem Start sind neue Angaben dazugekommen: Ziel, Körperdaten, Aktivität, Allergien, Ernährung, Kocherfahrung, Haushaltsgröße, Kochzeit und Küchen. Damit Tagesplan, Rezepte, Bibliothek und KI-Koch wirklich zu dir passen, fragen wir sie einmal komplett ab. Dein Name bleibt, deine bisherigen Antworten sind vorausgefüllt. Dauert etwa zwei Minuten.'
+                : 'Since you started, new details were added: goal, body data, activity, allergies, diet, cooking experience, household size, cooking time and cuisines. So your daily plan, recipes, library and AI Chef really fit you, we ask for them once, complete. Your name stays, your existing answers are filled in. Takes about two minutes.'}
             </Text>
             <Pressable
-              onPress={() => { setStep('diet'); }}
+              onPress={() => { setStep('goal'); }}
               accessibilityRole="button"
               style={({ pressed }) => [{ marginTop: 18, borderRadius: 14, paddingVertical: 13, alignItems: 'center', backgroundColor: colors.darkButton, opacity: pressed ? 0.85 : 1 }]}
             >
@@ -156,6 +220,67 @@ export function ProfileRefreshGate() {
       </Modal>
     );
   }
+
+  const optionRow = (label: string, active: boolean, onPress: () => void, hint?: string) => (
+    <Pressable
+      key={label}
+      onPress={onPress}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, borderWidth: 1, borderColor: active ? colors.accent : colors.cardBorder, backgroundColor: active ? colors.accentSoft : colors.card, paddingHorizontal: 14, paddingVertical: 13, marginBottom: 8 }}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 14.5, fontWeight: '700', color: colors.textPrimary }}>{label}</Text>
+        {hint ? <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>{hint}</Text> : null}
+      </View>
+      {active ? <Check size={16} color={colors.accent} /> : null}
+    </Pressable>
+  );
+
+  const chip = (key: string, label: string, active: boolean, onPress: () => void) => (
+    <Pressable
+      key={key}
+      onPress={onPress}
+      style={{ borderRadius: 999, borderWidth: 1, borderColor: active ? colors.accent : colors.cardBorder, backgroundColor: active ? colors.accentSoft : colors.card, paddingHorizontal: 14, paddingVertical: 9 }}
+    >
+      <Text style={{ fontSize: 13.5, fontWeight: '700', color: active ? colors.accent : colors.textPrimary }}>{label}</Text>
+    </Pressable>
+  );
+
+  const counter = (
+    value: number,
+    unit: string,
+    stepSize: number,
+    min: number,
+    max: number,
+    onChange: (next: number) => void,
+    decimals = 0,
+  ) => (
+    <View style={{ alignItems: 'center', gap: 14, paddingTop: 6 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18 }}>
+        <Pressable
+          onPress={() => onChange(Math.max(min, Math.round((value - stepSize) * 10) / 10))}
+          accessibilityRole="button"
+          style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Text style={{ fontSize: 24, fontWeight: '800', color: colors.textPrimary }}>-</Text>
+        </Pressable>
+        <View style={{ alignItems: 'center', minWidth: 120 }}>
+          <Text style={{ fontSize: 40, fontWeight: '800', letterSpacing: -1, color: colors.textPrimary, fontVariant: ['tabular-nums'] }}>
+            {decimals ? value.toFixed(1).replace('.', ',') : String(Math.round(value))}
+          </Text>
+          <Text style={{ fontSize: 13, color: colors.textSecondary }}>{unit}</Text>
+        </View>
+        <Pressable
+          onPress={() => onChange(Math.min(max, Math.round((value + stepSize) * 10) / 10))}
+          accessibilityRole="button"
+          style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Text style={{ fontSize: 24, fontWeight: '800', color: colors.textPrimary }}>+</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+
+  const targetKg = answers.targetWeight || answers.weight;
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={() => void dismiss(false)} statusBarTranslucent>
@@ -177,132 +302,116 @@ export function ProfileRefreshGate() {
           <Text style={{ fontSize: 13.5, lineHeight: 20, color: colors.textSecondary, marginTop: 6 }}>{copy.body}</Text>
 
           <View style={{ marginTop: 18 }}>
+            {step === 'goal' ? (
+              <View>
+                {optionRow(t('onb.lose'), answers.goal === 'lose', () => save({ goal: 'lose' }), t('ob.goalHintLose'))}
+                {optionRow(t('onb.keep'), answers.goal === 'keep', () => save({ goal: 'keep' }), t('ob.goalHintKeep'))}
+                {optionRow(t('onb.gain'), answers.goal === 'gain', () => save({ goal: 'gain' }), t('ob.goalHintGain'))}
+              </View>
+            ) : null}
+
+            {step === 'sex' ? (
+              <View>
+                {optionRow(t('ob.male'), answers.sex === 'male', () => save({ sex: 'male' as Sex }))}
+                {optionRow(t('ob.female'), answers.sex === 'female', () => save({ sex: 'female' as Sex }))}
+              </View>
+            ) : null}
+
+            {step === 'age' ? counter(answers.age, t('ob.years'), 1, 14, 99, (next) => save({ age: Math.round(next) })) : null}
+
+            {step === 'height'
+              ? counter(answers.height, t('ob.cm'), 1, 120, 230, (next) => save({ height: Math.round(next) }))
+              : null}
+
+            {step === 'weight'
+              ? counter(answers.weight, t('ob.kg'), 0.5, 30, 300, (next) => save({ weight: Math.round(next * 10) / 10 }), 1)
+              : null}
+
+            {step === 'activity' ? (
+              <View>
+                {([1, 2, 3, 4] as Activity[]).map((level) =>
+                  optionRow(t(`ob.act${level}`), answers.activity === level, () => save({ activity: level })),
+                )}
+              </View>
+            ) : null}
+
+            {step === 'target' ? (
+              <View>
+                {counter(targetKg, t('ob.kg'), 0.5, 30, 300, (next) => save({ targetWeight: Math.round(next * 10) / 10 }), 1)}
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 18 }}>
+                  {(answers.goal === 'gain' ? [2, 5, 8] : [2, 5, 10]).map((kg) => {
+                    const sign = answers.goal === 'gain' ? 1 : -1;
+                    const value = Math.round((answers.weight + sign * kg) * 10) / 10;
+                    return chip(
+                      `t${kg}`,
+                      `${sign > 0 ? '+' : '-'}${kg} ${t('ob.kg')}`,
+                      Math.abs(targetKg - value) < 0.2,
+                      () => save({ targetWeight: value }),
+                    );
+                  })}
+                </View>
+              </View>
+            ) : null}
+
             {step === 'diet' ? (
-              <View style={{ gap: 8 }}>
-                {[{ value: '', label: t('onb.none') }, ...DIETS.map((d) => ({ value: d, label: t(`onb.${d}`) }))].map((option) => {
-                  const active = answers.diet === option.value;
-                  return (
-                    <Pressable
-                      key={option.value || 'none'}
-                      onPress={() => save({ diet: option.value })}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, borderWidth: 1, borderColor: active ? colors.accent : colors.cardBorder, backgroundColor: active ? colors.accentSoft : colors.card, paddingHorizontal: 14, paddingVertical: 13 }}
-                    >
-                      <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '700', color: colors.textPrimary }}>{option.label}</Text>
-                      {active ? <Check size={16} color={colors.accent} /> : null}
-                    </Pressable>
-                  );
-                })}
+              <View>
+                {optionRow(t('onb.none'), answers.diet === '', () => save({ diet: '' }))}
+                {DIETS.map((diet) => optionRow(t(`onb.${diet}`), answers.diet === diet, () => save({ diet })))}
               </View>
             ) : null}
 
             {step === 'allergies' ? (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                {ALLERGENS.map((allergen) => {
-                  const active = answers.allergies.includes(allergen);
-                  return (
-                    <Pressable
-                      key={allergen}
-                      onPress={() => toggleIn('allergies', allergen)}
-                      style={{ borderRadius: 999, borderWidth: 1, borderColor: active ? colors.accent : colors.cardBorder, backgroundColor: active ? colors.accentSoft : colors.card, paddingHorizontal: 14, paddingVertical: 9 }}
-                    >
-                      <Text style={{ fontSize: 13.5, fontWeight: '700', color: active ? colors.accent : colors.textPrimary }}>{t(`onb.${allergen}`)}</Text>
-                    </Pressable>
-                  );
-                })}
+                {ALLERGENS.map((allergen) =>
+                  chip(allergen, t(`onb.${allergen}`), answers.allergies.includes(allergen), () => toggleIn('allergies', allergen)),
+                )}
               </View>
             ) : null}
 
             {step === 'experience' ? (
-              <View style={{ gap: 8 }}>
-                {EXPERIENCE.map((level) => {
-                  const active = answers.experience === level;
-                  return (
-                    <Pressable
-                      key={level}
-                      onPress={() => save({ experience: level })}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, borderWidth: 1, borderColor: active ? colors.accent : colors.cardBorder, backgroundColor: active ? colors.accentSoft : colors.card, paddingHorizontal: 14, paddingVertical: 13 }}
-                    >
-                      <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '700', color: colors.textPrimary }}>{t(EXPERIENCE_KEYS[level])}</Text>
-                      {active ? <Check size={16} color={colors.accent} /> : null}
-                    </Pressable>
-                  );
-                })}
+              <View>
+                {EXPERIENCE.map((level) =>
+                  optionRow(t(EXPERIENCE_KEYS[level]), answers.experience === level, () => save({ experience: level })),
+                )}
               </View>
             ) : null}
 
             {step === 'household' ? (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                {PEOPLE.map((size) => {
-                  const active = answers.householdSize === size;
-                  return (
-                    <Pressable
-                      key={size}
-                      onPress={() => save({ householdSize: size })}
-                      style={{ borderRadius: 999, borderWidth: 1, borderColor: active ? colors.accent : colors.cardBorder, backgroundColor: active ? colors.accentSoft : colors.card, paddingHorizontal: 16, paddingVertical: 9 }}
-                    >
-                      <Text style={{ fontSize: 13.5, fontWeight: '700', color: active ? colors.accent : colors.textPrimary }}>{t('ob.people', { n: size })}</Text>
-                    </Pressable>
-                  );
-                })}
+                {PEOPLE.map((size) => chip(`p${size}`, t('ob.people', { n: size }), answers.householdSize === size, () => save({ householdSize: size })))}
               </View>
             ) : null}
 
             {step === 'time' ? (
-              <View style={{ gap: 8 }}>
-                {COOK_TIMES.map((minutes) => {
-                  const active = answers.cookTime === minutes;
-                  return (
-                    <Pressable
-                      key={minutes}
-                      onPress={() => save({ cookTime: minutes })}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, borderWidth: 1, borderColor: active ? colors.accent : colors.cardBorder, backgroundColor: active ? colors.accentSoft : colors.card, paddingHorizontal: 14, paddingVertical: 13 }}
-                    >
-                      <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '700', color: colors.textPrimary }}>{t(`ob.time${minutes}`)}</Text>
-                      {active ? <Check size={16} color={colors.accent} /> : null}
-                    </Pressable>
-                  );
-                })}
+              <View>
+                {COOK_TIMES.map((minutes) =>
+                  optionRow(t(`ob.time${minutes}`), answers.cookTime === minutes, () => save({ cookTime: minutes })),
+                )}
               </View>
             ) : null}
 
             {step === 'cuisines' ? (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                {CUISINES.map((cuisine) => {
-                  const active = answers.cuisines.includes(cuisine);
-                  return (
-                    <Pressable
-                      key={cuisine}
-                      onPress={() => toggleIn('cuisines', cuisine)}
-                      style={{ borderRadius: 999, borderWidth: 1, borderColor: active ? colors.accent : colors.cardBorder, backgroundColor: active ? colors.accentSoft : colors.card, paddingHorizontal: 14, paddingVertical: 9 }}
-                    >
-                      <Text style={{ fontSize: 13.5, fontWeight: '700', color: active ? colors.accent : colors.textPrimary }}>{t(`ob.${cuisine}`)}</Text>
-                    </Pressable>
-                  );
-                })}
+                {CUISINES.map((cuisine) =>
+                  chip(cuisine, t(`ob.${cuisine}`), answers.cuisines.includes(cuisine), () => toggleIn('cuisines', cuisine)),
+                )}
               </View>
             ) : null}
 
             {step === 'reminders' ? (
-              <View style={{ gap: 8 }}>
-                {[true, false].map((value) => {
-                  const active = answers.notifications === value;
-                  return (
-                    <Pressable
-                      key={String(value)}
-                      onPress={() => save({ notifications: value })}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, borderWidth: 1, borderColor: active ? colors.accent : colors.cardBorder, backgroundColor: active ? colors.accentSoft : colors.card, paddingHorizontal: 14, paddingVertical: 13 }}
-                    >
-                      <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '700', color: colors.textPrimary }}>{t(value ? 'ob.reminderOn' : 'ob.reminderOff')}</Text>
-                      {active ? <Check size={16} color={colors.accent} /> : null}
-                    </Pressable>
-                  );
-                })}
+              <View>
+                {optionRow(t('ob.reminderOn'), answers.notifications, () => save({ notifications: true }))}
+                {optionRow(t('ob.reminderOff'), !answers.notifications, () => save({ notifications: false }))}
               </View>
             ) : null}
 
             {step === 'done' ? (
               <View style={{ borderRadius: 18, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 16 }}>
                 {[
+                  { label: t('onb.goalTitle'), value: answers.goal === 'lose' ? t('onb.lose') : answers.goal === 'gain' ? t('onb.gain') : t('onb.keep') },
+                  { label: t('ob.ageTitle'), value: `${answers.age} ${t('ob.years')}` },
+                  { label: t('ob.heightTitle'), value: `${answers.height} ${t('ob.cm')}` },
+                  { label: t('ob.weightTitle'), value: `${answers.weight} ${t('ob.kg')}` },
                   { label: t('onb.dietTitle'), value: answers.diet ? t(`onb.${answers.diet}`) : t('onb.none') },
                   { label: t('onb.allergyTitle'), value: answers.allergies.length ? answers.allergies.map((a) => t(`onb.${a}`)).join(', ') : t('onb.none') },
                   { label: t('onb.expTitle'), value: answers.experience ? t(EXPERIENCE_KEYS[answers.experience]) : t('onb.none') },

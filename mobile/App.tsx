@@ -16,6 +16,13 @@ import { hydrateOfflineCaches } from './src/lib/offline';
 import { hydrateLocalOnboarded, useLocalOnboarded } from './src/lib/onboarding';
 import { hydrateShoppingLocal } from './src/lib/shopping-local';
 import { hydrateTrackerLocal } from './src/lib/tracker-local';
+import {
+  goalTagFromOnboarding,
+  hasStoredNutritionProfile,
+  hydrateNutritionProfile,
+  setNutritionProfile,
+} from './src/lib/nutrition-profile';
+import { readIntroAnswers } from './src/lib/intro-answers';
 import { useRecoveryPending } from './src/lib/recovery';
 import { navigationRef } from './src/navigation/rootRef';
 import type { RootStackParamList } from './src/navigation/types';
@@ -172,6 +179,21 @@ function RootNavigator() {
     void hydrateTrackerLocal();
     void hydrateCrashLog();
     void hydrateLocalOnboarded();
+    void (async () => {
+      await hydrateNutritionProfile();
+      if (await hasStoredNutritionProfile()) return;
+      const intro = await readIntroAnswers();
+      if (!intro?.completedAt) return;
+      setNutritionProfile({
+        sex: intro.sex,
+        age: intro.age,
+        height: intro.height,
+        weight: intro.weight,
+        activity: intro.activity,
+        goal: goalTagFromOnboarding(intro.goal),
+        targetWeight: intro.targetWeight || undefined,
+      });
+    })();
     AsyncStorage.getItem(SESSION_KEY).then((v) => {
       if (alive) {
         setCachedSession(v === '1');

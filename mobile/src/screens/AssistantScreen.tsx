@@ -89,7 +89,9 @@ export function AssistantScreen() {
 
   useEffect(() => {
     void readIntroAnswers().then((stored) => {
+      const fallback = Number(profile?.householdSize ?? localPrefs.householdSize ?? 0);
       if (stored?.householdSize) setServings(Math.max(1, Math.min(12, stored.householdSize)));
+      else if (fallback > 0) setServings(Math.max(1, Math.min(12, fallback)));
       const minutes = Number(stored?.cookTime);
       if (Number.isFinite(minutes) && minutes > 0) setMaxMinutes(Math.min(120, Math.round(minutes)));
       const cuisines = (stored?.cuisines ?? []).map((key) => ONBOARDING_CUISINES[key]).filter(Boolean);

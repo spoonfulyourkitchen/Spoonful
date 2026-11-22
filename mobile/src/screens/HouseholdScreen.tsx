@@ -32,6 +32,7 @@ import { colors, fonts, rgbaHelper } from '../theme';
 import { navigate } from '../navigation/rootRef';
 import { showAdminLoginAlert } from '../lib/notifications';
 import { recipeLines } from '../lib/recipe';
+import { resetShoppingLocal } from '../lib/shopping-local';
 import {
   addExpense, addNamesToShopping, addNote, addPlanEntry, addTask,
   fetchEvents, fetchExpenses, fetchHouseholdLists, fetchMembers, fetchNotes, fetchPlan, fetchStats, fetchTasks,
@@ -171,10 +172,15 @@ export function HouseholdScreen() {
     }
   };
 
-  const doCreate = () => run(() => createHousehold({ name: nameDraft.trim() || `${me} ${t('hh.title')}` }));
+  const switchHousehold = () => {
+    resetShoppingLocal();
+  };
+  const doCreate = () =>
+    run(() => createHousehold({ name: nameDraft.trim() || `${me} ${t('hh.title')}` }), switchHousehold);
   const doJoin = () =>
     run(() => joinHousehold({ code: joinCode.trim().toUpperCase() }), () => {
       setJoinCode('');
+      resetShoppingLocal();
     });
 
   
@@ -185,12 +191,15 @@ export function HouseholdScreen() {
     const clean = codePart.trim().toUpperCase();
     if (!clean) return;
     setJoinCode(clean);
-    void run(() => joinHousehold({ code: clean }), () => setJoinCode(''));
+    void run(() => joinHousehold({ code: clean }), () => {
+      setJoinCode('');
+      resetShoppingLocal();
+    });
   };
   const doLeave = () =>
     Alert.alert(t('hh.leaveConfirm'), undefined, [
       { text: t('s.cropCancel'), style: 'cancel' },
-      { text: t('hh.leave'), style: 'destructive', onPress: () => void run(() => leaveHousehold({})) },
+      { text: t('hh.leave'), style: 'destructive', onPress: () => void run(() => leaveHousehold({}), () => resetShoppingLocal()) },
     ]);
 
   
