@@ -2,7 +2,7 @@
 
 The design update: every page opens with the same dark rounded header and its menu button, the tracker is split into water, barcode, weight and meals, and the shopping list is shared with your household on the server.
 
-**Download:** `Spoonful-v3.7.0.apk` under Assets below. Android 7.0 or newer, arm64 and armv7. Install it as usual, existing installations are updated in place.
+**Download:** `Spoonful-v3.7.0.apk` under Assets below. Android 7.0 or newer, arm64 and armv7. This build replaces the earlier 3.7.0, install it over your current version, account and data stay as they are.
 
 ### What is new
 
@@ -18,6 +18,9 @@ The shopping list is stored on the server and shared with the household. Items a
 **Tracker with its own tabs**
 Water, barcode, weight and meals each have their own tab that fills the page: a large water counter with quick amounts, the scanner with its code field, the weight chart with recent entries, and the meal list with calories and macros. Remaining calories and macros sit in the header.
 
+**Profile update on start**
+Existing accounts get one prompt at start about the details the app now uses. A single tap accepts it and opens the short flow, the close button appears after 12 seconds so the prompt is seen. It comes back on the next start until the profile is complete, then it stays away. The prompt is switched from the server, the questions are goal, body data, activity, allergies, diet, cooking experience, household size, cooking time and cuisines.
+
 **Smaller things**
 The back arrow in the recipe form sits inside the header, leftover duplicate section headers in the tracker are gone, and page changes are instant again, without a white frame in between.
 
@@ -31,7 +34,7 @@ The back arrow in the recipe form sits inside the header, leftover duplicate sec
 
 ### Technical
 
-- Version 3.7.0, build 28, minSdk 24, targetSdk 36
+- Version 3.7.0.1, build 29, minSdk 24, targetSdk 36
 - ABIs: arm64-v8a, armeabi-v7a
 - Hermes bundle, no R8 or minify
 - No database migration, existing accounts and data stay as they are
