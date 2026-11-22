@@ -138,11 +138,6 @@ export function TrackerScreen() {
       Animated.timing(shift, { toValue: 0, duration: 360, useNativeDriver: true }),
     ]).start();
   };
-  const stepTab = (dir: number) => {
-    const i = tabKeys.indexOf(tabRef.current);
-    const next = tabKeys[Math.min(tabKeys.length - 1, Math.max(0, i + dir))];
-    goTab(next, dir);
-  };
 
   const proteinPct = pctOf(todayProtein, proteinGoal);
   const carbsPct = pctOf(todayCarbs, carbsGoal);
@@ -241,7 +236,6 @@ export function TrackerScreen() {
         <PageHeader
             eyebrow={t('s.trackEyebrow')}
             title={t('tracker.title')}
-            onSwipe={stepTab}
             right={(
               <Pressable onPress={openForm} style={({ pressed }) => [{ borderRadius: 999, backgroundColor: readableText(colors.darkButton), paddingHorizontal: 13, paddingVertical: 9, opacity: pressed ? 0.85 : 1 }]}>
                 <Text style={{ color: colors.darkButton, fontWeight: '800', fontSize: 13 }}>{t('tracker.logMeal')}</Text>
