@@ -92,7 +92,7 @@ export function MyRecipesScreen() {
           />
         </ScrollView>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 18, gap: 12, paddingBottom: 28 }}>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 0, gap: 12, paddingBottom: 28 }}>
           {mine.map((recipe: any) => (
             <GlassCard key={recipe._id} pad={0} radius={20} variant="solid">
               <Pressable

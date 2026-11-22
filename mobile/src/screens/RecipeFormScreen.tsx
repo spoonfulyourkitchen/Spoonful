@@ -244,7 +244,7 @@ export function RecipeFormScreen({ route }: any) {
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 40 + insets.bottom }} keyboardShouldPersistTaps="handled">
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 20 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 0 }}>
           <Pressable onPress={() => goBack()} style={{ width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder }}>
             <ArrowLeft size={20} color={colors.textPrimary} />
           </Pressable>

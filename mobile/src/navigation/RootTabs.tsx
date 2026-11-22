@@ -166,8 +166,19 @@ function TabButton({
         pressed && { opacity: 0.7 },
       ]}
     >
-      <TabIcon name={name} focused={focused} />
-      <TabLabel name={name} focused={focused} />
+      <View
+        style={{
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingHorizontal: 14,
+          paddingVertical: 6,
+          borderRadius: 16,
+          backgroundColor: focused ? colors.accentSoft : 'transparent',
+        }}
+      >
+        <TabIcon name={name} focused={focused} />
+        <TabLabel name={name} focused={focused} />
+      </View>
     </Pressable>
   );
 }

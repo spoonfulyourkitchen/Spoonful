@@ -285,10 +285,10 @@ export function CommunityScreen() {
           onScroll={() => tutorialAction('tut-community-feed')}
           scrollEventThrottle={16}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
-          contentContainerStyle={{ padding: 18, gap: 14, paddingBottom: 24 }}
+          contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 0, gap: 14, paddingBottom: 24 }}
           keyExtractor={(r) => r._id}
           ListHeaderComponent={<>
-      <View style={{ paddingTop: 4, paddingBottom: 2 }}>
+      <View style={{ paddingTop: 0, paddingBottom: 2 }}>
         <PageHeader eyebrow={t('community.fromCommunity')} title={t('community.title')} />
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

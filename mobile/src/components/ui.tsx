@@ -10,11 +10,13 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { Search } from 'lucide-react-native';
+import { Menu, Search } from 'lucide-react-native';
 
-import { colors, fonts, glassShadow, readableText } from '../theme';
+import { colors, fonts, glassShadow, readableText, rgbaHelper } from '../theme';
 import { useConnectivity } from '../lib/offline';
 import { useTranslation } from '../lib/i18n';
+import { useAppShell } from '../navigation/Shell';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Radius = number | 'full';
 
@@ -146,7 +148,7 @@ export function AppButton({
               justifyContent: 'center',
               gap: 8,
               backgroundColor: pressed ? p.pressedBg : p.bg,
-              borderRadius: 14,
+              borderRadius: 999,
               paddingVertical: 14,
               paddingHorizontal: 18,
               borderWidth: p.border ? 1 : 0,
@@ -315,29 +317,98 @@ export function SearchField({
   );
 }
 
-export function PageHeader({ eyebrow, title, subtitle, style }: { eyebrow?: string; title: string; subtitle?: string; style?: StyleProp<ViewStyle> }) {
+export function MenuOrb({ tone = 'dark', style }: { tone?: 'dark' | 'light'; style?: StyleProp<ViewStyle> }) {
+  const { toggle } = useAppShell();
+  const fg = tone === 'dark' ? readableText(colors.darkButton) : colors.textPrimary;
+  return (
+    <Pressable
+      onPress={toggle}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel="Menu"
+      style={({ pressed }) => [
+        {
+          width: 40,
+          height: 40,
+          borderRadius: 14,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: tone === 'dark' ? rgbaHelper(fg, 0.14) : colors.card,
+          borderWidth: tone === 'dark' ? 0 : 1,
+          borderColor: colors.cardBorder,
+          opacity: pressed ? 0.75 : 1,
+        },
+        style,
+      ]}
+    >
+      <Menu size={20} color={fg} strokeWidth={2.2} />
+    </Pressable>
+  );
+}
+
+export function PageHeader({
+  eyebrow,
+  title,
+  subtitle,
+  style,
+  right,
+  children,
+  bleed = 18,
+}: {
+  eyebrow?: string;
+  title: string;
+  subtitle?: string;
+  style?: StyleProp<ViewStyle>;
+  right?: React.ReactNode;
+  children?: React.ReactNode;
+  bleed?: number;
+}) {
   const conn = useConnectivity();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const fg = readableText(colors.darkButton);
   return (
-    <View style={[{ marginBottom: 16 }, style]}>
-      {eyebrow ? (
-        <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', color: colors.accent, marginBottom: 5 }}>
-          {eyebrow}
-        </Text>
-      ) : null}
-      <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-        <Text style={{ fontSize: 30, fontWeight: '700', color: colors.textPrimary, letterSpacing: -0.5, fontFamily: fonts.display }}>
-          {title}
-        </Text>
+    <View
+      style={[
+        {
+          marginHorizontal: -bleed,
+          marginBottom: 18,
+          backgroundColor: colors.darkButton,
+          paddingTop: insets.top + 14,
+          paddingBottom: 24,
+          paddingHorizontal: 20,
+          borderBottomLeftRadius: 36,
+          borderBottomRightRadius: 36,
+        },
+        style,
+      ]}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        {eyebrow ? (
+          <Text numberOfLines={1} style={{ flex: 1, fontSize: 11, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase', color: rgbaHelper(fg, 0.62) }}>
+            {eyebrow}
+          </Text>
+        ) : (
+          <View style={{ flex: 1 }} />
+        )}
         {conn === 'offline' ? (
-          <View style={{ borderRadius: 999, backgroundColor: 'rgba(180,83,9,0.14)', paddingHorizontal: 8, paddingVertical: 3 }}>
-            <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 0.4, color: '#b45309' }}>{t('s.offlineLabel')}</Text>
+          <View style={{ borderRadius: 999, backgroundColor: rgbaHelper(fg, 0.14), paddingHorizontal: 9, paddingVertical: 4 }}>
+            <Text style={{ fontSize: 10, fontWeight: '800', letterSpacing: 0.4, color: rgbaHelper(fg, 0.9) }}>{t('s.offlineLabel')}</Text>
           </View>
         ) : null}
+        {right}
+        <MenuOrb />
       </View>
+
+      <Text style={{ fontFamily: fonts.display, fontSize: 30, lineHeight: 35, fontWeight: '900', color: fg, marginTop: 10 }}>
+        {title}
+      </Text>
+
       {subtitle ? (
-        <Text style={{ fontSize: 15, lineHeight: 23, color: colors.textSecondary, marginTop: 6 }}>{subtitle}</Text>
+        <Text style={{ fontSize: 13.5, lineHeight: 20, color: rgbaHelper(fg, 0.7), marginTop: 6 }}>{subtitle}</Text>
       ) : null}
+
+      {children ? <View style={{ marginTop: 16 }}>{children}</View> : null}
     </View>
   );
 }

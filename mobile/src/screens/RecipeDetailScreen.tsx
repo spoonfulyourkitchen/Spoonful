@@ -25,7 +25,7 @@ import { api, SHARE_RETRY_WAIT_MS } from '../lib/api';
 import { readIntroAnswers } from '../lib/intro-answers';
 import { colors, difficultyColor, rgbaHelper, subscribeTheme } from '../theme';
 import { navigate, goBack } from '../navigation/rootRef';
-import { AppButton, GlassCard, InfoBox, SectionLabel } from '../components/ui';
+import { AppButton, GlassCard, InfoBox, MenuOrb, SectionLabel } from '../components/ui';
 import { RecipeImage } from '../components/RecipeImage';
 import { StepPhotoSlideshow, StepPhotoStrip, useStepPhotos } from '../components/StepPhotoSlideshow';
 import { ReportPhotoButton } from '../components/ReportPhotoButton';
@@ -420,6 +420,9 @@ export function RecipeDetailScreen({ route }: any) {
             {detailSource !== 'mine' && recipe.imageUrl ? (
               <ReportPhotoButton recipeKey={recipeKey} recipeTitle={recipe.title} imageUrl={recipe.imageUrl} />
             ) : null}
+          </View>
+          <View style={{ position: 'absolute', top: insets.top + 10, right: 12 }}>
+            <MenuOrb tone="light" />
           </View>
           <View style={{ position: 'absolute', right: 14, bottom: -20 }}>
             <Pressable onPress={startCooking} style={{ width: 54, height: 54, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accent, borderWidth: 3, borderColor: colors.bg }}>

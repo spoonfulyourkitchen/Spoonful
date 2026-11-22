@@ -384,7 +384,7 @@ export function AssistantScreen() {
 
   return (
     <Page>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 28 }} keyboardShouldPersistTaps="handled" directionalLockEnabled nestedScrollEnabled>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 0, paddingBottom: 28 }} keyboardShouldPersistTaps="handled" directionalLockEnabled nestedScrollEnabled>
         <PageHeader eyebrow="Spoonful · AI Chef" title={t('assistant.title')} />
 
         

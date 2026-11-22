@@ -689,7 +689,7 @@ export function LibraryScreen() {
         numColumns={groupByTime ? 1 : 2}
         keyExtractor={(r) => r.id}
         columnWrapperStyle={groupByTime ? undefined : { gap: 12, alignItems: 'flex-start' }}
-        contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 28, gap: 12 }}
+        contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 0, paddingBottom: 28, gap: 12 }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         initialNumToRender={6}

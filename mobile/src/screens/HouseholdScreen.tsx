@@ -36,7 +36,7 @@ import {
   X,
 } from 'lucide-react-native';
 
-import { AppButton, EmptyState, GlassCard, SectionLabel } from '../components/ui';
+import { AppButton, EmptyState, GlassCard, MenuOrb, SectionLabel } from '../components/ui';
 import { QrCodeView } from '../components/QrCodeView';
 import { Collapsible } from '../components/Collapsible';
 import { HouseholdQrScannerModal } from '../components/HouseholdQrScannerModal';
@@ -947,6 +947,7 @@ export function HouseholdScreen() {
                 <Text style={{ fontSize: 11.5, fontWeight: '800', color: colors.darkButtonText }}>{t('s.hhQr')}</Text>
               </Pressable>
             ) : null}
+            <MenuOrb />
           </View>
 
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, marginTop: 10 }}>

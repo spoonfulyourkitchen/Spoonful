@@ -177,7 +177,7 @@ export function ShoppingScreen() {
 
   return (
     <Page>
-      <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 64 }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 0, paddingBottom: 64 }} keyboardShouldPersistTaps="handled">
         <PageHeader eyebrow={t('shopping.whatYouNeed')} title={t('shopping.title')} subtitle={`${openItems.length} ${t('s.shopOpen')}`} />
 
         {!synced ? (

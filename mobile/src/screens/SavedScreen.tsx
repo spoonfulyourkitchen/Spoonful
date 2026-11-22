@@ -103,15 +103,16 @@ export function SavedScreen() {
 
   return (
     <Page>
-      <View style={{ paddingHorizontal: 18, paddingTop: 12 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
-          <View style={{ flex: 1 }}>
-            <PageHeader eyebrow={t('saved.privateShelf')} title={t('saved.title')} />
-          </View>
-          <Pressable onPress={() => setCollectionsOpen(true)} accessibilityRole="button" accessibilityLabel={t('s.collectionManage')} hitSlop={4} style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', marginTop: 22, backgroundColor: colors.accentSoft }}>
-            <Plus size={20} color={colors.accent} strokeWidth={2.5} />
-          </Pressable>
-        </View>
+      <View style={{ paddingHorizontal: 18 }}>
+        <PageHeader
+          eyebrow={t('saved.privateShelf')}
+          title={t('saved.title')}
+          right={(
+            <Pressable onPress={() => setCollectionsOpen(true)} accessibilityRole="button" accessibilityLabel={t('s.collectionManage')} hitSlop={4} style={{ width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accent }}>
+              <Plus size={20} color={colors.accentText} strokeWidth={2.5} />
+            </Pressable>
+          )}
+        />
         <SearchField value={search} onChangeText={setSearch} placeholder={t('saved.searchSaved')} style={{ marginBottom: 10 }} />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 }}>
           <Chip label={`${t('saved.allSaved')} · ${countFor('all')}`} active={active === 'all'} onPress={() => setActive('all')} icon={<Bookmark size={13} color={colors.accent} />} />
@@ -129,7 +130,7 @@ export function SavedScreen() {
       ) : (
         <FlatList
           data={filtered}
-          contentContainerStyle={{ padding: 18, gap: 12, paddingBottom: 24 }}
+          contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 0, gap: 12, paddingBottom: 24 }}
           keyExtractor={(r) => r._id}
           ListEmptyComponent={
             <EmptyState icon={<Bookmark size={24} color={colors.accent} strokeWidth={2} />} title={t('saved.nothingSaved')} body={t('saved.bookmarkDesc')} />

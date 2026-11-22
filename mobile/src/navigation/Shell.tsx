@@ -150,7 +150,7 @@ export function MainHeader() {
 
 export function Page({
   children,
-  header = true,
+  header = false,
   contentStyle,
 }: {
   children: React.ReactNode;

@@ -19,7 +19,7 @@ export function ThemeScreen() {
   const { t, lang } = useTranslation();
   return (
     <Page>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 32 }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 0, paddingBottom: 32 }}>
         <PageHeader
           eyebrow={themeUi(lang, 'personalize')}
           title={t('s.xChooseTheme')}

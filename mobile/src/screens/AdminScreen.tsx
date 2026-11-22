@@ -8,7 +8,7 @@ import { api } from '../lib/api';
 import { colors, readableText } from '../theme';
 import { Page } from '../navigation/Shell';
 import { navigate } from '../navigation/rootRef';
-import { GlassCard, PageHeader, Segmented, TextField } from '../components/ui';
+import { GlassCard, MenuOrb, PageHeader, Segmented, TextField } from '../components/ui';
 import { RecipeImage } from '../components/RecipeImage';
 import { useTranslation } from '../lib/i18n';
 import { useAdminLoginAlerts } from '../lib/admin-login';
@@ -128,6 +128,9 @@ export function AdminScreen() {
   if (canModerate === false) {
     return (
       <Page>
+        <View style={{ position: 'absolute', top: 14, right: 18, zIndex: 5 }}>
+          <MenuOrb tone="light" />
+        </View>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30 }}>
           <View style={{ width: 60, height: 60, borderRadius: 20, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' }}>
             <Shield size={28} color={colors.textSecondary} />
@@ -185,7 +188,7 @@ export function AdminScreen() {
 
   return (
     <Page>
-      <View style={{ paddingHorizontal: 18, paddingTop: 12 }}>
+      <View style={{ paddingHorizontal: 18 }}>
         <PageHeader eyebrow={t('s.adminEyebrow')} title={t('nav.adminPanel')} subtitle={t('admin.desc')} />
         {openCount ? (
           <Text style={{ fontSize: 13, color: colors.accent, marginBottom: 6 }}>{openCount} open image report(s)</Text>
@@ -199,7 +202,7 @@ export function AdminScreen() {
         />
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 18, gap: 10, paddingBottom: 30 }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 0, gap: 10, paddingBottom: 30 }}>
         {tab === 'Reviews' ? (
           <>
             {pendingShares === undefined ? (

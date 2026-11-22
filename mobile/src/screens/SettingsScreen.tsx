@@ -178,7 +178,7 @@ export function SettingsScreen() {
 
   return (
     <Page>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 32 }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 0, paddingBottom: 32 }}>
         <PageHeader eyebrow={t('settings.settings')} title={t('settings.settings')} />
 
         <GlassCard pad={16} radius={20}>
