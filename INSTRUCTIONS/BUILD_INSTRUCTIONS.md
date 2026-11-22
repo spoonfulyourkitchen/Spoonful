@@ -45,3 +45,13 @@ vorhanden, keine Service-Role-Keys/Tokens im APK.
 1. APK umbenennen: `Spoonful-v<version>.apk` (alte Datei vorher löschen)
 2. `RELEASE_NOTES-v<version>.md` (englisch) und `GITHUB_RELEASE_v<version>.md`
 3. `git tag v<version>` und Push
+
+### Release-Texte: immer Englisch
+
+`RELEASE_NOTES-v<version>.md`, `GITHUB_RELEASE_v<version>.md` und der Text des
+GitHub-Releases werden **auf Englisch** geschrieben, auch wenn die App deutsch
+startet und die Kommunikation im Projekt deutsch ist. Das gilt auch für die
+Kopie unter `Gihtub/`. Deutsch bleibt nur für interne Notizen und Chats.
+
+Wird ein Release-Text nachträglich geändert, muss der bereits veröffentlichte
+GitHub-Release-Text mitgezogen werden, sonst steht auf GitHub die alte Fassung.

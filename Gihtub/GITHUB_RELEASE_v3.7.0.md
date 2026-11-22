@@ -1,42 +1,42 @@
 ## Spoonful 3.7.0
 
-Das Personalisierungs-Update: deine Angaben werden einmal kurz aufgefrischt, Mahlzeiten kommen direkt aus deinen Rezepten, und Bibliothek und KI-Koch richten sich nach deiner Erfahrung.
+The personalisation update: your details get a short refresh, meals can be logged straight from your recipes, and library and AI Chef follow your experience level.
 
-**Download:** `Spoonful-v3.7.0.apk` unten unter Assets. Android 7.0 oder neuer, arm64 und armv7. Installation wie gewohnt über die APK, bereits installierte Versionen werden aktualisiert.
+**Download:** `Spoonful-v3.7.0.apk` under Assets below. Android 7.0 or newer, arm64 and armv7. Install it as usual, existing installations are updated in place.
 
-### Neu
+### What is new
 
-**Profil-Auffrischung für Bestandsnutzer**
-Wer schon länger dabei ist, bekommt beim Start einen kurzen Hinweis, warum ein paar Angaben jetzt wichtig sind: Allergien, Ernährung, Kocherfahrung, Haushaltsgröße, Kochzeit und Küchen. Rezepte, Bibliothek und KI-Koch können nur passen, wenn sie diese Angaben kennen. Ein Tipp auf "Jetzt ergänzen" öffnet eine kompakte Fassung des Onboardings mit nur diesen Fragen, die bestehenden Antworten bleiben erhalten. Wer neu anfängt, sieht den Hinweis nicht, weil das Onboarding diese Angaben schon abfragt.
+**Profile refresh for existing users**
+Anyone who has been around for a while gets a short prompt on start that explains why a few details matter now: allergies, diet, cooking experience, household size, cooking time and cuisines. Recipes, library and AI Chef can only fit if they know these. "Update now" opens a compact version of the onboarding with just those questions, your existing answers are kept. New accounts do not see the prompt, because the onboarding already asks for these details.
 
-**Mahlzeit aus Rezepten erfassen**
-"Mahlzeit erfassen" startet mit zwei Tabs: links ein Rezept aus der eigenen Sammlung mit Portions-Schritten, rechts die manuelle Eingabe. Damit landen Nährwerte aus dem Rezept direkt im Tracker, statt abgetippt zu werden.
+**Log a meal from your recipes**
+"Log meal" starts with two tabs: one for a recipe from your collection with a portion stepper, one for manual entry. Nutrition values from the recipe go straight into the tracker instead of being typed in again.
 
-**Barcode mit Codefeld**
-Die Karte heißt wieder "Barcode", und im Scanner gibt es unter der Produktsuche ein Feld, um die Nummer direkt einzutippen. Die Foto-Erfassung bleibt als Rückfallebene.
+**Barcode with a code field**
+The card is called "Barcode" again, and the scanner has a field under the product search to type the number directly. Photo capture stays as the fallback.
 
-**Bibliothek aufgeräumt**
-Filter und Küchen-Auswahl öffnen als zentrierte Dialoge, die Bibliothek bleibt dahinter sichtbar. Die Küchen-Auswahl liegt über dem Filter, der Schließen-Knopf ist wieder da, und die Rezepte sind nach Bild und Alphabet sortiert.
+**Library cleaned up**
+Filters and the cuisine picker open as centered dialogs, the library stays visible behind them. The cuisine picker sits above the filter, its close button is back, and recipes are sorted by image and alphabet.
 
-**Erfahrung wächst mit**
-Neue Konten starten mit einfachen Rezepten. Nach etwa drei Wochen kommen mittlere Schwierigkeiten dazu, nach etwa acht Wochen alle. Der KI-Koch arbeitet mit derselben Stufe.
+**Experience grows with you**
+New accounts start with easy recipes. After about three weeks medium ones join in, after about eight weeks all of them. AI Chef works with the same level.
 
-**KI-Koch mit Zielgewicht**
-Der Prompt nutzt jetzt aktuelles und Zielgewicht für Portionsgröße und Energiedichte, zusammen mit Ziel, Küchen, Allergien und Erfahrung.
+**AI Chef knows your target weight**
+The prompt now uses current and target weight for portion size and energy density, together with goal, cuisines, allergies and experience.
 
-**Schlankeres Rezeptformular**
-Foto, Titel, Zutaten, Schritte. Alles andere, also Zeiten, Portionen, Tags und Nährwerte, liegt zusammengeklappt unter "Details".
+**Leaner recipe form**
+Photo, title, ingredients, steps. Everything else, meaning times, portions, tags and nutrition, sits collapsed under "Details".
 
-**Kleineres**
-Ernährungs-Tags und Schwierigkeits-Stufen sind vollständig übersetzt, die Portionsanzeige im Rezeptdetail stimmt wieder, Haushalt und Tracker haben ihre neuen Karten, und die Texte im Kochmodus sind klarer.
+**Smaller things**
+Diet tags and difficulty levels are fully translated, portion display in recipe detail is correct again, household and tracker have their new cards, and the cooking mode texts are clearer.
 
-### Technisch
+### Technical
 
-- Version 3.7.0, Build 28, minSdk 24, targetSdk 36
+- Version 3.7.0, build 28, minSdk 24, targetSdk 36
 - ABIs: arm64-v8a, armeabi-v7a
-- Hermes-Bundle, kein R8/Minify
-- Keine Datenbank-Migration nötig, bestehende Konten und Daten bleiben unverändert
+- Hermes bundle, no R8 or minify
+- No database migration, existing accounts and data stay as they are
 
-### Hinweis
+### Note
 
-Die App spricht weiterhin mit demselben Backend wie 3.6.x. Wer von 3.6.1 aktualisiert, behält Rezepte, Einkaufsliste, Tracker und Haushalt.
+The app still talks to the same backend as 3.6.x. Updating from 3.6.1 keeps recipes, shopping list, tracker and household.
