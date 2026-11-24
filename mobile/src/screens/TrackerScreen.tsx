@@ -58,7 +58,7 @@ export function TrackerScreen() {
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [formTab, setFormTab] = useState<'recipes' | 'manual'>('manual');
+  const [formTab, setFormTab] = useState<'recipes' | 'recent' | 'manual'>('manual');
   const [pickedRecipe, setPickedRecipe] = useState<any>(null);
   const [portions, setPortions] = useState(1);
   const savedLive = useQuery(api.savedRecipes.list) as any[] | undefined;
@@ -80,7 +80,7 @@ export function TrackerScreen() {
   const openForm = () => {
     setPickedRecipe(null);
     setPortions(1);
-    setFormTab(recipeOptions.length ? 'recipes' : 'manual');
+    setFormTab(recipeOptions.length ? 'recipes' : recentFoods.length ? 'recent' : 'manual');
     setShowForm(true);
   };
 
@@ -121,6 +121,29 @@ export function TrackerScreen() {
   const todayProtein = roundN(today.reduce((s: number, e: any) => s + (e.protein ?? 0), 0));
   const todayCarbs = roundN(today.reduce((s: number, e: any) => s + (e.carbs ?? 0), 0));
   const todayFat = roundN(today.reduce((s: number, e: any) => s + (e.fat ?? 0), 0));
+
+  const recentFoods = useMemo(() => {
+    const cutoff = Date.now() - 14 * 86400000;
+    const map = new Map<string, { title: string; calories: number | null; protein: number | null; carbs: number | null; fat: number | null; count: number; at: number }>();
+    for (const e of all) {
+      const title = String(e?.title ?? '').trim();
+      if (!title || Number(e?.eatenAt) < cutoff) continue;
+      const key = title.toLowerCase();
+      const prev = map.get(key);
+      if (prev) prev.count += 1;
+      else
+        map.set(key, {
+          title,
+          calories: e.calories ?? null,
+          protein: e.protein ?? null,
+          carbs: e.carbs ?? null,
+          fat: e.fat ?? null,
+          count: 1,
+          at: Number(e.eatenAt) || 0,
+        });
+    }
+    return [...map.values()].sort((a, b) => b.count - a.count || b.at - a.at).slice(0, 8);
+  }, [all]);
 
   const [tab, setTab] = useState<'meals' | 'water' | 'barcode' | 'weight'>('meals');
   const tabKeys = ['meals', 'water', 'barcode', 'weight'] as const;
@@ -196,6 +219,26 @@ export function TrackerScreen() {
         protein: payload.protein,
         carbs: payload.carbs,
         fat: payload.fat,
+      });
+    } catch {
+      await addPendingOp('tracker.log', payload);
+    }
+  };
+
+  const quickLog = async (food: { title: string; calories: number | null; protein: number | null; carbs: number | null; fat: number | null }) => {
+    const payload = { title: food.title, calories: food.calories, protein: food.protein, carbs: food.carbs, fat: food.fat };
+    apply((prev: any[]) => [{ _id: `tmp-${Date.now()}`, ...payload, eatenAt: Date.now() }, ...prev]);
+    if (getConnNow() === 'offline') {
+      await addPendingOp('tracker.log', payload);
+      return;
+    }
+    try {
+      await logManual({
+        title: payload.title,
+        calories: payload.calories ?? undefined,
+        protein: payload.protein ?? undefined,
+        carbs: payload.carbs ?? undefined,
+        fat: payload.fat ?? undefined,
       });
     } catch {
       await addPendingOp('tracker.log', payload);
@@ -426,6 +469,7 @@ export function TrackerScreen() {
                 <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
                   {[
                     { key: 'recipes' as const, label: lang === 'de' ? 'Aus Rezepten' : 'From recipes' },
+                    { key: 'recent' as const, label: lang === 'de' ? 'Zuletzt' : 'Recent' },
                     { key: 'manual' as const, label: lang === 'de' ? 'Manuell' : 'Manual' },
                   ].map((tab) => {
                     const active = formTab === tab.key;
@@ -491,6 +535,31 @@ export function TrackerScreen() {
                       )}
                     </View>
                   )
+                ) : formTab === 'recent' ? (
+                  <View>
+                    {recentFoods.length ? recentFoods.map((food) => (
+                      <Pressable
+                        key={food.title}
+                        onPress={() => {
+                          setShowForm(false);
+                          void quickLog(food);
+                        }}
+                        style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.cardBorder, opacity: pressed ? 0.7 : 1 }]}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '700', color: colors.textPrimary }}>{food.title}</Text>
+                          <Text style={{ fontSize: 11.5, color: colors.textSecondary, marginTop: 2 }}>
+                            {food.calories ?? 0} kcal{food.protein != null ? ` · P ${Math.round(food.protein)}g` : ''}
+                          </Text>
+                        </View>
+                        <Plus size={16} color={colors.accent} />
+                      </Pressable>
+                    )) : (
+                      <Text style={{ fontSize: 13, color: colors.textSecondary, paddingVertical: 8 }}>
+                        {lang === 'de' ? 'Noch nichts eingetragen. Nutze Rezepte oder Manuell.' : 'Nothing logged yet. Use Recipes or Manual.'}
+                      </Text>
+                    )}
+                  </View>
                 ) : (
                   <>
                     <TextField label={t('tracker.mealName')} value={name} onChangeText={setName} placeholder={t('s.trackExample')} />

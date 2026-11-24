@@ -99,16 +99,20 @@ var SRC = ${JSON.stringify(image)};
 function report(o){ try { window.ReactNativeWebView.postMessage(JSON.stringify(o)); } catch(e){} }
 window.onerror = function(m){ report({ error: String(m) }); };
 
-function hints(){
+function hints(hard){
   var h = new Map();
   try {
-    h.set(ZXing.DecodeHintType.TRY_HARDER, true);
-    h.set(ZXing.DecodeHintType.ALSO_INVERTED, true);
-    h.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+    if (hard) {
+      h.set(ZXing.DecodeHintType.TRY_HARDER, true);
+      h.set(ZXing.DecodeHintType.ALSO_INVERTED, true);
+    }
+    h.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, hard ? [
       ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.UPC_A,
       ZXing.BarcodeFormat.UPC_E, ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39,
-      ZXing.BarcodeFormat.CODE_93, ZXing.BarcodeFormat.ITF, ZXing.BarcodeFormat.CODABAR,
-      ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.DATA_MATRIX
+      ZXing.BarcodeFormat.ITF
+    ] : [
+      ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.UPC_A,
+      ZXing.BarcodeFormat.UPC_E, ZXing.BarcodeFormat.CODE_128
     ]);
   } catch(e){}
   return h;
@@ -156,27 +160,26 @@ function prepped(img, o){
   return c;
 }
 
-function decodeCanvas(canvas){
+function decodeCanvas(canvas, hard){
   var src = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
   var bitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src));
   var reader = new ZXing.MultiFormatReader();
-  reader.setHints(hints());
+  reader.setHints(hints(hard));
   return reader.decode(bitmap).getText();
 }
 
 var PASSES = [
   { scale: 1 },
+  { scale: 1.5 },
   { scale: 1, binary: true },
-  { scale: 2 },
-  { scale: 1.6, rotate: 90 },
-  { scale: 1.6, rotate: 270 },
-  { scale: 2, crop: 0.6 },
-  { scale: 1, crop: 0.85, binary: true }
+  { scale: 1.5, rotate: 90 },
+  { scale: 1.5, rotate: 270 },
+  { scale: 2, crop: 0.7, binary: true }
 ];
 
 function fallbackReader(sharp){
   try {
-    var reader = new ZXing.BrowserMultiFormatReader(hints());
+    var reader = new ZXing.BrowserMultiFormatReader(hints(true));
     reader.decodeFromImageUrl(SRC)
       .then(function (r) { report({ code: r.getText(), sharp: sharp }); })
       .catch(function () { report({ error: 'not-found', sharp: sharp }); });
@@ -190,7 +193,7 @@ function attempt(i, img, sharp){
   report({ progress: i + 1, total: PASSES.length });
   var code = null;
   setTimeout(function () {
-    try { code = decodeCanvas(prepped(img, PASSES[i])); } catch (e) { code = null; }
+    try { code = decodeCanvas(prepped(img, PASSES[i]), i === PASSES.length - 1); } catch (e) { code = null; }
     if (code) { report({ code: code, sharp: sharp }); return; }
     attempt(i + 1, img, sharp);
   }, 20);
@@ -259,35 +262,84 @@ if (document.readyState === 'complete') run(); else window.addEventListener('loa
   const liveFormats =
     accept === 'any'
       ? 'ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.DATA_MATRIX, ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.EAN_13'
-      : 'ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E, ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.ITF, ZXing.BarcodeFormat.CODABAR, ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.DATA_MATRIX';
+      : 'ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E, ZXing.BarcodeFormat.CODE_128';
 
   const liveHtml = useMemo(
     () => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<style>html,body{margin:0;background:#000;height:100%}video{width:100%;height:100%;object-fit:cover}
-.frame{position:fixed;left:8%;right:8%;top:24%;bottom:24%;border:3px solid rgba(255,255,255,.9);border-radius:18px;box-sizing:border-box;box-shadow:0 0 0 100vmax rgba(0,0,0,.35)}</style></head>
+<style>html,body{margin:0;background:#000;height:100%;overflow:hidden}video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.frame{position:fixed;left:8%;right:8%;top:33%;height:34%;border:2px solid rgba(255,255,255,.9);border-radius:14px;box-sizing:border-box;box-shadow:0 0 0 100vmax rgba(0,0,0,.4)}</style></head>
 <body><div class="frame"></div><video id="v" playsinline autoplay muted></video>
 <script src="file:///android_asset/zxing.min.js"></script>
 <script>
+var FORMATS = [${liveFormats}];
 function report(o){ try { window.ReactNativeWebView.postMessage(JSON.stringify(o)); } catch(e){} }
-function go(){
-  try{
-    if (!window.ZXing || !window.ZXing.BrowserMultiFormatReader) { report({ error: 'decoder-missing' }); return; }
-    var hints = new Map();
-    if (ZXing.DecodeHintType) {
-      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [${liveFormats}]);
-    }
-    var reader = new ZXing.BrowserMultiFormatReader(hints);
-    var done = false;
-    reader.decodeFromVideoDevice(null, 'v', function(result){
-      if (!result || done) return;
-      done = true;
-      report({ code: result.getText() });
-      try { reader.reset(); } catch(e){}
-    }).catch(function(e){ report({ error: String(e && e.message ? e.message : e) }); });
-  } catch(e){ report({ error: String(e) }); }
+var video = document.getElementById('v');
+var done = false;
+function finish(code){ if (done) return; done = true; try { if (video.srcObject) video.srcObject.getTracks().forEach(function(t){ t.stop(); }); } catch(e){} report({ code: String(code) }); }
+
+function startNative(){
+  var det = new window.BarcodeDetector({ formats: ['ean_13','ean_8','upc_a','upc_e','code_128','qr_code'] });
+  var canvas = document.createElement('canvas');
+  var ctx = canvas.getContext('2d');
+  function tick(){
+    if (done) return;
+    if (video.readyState >= 2 && video.videoWidth) {
+      var vw = video.videoWidth, vh = video.videoHeight;
+      var sx = vw * 0.05, sy = vh * 0.26, sw = vw * 0.9, sh = vh * 0.48;
+      canvas.width = 720; canvas.height = Math.max(1, Math.round(720 * sh / sw));
+      try { ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height); } catch(e){}
+      det.detect(canvas).then(function(list){
+        if (list && list.length) { finish(list[0].rawValue); return; }
+        setTimeout(tick, 40);
+      }).catch(function(){ setTimeout(tick, 60); });
+    } else setTimeout(tick, 60);
+  }
+  tick();
 }
-window.addEventListener('load', go);
+
+function startZxing(){
+  if (!window.ZXing) { report({ error: 'decoder-missing' }); return; }
+  var hints = new Map();
+  try { if (ZXing.DecodeHintType) hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, FORMATS); } catch(e){}
+  var reader = new ZXing.MultiFormatReader();
+  reader.setHints(hints);
+  var canvas = document.createElement('canvas');
+  var ctx = canvas.getContext('2d');
+  var busy = false;
+  function frame(){
+    if (done) return;
+    if (busy || video.readyState < 2 || !video.videoWidth) { setTimeout(frame, 45); return; }
+    busy = true;
+    try {
+      var vw = video.videoWidth, vh = video.videoHeight;
+      var sx = vw * 0.05, sy = vh * 0.24, sw = vw * 0.9, sh = vh * 0.52;
+      var w = 720, h = Math.max(1, Math.round(w * sh / sw));
+      canvas.width = w; canvas.height = h;
+      ctx.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
+      var src = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
+      var bitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src));
+      var text = reader.decode(bitmap).getText();
+      busy = false;
+      if (text) { finish(text); return; }
+    } catch (e) { busy = false; }
+    setTimeout(frame, 30);
+  }
+  frame();
+}
+
+function start(){
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { report({ error: 'camera' }); return; }
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false })
+    .then(function(stream){
+      video.srcObject = stream;
+      var play = video.play();
+      if (play && play.catch) play.catch(function(){});
+      if (window.BarcodeDetector) { try { startNative(); return; } catch(e){} }
+      startZxing();
+    })
+    .catch(function(){ report({ error: 'camera' }); });
+}
+if (document.readyState === 'complete') start(); else window.addEventListener('load', start);
 </script></body></html>`,
     [liveFormats],
   );
