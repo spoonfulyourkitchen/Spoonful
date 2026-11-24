@@ -65,3 +65,6 @@ website/
 
 # Interne Anleitungen und Zugangsdaten (nicht im Repo)
 INSTRUCTIONS/
+
+# Lokaler Token-Übergabepunkt für tools/set-supabase-token.mjs
+.token.new
