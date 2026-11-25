@@ -746,7 +746,10 @@ ops['users.saveProfile'] = {
     if (args.diet !== undefined) patch.diet = args.diet;
     if (args.allergies !== undefined) patch.allergies = args.allergies ?? [];
     if (args.region !== undefined) patch.region = args.region;
-    if (args.onboardedAt !== undefined) patch.onboarded_at = args.onboardedAt;
+    if (args.onboardedAt !== undefined) {
+      patch.onboarded_at = args.onboardedAt;
+      patch.profile_refresh_version = 2;
+    }
     if (args.waterGoalMl !== undefined) patch.water_goal_ml = args.waterGoalMl;
     if (args.onboarding !== undefined) patch.onboarding = args.onboarding;
     if (args.prefs !== undefined) patch.prefs = args.prefs;

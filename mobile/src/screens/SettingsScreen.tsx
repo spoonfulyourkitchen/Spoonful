@@ -18,6 +18,7 @@ import { ChevronRight, Download, FileText, Globe, LogOut, Mail, Palette, Play, S
 import { convexClient, useAction, useAuthActions, useMutation, useQuery } from '../lib/convex-auth';
 import { cacheRemove } from '../lib/offline';
 import { hydrateAccountFromServer, importAccountData } from '../lib/account-sync';
+import { readBackupFile, saveBackupToFolder } from '../lib/backup-file';
 import { useTranslation, LANGUAGES, isRestartRequired, markLanguagePickerShown, tryReloadApp } from '../lib/i18n';
 import { loadPrefs, savePrefs, NotifPrefs } from '../lib/notifications';
 import { api } from '../lib/api';
@@ -105,12 +106,27 @@ export function SettingsScreen() {
     try {
       const data = await exportMyData({});
       const json = JSON.stringify(data, null, 2);
-      await Share.share({
-        title: 'Spoonful · my data',
-        message: json.length > 120000 ? `${json.slice(0, 120000)}\n…(truncated)` : json,
-      });
+      const result = await saveBackupToFolder(json);
+      if (result === 'saved') {
+        Alert.alert(
+          L('Gespeichert', 'Saved'),
+          L('Deine Sicherung liegt als JSON-Datei im gewählten Ordner.', 'Your backup was saved as a JSON file in the folder you picked.'),
+        );
+        return;
+      }
+      if (result === 'cancelled') return;
+      await Share.share({ title: 'Spoonful · my data', message: json });
     } catch (e) {
       Alert.alert(t('s.xExportFailed'), e instanceof Error ? e.message : 'Please try again.');
+    }
+  };
+
+  const pickBackup = async () => {
+    try {
+      const content = await readBackupFile();
+      if (content) setImportText(content);
+    } catch (e) {
+      Alert.alert(L('Datei konnte nicht gelesen werden', 'Could not read file'), e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -438,6 +454,14 @@ export function SettingsScreen() {
                   'Paste the content of your Spoonful backup here. Recipes, collections, meals, weight, shopping list and onboarding are restored. Existing entries stay and duplicates are skipped.',
                 )}
               </Text>
+              <Pressable
+                onPress={() => void pickBackup()}
+                style={({ pressed }) => [{ marginTop: 10, borderRadius: 13, paddingVertical: 12, alignItems: 'center', backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.8 : 1 }]}
+              >
+                <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>
+                  {L('JSON-Datei auswählen', 'Choose JSON file')}
+                </Text>
+              </Pressable>
               <TextInput
                 value={importText}
                 onChangeText={setImportText}

@@ -38,7 +38,11 @@ begin
       nullif(merged_onboarding->>'completedAt', '')::bigint,
       nullif(merged_onboarding->>'onboardedAt', '')::bigint,
       onboarded_at
-    )
+    ),
+    profile_refresh_version = case
+      when nullif(merged_onboarding->>'completedAt', '') is not null then 2
+      else profile_refresh_version
+    end
   where id = uid;
 
   return jsonb_build_object('onboarding', merged_onboarding, 'prefs', merged_prefs);
@@ -284,3 +288,36 @@ end
 $function$;
 
 grant execute on function public.restart_profile_refresh() to authenticated;
+
+-- Round 2 of the onboarding: every existing account answers once more so the
+-- complete profile reaches the server. New accounts finish it in onboarding.
+create or replace function public.profile_refresh_due()
+returns boolean
+language sql
+security definer
+set search_path to 'public'
+as $function$
+  select coalesce(
+    (select profile_refresh_version < 2 from users where id = auth.uid()),
+    false
+  );
+$function$;
+
+create or replace function public.complete_profile_refresh()
+returns boolean
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare uid uuid := auth.uid();
+begin
+  if uid is null then
+    return false;
+  end if;
+  update users set profile_refresh_version = 2 where id = uid;
+  return true;
+end
+$function$;
+
+grant execute on function public.profile_refresh_due() to authenticated;
+grant execute on function public.complete_profile_refresh() to authenticated;
