@@ -112,10 +112,9 @@ export function TrackerScreen() {
   const proteinGoal = targets.protein;
   const carbsGoal = targets.carbs;
   const fatGoal = targets.fat;
-  const goalLabel = profile.goal === 'cut' ? t('onb.lose') : profile.goal === 'bulk' ? t('onb.gain') : t('onb.keep');
   const activityLabel: Record<Activity, string> = { 1: t('ob.act1'), 2: t('ob.act2'), 3: t('ob.act3'), 4: t('ob.act4') };
 
-  const all = (entries ?? []) as any[];
+  const all = useMemo(() => (entries ?? []) as any[], [entries]);
   const today = all.filter((e: any) => startOfDay(e.eatenAt) === startOfDay(Date.now()));
   const todayCal = today.reduce((s: number, e: any) => s + (e.calories ?? 0), 0);
   const todayProtein = roundN(today.reduce((s: number, e: any) => s + (e.protein ?? 0), 0));

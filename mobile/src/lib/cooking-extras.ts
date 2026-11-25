@@ -17,7 +17,7 @@ const extrasKey = (userId: string, recipeKey: string) => `spoonful:cook-extras:$
 const secondKey = (userId: string) => `spoonful:cook-second:${scope(userId)}`;
 const lastActiveKey = (userId: string, recipeKey: string) => `spoonful:cook-last-active:${scope(userId)}:${recipeKey}`;
 
-export const MAX_STEP_PHOTOS = 6;
+export const MAX_STEP_PHOTOS = 60;
 
 export async function loadExtras(userId: string | undefined, recipeKey: string): Promise<StepExtras> {
   try {

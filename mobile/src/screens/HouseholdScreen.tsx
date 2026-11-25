@@ -21,7 +21,6 @@ import {
   Check,
   ChefHat,
   ClipboardList,
-  Copy,
   Pencil,
   Plus,
   QrCode,

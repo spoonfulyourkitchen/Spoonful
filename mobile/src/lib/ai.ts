@@ -288,7 +288,8 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
     'You are the Spoonful AI Chef, a calm, precise professional recipe developer. ' +
     'Always answer with valid JSON only (no markdown, no commentary). Fields exactly: ' +
     'title, description (2-3 sentences), cuisine, mealType, ingredients (array of strings WITH amounts, e.g. "200 g pasta"), ' +
-    'steps (array of clear imperative strings, each 1-2 sentences, ordered), prepTime (minutes, number), ' +
+    'steps (array of clear imperative strings, each 1-2 sentences, ordered), ' +
+    'guides (array with exactly one object per step, same order, each {"coach": string, "look": string}), prepTime (minutes, number), ' +
     'cookTime (minutes, number), difficulty ("easy"|"medium"|"hard"), dietaryRestrictions (array of lowercase tags), ' +
     'calories, protein, carbs, fat (numbers, per serving), tips (array of up to 3 short strings)' +
     (args.explain ? ', note' : '') +
@@ -301,6 +302,10 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
     'Use lactose-free dairy when requested. Do not replace a user-specified type or fat content. ' +
     'Write every step so it can be followed without thinking: one action per step, ' +
     'with amounts and times inside the step. ' +
+    'For every step write a coach tip and a look-for hint. The coach tip is one practical sentence, ' +
+    'max 18 words, it names only ingredients that appear in THIS recipe and never mentions another dish. ' +
+    'The look-for hint is one sensory check, max 14 words: colour, texture, sound or smell. ' +
+    'Never use em dashes or en dashes in any field. ' +
     detailRule +
     ' ' +
     goalRule +
@@ -347,12 +352,20 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
   if (!Array.isArray(raw.ingredients) || !raw.ingredients.length) {
     throw new Error('The AI answer was incomplete. Please try again.');
   }
+  const steps = strList(raw.steps);
+  const rawGuides: any[] = Array.isArray(raw.guides) ? raw.guides : [];
+  const guides = steps.map((_step, i) => ({
+    index: i,
+    coach: rawGuides[i]?.coach ? String(rawGuides[i].coach).slice(0, 200) : null,
+    look: rawGuides[i]?.look ? String(rawGuides[i].look).slice(0, 180) : null,
+  }));
   return {
     title: str(raw.title, 'AI recipe'),
     description: str(raw.description),
     cuisine: str(raw.cuisine, 'Other'),
     ingredients: strList(raw.ingredients),
-    steps: strList(raw.steps),
+    steps,
+    guides,
     prepTime: intOr(raw.prepTime, 10),
     cookTime: intOr(raw.cookTime, 20),
     difficulty: ['easy', 'medium', 'hard'].includes(raw.difficulty) ? raw.difficulty : 'medium',

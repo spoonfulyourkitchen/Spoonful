@@ -12,6 +12,7 @@ import { asRecipeFromDoc } from '../lib/recipe';
 import { useCachedList, addPendingOp, getConnNow } from '../lib/offline';
 import { loadDraft, saveDraft } from '../lib/draft';
 import { useTranslation } from '../lib/i18n';
+import { useTranslatedTexts } from '../lib/recipe-translation-cache';
 
 export function SavedScreen() {
   const savedLive = useQuery(api.savedRecipes.list);
@@ -46,7 +47,7 @@ export function SavedScreen() {
     return () => clearTimeout(timer);
   }, [filtersReady, search, active]);
   const [collectionsOpen, setCollectionsOpen] = useState(false);
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const items: any[] = saved ?? [];
   const colls: any[] = collections ?? [];
 
@@ -62,7 +63,10 @@ export function SavedScreen() {
     });
   }, [saved, search, active]);
 
-  
+  const titleTexts = useTranslatedTexts(
+    filtered.map((recipe: any) => String(recipe.title ?? '')),
+    lang,
+  );
 
   const toggleFavorite = (doc: any) => {
     const next = !doc.favorite;
@@ -136,7 +140,13 @@ export function SavedScreen() {
             <EmptyState icon={<Bookmark size={24} color={colors.accent} strokeWidth={2} />} title={t('saved.nothingSaved')} body={t('saved.bookmarkDesc')} />
           }
           renderItem={({ item }) => (
-            <SavedRow item={item} openRecipe={openRecipe} toggleFavorite={toggleFavorite} onRemove={onRemove} />
+            <SavedRow
+              item={item}
+              title={titleTexts[item.title] ?? item.title}
+              openRecipe={openRecipe}
+              toggleFavorite={toggleFavorite}
+              onRemove={onRemove}
+            />
           )}
         />
       )}
@@ -145,14 +155,14 @@ export function SavedScreen() {
   );
 }
 
-function SavedRow({ item, openRecipe, toggleFavorite, onRemove }: { item: any; openRecipe: (i: any) => void; toggleFavorite: (d: any) => void; onRemove: (d: any) => void }) {
+function SavedRow({ item, title, openRecipe, toggleFavorite, onRemove }: { item: any; title?: string; openRecipe: (i: any) => void; toggleFavorite: (d: any) => void; onRemove: (d: any) => void }) {
   const { t } = useTranslation();
   return (
     <GlassCard variant="solid" pad={0} radius={20}>
       <View style={{ padding: 16 }}>
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 17, fontWeight: '700', color: colors.textPrimary }}>{item.title}</Text>
+            <Text style={{ fontSize: 17, fontWeight: '700', color: colors.textPrimary }}>{title ?? item.title}</Text>
             <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 3, textTransform: 'capitalize' }}>
               {item.cuisine || t('s.mineEveryday')} · {(item.prepTime ?? 0) + (item.cookTime ?? 0)} min
             </Text>

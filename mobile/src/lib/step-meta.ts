@@ -42,21 +42,38 @@ export function stepDifficulty(step: string): StepDifficulty {
   return 'easy';
 }
 
+/*
+ * Minute and hour words in every language the app ships. When a language is
+ * added, add its words here and in LANGUAGE_INSTRUCTIONS.md.
+ */
+const MINUTE_WORDS =
+  'minutes?|mins?\\.?|minuten?|min\\.?|minutos?|minuti|minuut|минут\\w*|мин\\.?|хвилин\\w*|хв\\.?|دقائق|دقيقة|دقايق|分钟|分鐘|分|분|मिनट|minut\\w*';
+const HOUR_WORDS =
+  'hours?|hrs?|h|stunden?|std\\.?|heures?|heure|horas?|hora|ore|uur|часов?|час\\w*|годин\\w*|год\\w*|ساعة|ساعات|小时|小時|時間|시간|घंटे|घंटा|godzin\\w*';
+const SECOND_WORDS =
+  'seconds?|secs?|sekunden?|secondes?|segundos?|secondi|seconden|секунд\\w*|sekund\\w*|ثواني|ثانية|秒|초|सेकंड';
+
+export function extractStepMinutes(step: string): number | null {
+  const text = String(step || '');
+  const re = new RegExp(`(\\d{1,3})(?:\\s*(?:-|–|—|to|bis)\\s*(\\d{1,3}))?\\s*(?:${MINUTE_WORDS})(?![a-z])`, 'i');
+  const m = re.exec(text);
+  if (!m) return null;
+  const a = Number(m[1]);
+  const b = m[2] ? Number(m[2]) : a;
+  const mins = Math.round((a + b) / 2);
+  return Number.isFinite(mins) && mins > 0 && mins <= 240 ? mins : null;
+}
+
 export function estimateStepMinutes(step: string, index: number, total: number): number {
   const text = String(step || '');
-  const explicit = /(\d+)\s*(?:-|to|–)?\s*(\d+)?\s*(?:minutes?|min)\b/i.exec(text);
-  if (explicit) {
-    const a = Number(explicit[1]);
-    const b = explicit[2] ? Number(explicit[2]) : a;
-    const mid = Math.round((a + b) / 2);
-    if (mid > 0 && mid <= 240) return mid;
-  }
-  const hours = /(\d+(?:[.,]\d+)?)\s*(?:hours?|h)\b/i.exec(text);
+  const explicit = extractStepMinutes(text);
+  if (explicit != null) return explicit;
+  const hours = new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(?:${HOUR_WORDS})(?![a-z])`, 'i').exec(text);
   if (hours) {
     const h = Math.round(Number(String(hours[1]).replace(',', '.')) * 60);
     if (h > 0 && h <= 600) return h;
   }
-  const seconds = /(\d+)\s*(?:seconds?|sec)\b/i.exec(text);
+  const seconds = new RegExp(`(\\d+)\\s*(?:${SECOND_WORDS})(?![a-z])`, 'i').exec(text);
   if (seconds) return 1;
   const action = stepAction(text);
   const base: Record<StepAction, number> = {

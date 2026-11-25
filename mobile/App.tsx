@@ -25,6 +25,7 @@ import {
 import { readIntroAnswers } from './src/lib/intro-answers';
 import { useRecoveryPending } from './src/lib/recovery';
 import { navigationRef } from './src/navigation/rootRef';
+import { webLinking } from './src/navigation/web-linking';
 import type { RootStackParamList } from './src/navigation/types';
 import { AppShellProvider } from './src/navigation/Shell';
 import { RootTabs } from './src/navigation/RootTabs';
@@ -52,7 +53,6 @@ import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { ResetPasswordScreen } from './src/screens/ResetPasswordScreen';
 import { LegalScreen } from './src/screens/LegalScreen';
 import { DashboardScreen } from './src/screens/DashboardScreen';
-import { CommunityScreen } from './src/screens/CommunityScreen';
 import { ShoppingScreen } from './src/screens/ShoppingScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { ThemeScreen } from './src/screens/ThemeScreen';
@@ -140,7 +140,6 @@ function SignedInStack() {
       <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Main">
         <Stack.Screen name="Main" component={RootTabs} />
         <Stack.Screen name="Dashboard" component={DashboardScreen} />
-        <Stack.Screen name="Community" component={CommunityScreen} />
         <Stack.Screen name="Shopping" component={ShoppingScreen} />
         <Stack.Screen name="Theme" component={ThemeScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
@@ -263,7 +262,7 @@ export default function App() {
             style={{ flex: 1 }}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           >
-            <NavigationContainer ref={navigationRef}>
+            <NavigationContainer ref={navigationRef} linking={webLinking as any} documentTitle={{ enabled: false }}>
               <CrashBoundary>
                 <RootNavigator />
               </CrashBoundary>

@@ -1,34 +1,66 @@
-
-
-import React, { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
-import { Image, LayoutChangeEvent, Modal, PanResponder, Pressable, Text, View, useWindowDimensions } from 'react-native';
-import { Check, Minus, Move, Plus, RotateCcw, X } from 'lucide-react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Image, Modal, PanResponder, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { Check, Crop, Maximize2, Minus, Plus, RotateCcw, X } from 'lucide-react-native';
 
 import { colors, fonts, rgbaHelper } from '../theme';
 import { useTranslation } from '../lib/i18n';
-import { cropFromFrame, DEFAULT_CROP, registerPhotoCrop, type PhotoCrop } from '../lib/photo-crop';
+import { clampCrop, getCrop, registerPhotoCrop, type PhotoCrop } from '../lib/photo-crop';
 
-const FRAME_ASPECT = 1.6;
-
-const MAX_PINCH = 6;
-
-type Frame = { x: number; y: number; w: number; h: number };
-type ImgView = { s: number; ox: number; oy: number };
+const FRAME_ASPECT = 4 / 3;
+const MAX_ZOOM = 4;
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
+type TouchPoint = { pageX?: number; pageY?: number; clientX?: number; clientY?: number };
+
+const touchX = (touch: TouchPoint) => touch.pageX ?? touch.clientX ?? 0;
+const touchY = (touch: TouchPoint) => touch.pageY ?? touch.clientY ?? 0;
+const touchDistance = (a: TouchPoint, b: TouchPoint) =>
+  Math.hypot(touchX(a) - touchX(b), touchY(a) - touchY(b));
+
+function focalRange(stageW: number, stageH: number, imgW: number, imgH: number, zoom: number) {
+  const scale = Math.max(stageW / imgW, stageH / imgH) * zoom;
+  const drawW = imgW * scale;
+  const drawH = imgH * scale;
+  const minX = Math.min(0.5, stageW / (2 * drawW));
+  const minY = Math.min(0.5, stageH / (2 * drawH));
+  return { minX, maxX: 1 - minX, minY, maxY: 1 - minY };
+}
+
 export function PhotoCropHost() {
   const { t } = useTranslation();
-  const { width } = useWindowDimensions();
-  const [state, setState] = useState<{ uri: string; crop: PhotoCrop } | null>(null);
-  const resolver = useRef<((c: PhotoCrop | null) => void) | null>(null);
+  const { width, height } = useWindowDimensions();
+  const [state, setState] = useState<{ uri: string } | null>(null);
+  const [imgSize, setImgSize] = useState<{ w: number; h: number } | null>(null);
+  const [fx, setFx] = useState(0.5);
+  const [fy, setFy] = useState(0.5);
+  const [zoom, setZoom] = useState(1);
+  const [whole, setWhole] = useState(false);
+  const resolver = useRef<((crop: PhotoCrop | null) => void) | null>(null);
+
+  const stageW = Math.max(190, Math.round(Math.min(width - 48, 430, height * 0.5 * FRAME_ASPECT)));
+  const stageH = Math.round(stageW / FRAME_ASPECT);
+
+  const stageRef = useRef({ w: stageW, h: stageH });
+  stageRef.current = { w: stageW, h: stageH };
+  const imgRef = useRef(imgSize);
+  imgRef.current = imgSize;
+  const live = useRef({ fx, fy, zoom });
+  live.current = { fx, fy, zoom };
+  const wholeRef = useRef(whole);
+  wholeRef.current = whole;
 
   useEffect(() => {
     registerPhotoCrop(
       (uri) =>
         new Promise<PhotoCrop | null>((resolve) => {
           resolver.current = resolve;
-          setState({ uri, crop: { ...DEFAULT_CROP } });
+          setImgSize(null);
+          setFx(0.5);
+          setFy(0.5);
+          setZoom(1);
+          setWhole(false);
+          setState({ uri });
         }),
     );
     return () => registerPhotoCrop(null);
@@ -41,46 +73,8 @@ export function PhotoCropHost() {
     if (resolve) resolve(result);
   }, []);
 
-  
-  const stageW = Math.max(200, Math.round(width - 68));
-  const stageH = Math.round(stageW * 1.02);
-
-  const [imgSize, setImgSize] = useState<{ w: number; h: number } | null>(null);
-  const [frame, setFrame] = useState<Frame>({ x: 0, y: 0, w: 0, h: 0 });
-  const [view, setView] = useState<ImgView>({ s: 1, ox: 0, oy: 0 });
-
-  
-  const imgPxW = imgSize?.w ?? 0;
-  const imgPxH = imgSize?.h ?? 0;
-  const minScale = useCallback(
-    () => (imgPxW && imgPxH ? Math.min(stageW / imgPxW, stageH / imgPxH) : 1),
-    [imgPxW, imgPxH, stageW, stageH],
-  );
-
-  
-  const resetView = useCallback(() => {
-    if (!imgPxW || !imgPxH) return;
-    const s = Math.min(stageW / imgPxW, stageH / imgPxH);
-    const rectW = imgPxW * s;
-    const rectH = imgPxH * s;
-    const rectX = (stageW - rectW) / 2;
-    const rectY = (stageH - rectH) / 2;
-    let w = rectW * 0.8;
-    let h = w / FRAME_ASPECT;
-    if (h > rectH * 0.8) {
-      h = rectH * 0.8;
-      w = h * FRAME_ASPECT;
-    }
-    setFrame({ w, h, x: rectX + (rectW - w) / 2, y: rectY + (rectH - h) / 2 });
-    setView({ s, ox: rectX, oy: rectY });
-  }, [imgPxW, imgPxH, stageW, stageH]);
-
-  
   useEffect(() => {
-    if (!state?.uri) {
-      setImgSize(null);
-      return;
-    }
+    if (!state?.uri) return;
     let alive = true;
     try {
       Image.getSize(
@@ -91,115 +85,91 @@ export function PhotoCropHost() {
         () => undefined,
       );
     } catch {}
+    void getCrop(state.uri).then((stored) => {
+      if (!alive || !stored) return;
+      if (stored.whole) {
+        setWhole(true);
+        return;
+      }
+      setWhole(false);
+      setFx(clamp(stored.fx, 0, 1));
+      setFy(clamp(stored.fy, 0, 1));
+      setZoom(clamp(stored.zoom, 1, MAX_ZOOM));
+    });
     return () => {
       alive = false;
     };
   }, [state?.uri]);
 
-  useEffect(() => {
-    resetView();
-  }, [resetView, state?.uri]);
-
-  
-  const frameRef = useRef(frame);
-  frameRef.current = frame;
-  const viewRef = useRef(view);
-  viewRef.current = view;
-  const imgRef = useRef(imgSize);
-  imgRef.current = imgSize;
-  
-  const originRef = useRef({ x: 0, y: 0 });
-  const stageBoxRef = useRef<ComponentRef<typeof View> | null>(null);
-  const onStageLayout = (e: LayoutChangeEvent) => {
-    const { width: w, height: h } = e.nativeEvent.layout;
-    void w;
-    void h;
-    try {
-      stageBoxRef.current?.measureInWindow?.((x: number, y: number) => {
-        originRef.current = { x, y };
-      });
-    } catch {}
+  const applyZoom = useRef<(next: number) => void>(() => undefined);
+  applyZoom.current = (next: number) => {
+    const img = imgRef.current;
+    if (!img) return;
+    const stage = stageRef.current;
+    const value = clamp(next, 1, MAX_ZOOM);
+    const range = focalRange(stage.w, stage.h, img.w, img.h, value);
+    setZoom(value);
+    setFx((current) => clamp(current, range.minX, range.maxX));
+    setFy((current) => clamp(current, range.minY, range.maxY));
   };
 
   const gesture = useRef({
-    mode: 'none' as 'none' | 'frame' | 'pinch',
-    dx0: 0,
-    dy0: 0,
-    frameX: 0,
-    frameY: 0,
-    dist0: 1,
-    mid0: { x: 0, y: 0 },
-    view0: { s: 1, ox: 0, oy: 0 } as ImgView,
+    mode: 'none' as 'none' | 'pan' | 'pinch',
+    fx: 0.5,
+    fy: 0.5,
+    zoom: 1,
+    dx: 0,
+    dy: 0,
+    distance: 1,
   });
-
-  
-  const imageBounds = () => {
-    const img = imgRef.current;
-    const v = viewRef.current;
-    const iw = img?.w ?? 0;
-    const ih = img?.h ?? 0;
-    return { left: v.ox, top: v.oy, right: v.ox + iw * v.s, bottom: v.oy + ih * v.s };
-  };
-
-  const beginGesture = useCallback(
-    (touches: { pageX: number; pageY: number }[], dx: number, dy: number) => {
-      const g = gesture.current;
-      if (touches.length >= 2) {
-        const [a, b] = touches;
-        g.mode = 'pinch';
-        g.dist0 = Math.max(1, Math.hypot(a.pageX - b.pageX, a.pageY - b.pageY));
-        g.mid0 = { x: (a.pageX + b.pageX) / 2, y: (a.pageY + b.pageY) / 2 };
-        g.view0 = { ...viewRef.current };
-        return;
-      }
-      g.mode = 'frame';
-      g.dx0 = dx;
-      g.dy0 = dy;
-      g.frameX = frameRef.current.x;
-      g.frameY = frameRef.current.y;
-    },
-    [],
-  );
 
   const pan = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (e, g) => {
-        beginGesture(e.nativeEvent.touches as any, g.dx, g.dy);
+      onStartShouldSetPanResponder: () => !wholeRef.current,
+      onMoveShouldSetPanResponder: () => !wholeRef.current,
+      onPanResponderGrant: (event, stateGesture) => {
+        if (wholeRef.current) return;
+        const touches = Array.isArray(event.nativeEvent.touches) ? event.nativeEvent.touches : [];
+        if (touches.length >= 2) {
+          gesture.current.mode = 'pinch';
+          gesture.current.distance = Math.max(1, touchDistance(touches[0], touches[1]));
+          gesture.current.zoom = live.current.zoom;
+          return;
+        }
+        gesture.current.mode = 'pan';
+        gesture.current.fx = live.current.fx;
+        gesture.current.fy = live.current.fy;
+        gesture.current.dx = stateGesture.dx;
+        gesture.current.dy = stateGesture.dy;
       },
-      onPanResponderMove: (e, g) => {
-        const touches = e.nativeEvent.touches as any as { pageX: number; pageY: number }[];
-        const mode = gesture.current.mode;
-        const wantPinch = touches.length >= 2;
-        if ((wantPinch && mode !== 'pinch') || (!wantPinch && mode === 'pinch')) {
-          beginGesture(touches, g.dx, g.dy);
+      onPanResponderMove: (event, stateGesture) => {
+        if (wholeRef.current) return;
+        const img = imgRef.current;
+        const stage = stageRef.current;
+        if (!img) return;
+        const touches = Array.isArray(event.nativeEvent.touches) ? event.nativeEvent.touches : [];
+
+        if (touches.length >= 2) {
+          if (gesture.current.mode !== 'pinch') {
+            gesture.current.mode = 'pinch';
+            gesture.current.distance = Math.max(1, touchDistance(touches[0], touches[1]));
+            gesture.current.zoom = live.current.zoom;
+            return;
+          }
+          const distance = Math.max(1, touchDistance(touches[0], touches[1]));
+          applyZoom.current(gesture.current.zoom * (distance / gesture.current.distance));
           return;
         }
 
-        if (wantPinch) {
-          const [a, b] = touches;
-          const origin = originRef.current;
-          const dist = Math.max(1, Math.hypot(a.pageX - b.pageX, a.pageY - b.pageY));
-          const mid = { x: (a.pageX + b.pageX) / 2 - origin.x, y: (a.pageY + b.pageY) / 2 - origin.y };
-          const base = gesture.current.view0;
-          const low = minScale();
-          const next = clamp((base.s * dist) / gesture.current.dist0, low, low * MAX_PINCH);
-          const px = (gesture.current.mid0.x - origin.x - base.ox) / base.s;
-          const py = (gesture.current.mid0.y - origin.y - base.oy) / base.s;
-          const nextView = { s: next, ox: mid.x - px * next, oy: mid.y - py * next };
-          viewRef.current = nextView;
-          setView(nextView);
-          return;
-        }
-
-        const f = frameRef.current;
-        const bounds = imageBounds();
-        const x = clamp(gesture.current.frameX + (g.dx - gesture.current.dx0), bounds.left, Math.max(bounds.left, bounds.right - f.w));
-        const y = clamp(gesture.current.frameY + (g.dy - gesture.current.dy0), bounds.top, Math.max(bounds.top, bounds.bottom - f.h));
-        const next = { ...f, x, y };
-        frameRef.current = next;
-        setFrame(next);
+        if (gesture.current.mode !== 'pan') return;
+        const scale = Math.max(stage.w / img.w, stage.h / img.h) * gesture.current.zoom;
+        const drawW = img.w * scale;
+        const drawH = img.h * scale;
+        const range = focalRange(stage.w, stage.h, img.w, img.h, gesture.current.zoom);
+        const nextFx = gesture.current.fx - (stateGesture.dx - gesture.current.dx) / drawW;
+        const nextFy = gesture.current.fy - (stateGesture.dy - gesture.current.dy) / drawH;
+        setFx(clamp(nextFx, range.minX, range.maxX));
+        setFy(clamp(nextFy, range.minY, range.maxY));
       },
       onPanResponderRelease: () => {
         gesture.current.mode = 'none';
@@ -210,199 +180,208 @@ export function PhotoCropHost() {
     }),
   ).current;
 
-  
-  const zoomBy = (factor: number) => {
-    const low = minScale();
-    const v = viewRef.current;
-    const s = clamp(v.s * factor, low, low * MAX_PINCH);
-    const real = s / v.s;
-    const cx = frame.x + frame.w / 2;
-    const cy = frame.y + frame.h / 2;
-    const nextView = { s, ox: cx - (cx - v.ox) * real, oy: cy - (cy - v.oy) * real };
-    viewRef.current = nextView;
-    setView(nextView);
+  const onImageLoad = (event: any) => {
+    const source = event?.nativeEvent?.source;
+    if (source?.width > 0 && source?.height > 0) {
+      setImgSize((current) =>
+        current && current.w === source.width && current.h === source.height
+          ? current
+          : { w: source.width, h: source.height },
+      );
+    }
   };
 
-  
-  const toCrop = (): PhotoCrop => {
-    const img = imgSize;
-    if (!img?.w || !img?.h || !frame.w || !view.s) return { ...DEFAULT_CROP };
-    
+  const cover = imgSize ? Math.max(stageW / imgSize.w, stageH / imgSize.h) : 1;
+  const scale = cover * zoom;
+  const drawW = (imgSize?.w ?? 0) * scale;
+  const drawH = (imgSize?.h ?? 0) * scale;
+  const left = stageW / 2 - fx * drawW;
+  const top = stageH / 2 - fy * drawH;
 
-    return { ...cropFromFrame({ frame, view, imageW: img.w, imageH: img.h }), iw: img.w, ih: img.h };
+  const apply = () => {
+    if (whole || !imgSize) {
+      close({ ...clampCrop({ fx: 0.5, fy: 0.5, zoom: 1 }), whole: true });
+      return;
+    }
+    close(clampCrop({ fx, fy, zoom, iw: imgSize.w, ih: imgSize.h }));
   };
 
-  const onImgLoad = (e: any) => {
-    const src = e?.nativeEvent?.source;
-    if (src?.width && src?.height) setImgSize({ w: src.width, h: src.height });
-  };
-
-  const crop = toCrop();
-  const part = 1 / Math.max(1, crop.zoom);
-  const marker = {
-    x: clamp(crop.fx - part / 2, 0, Math.max(0, 1 - part)),
-    y: clamp(crop.fy - part / 2, 0, Math.max(0, 1 - part)),
-    w: part,
-    h: part,
-  };
-  const miniW = 92;
-  const miniH = Math.round(miniW / FRAME_ASPECT);
-  const pill = {
+  const chip = (active: boolean) => ({
+    flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    backgroundColor: colors.surfaceMuted,
-  };
-  const imgW = (imgSize?.w ?? 0) * view.s;
-  const imgH = (imgSize?.h ?? 0) * view.s;
+    gap: 6,
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: active ? colors.accent : colors.cardBorder,
+    backgroundColor: active ? colors.accentSoft : colors.surfaceMuted,
+    paddingVertical: 9,
+  });
 
   return (
     <Modal visible={!!state} transparent animationType="fade" onRequestClose={() => close(null)}>
-      <View style={{ flex: 1, backgroundColor: rgbaHelper('#000000', 0.7), alignItems: 'center', justifyContent: 'center', padding: 14 }}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: rgbaHelper('#000000', 0.78),
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 12,
+        }}
+      >
         <View style={{ width: '100%', maxWidth: 470, borderRadius: 22, backgroundColor: colors.card, padding: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text style={{ fontFamily: fonts.display, fontSize: 17, fontWeight: '800', color: colors.textPrimary }}>
               {t('s.cropTitle')}
             </Text>
-            <Pressable onPress={() => close(null)} hitSlop={8}>
+            <Pressable onPress={() => close(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('s.cropCancel')}>
               <X size={18} color={colors.textSecondary} />
             </Pressable>
           </View>
-          <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 4 }}>{t('s.cropHint')}</Text>
+          <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 4 }}>
+            {whole ? t('s.cropWhole') : t('s.cropHint')}
+          </Text>
+
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+            <Pressable
+              onPress={() => setWhole(false)}
+              accessibilityRole="button"
+              accessibilityLabel={t('s.cropPart')}
+              style={chip(!whole)}
+            >
+              <Crop size={14} color={!whole ? colors.accent : colors.textSecondary} />
+              <Text style={{ fontSize: 12.5, fontWeight: '800', color: !whole ? colors.accent : colors.textSecondary }}>
+                {t('s.cropPart')}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setWhole(true)}
+              accessibilityRole="button"
+              accessibilityLabel={t('s.cropWhole')}
+              style={chip(whole)}
+            >
+              <Maximize2 size={14} color={whole ? colors.accent : colors.textSecondary} />
+              <Text style={{ fontSize: 12.5, fontWeight: '800', color: whole ? colors.accent : colors.textSecondary }}>
+                {t('s.cropWhole')}
+              </Text>
+            </Pressable>
+          </View>
 
           <View
-            ref={stageBoxRef}
             {...pan.panHandlers}
-            onLayout={onStageLayout}
             style={{
               alignSelf: 'center',
-              marginTop: 12,
+              marginTop: 10,
               width: stageW,
               height: stageH,
-              borderRadius: 16,
+              borderRadius: 14,
               overflow: 'hidden',
               backgroundColor: '#0A0A0C',
             }}
           >
-            {state && imgW > 0 ? (
-              <Image
-                source={{ uri: state.uri }}
-                resizeMode="stretch"
-                onLoad={onImgLoad}
-                style={{ position: 'absolute', left: view.ox, top: view.oy, width: imgW, height: imgH }}
-              />
-            ) : state ? (
-              <Image
-                source={{ uri: state.uri }}
-                resizeMode="contain"
-                onLoad={onImgLoad}
-                style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }}
-              />
+            {state ? (
+              whole ? (
+                <Image
+                  source={{ uri: state.uri }}
+                  resizeMode="contain"
+                  onLoad={onImageLoad}
+                  style={{ width: '100%', height: '100%' }}
+                />
+              ) : imgSize && drawW > 0 ? (
+                <Image
+                  source={{ uri: state.uri }}
+                  resizeMode="stretch"
+                  onLoad={onImageLoad}
+                  style={{ position: 'absolute', left, top, width: drawW, height: drawH }}
+                />
+              ) : (
+                <Image
+                  source={{ uri: state.uri }}
+                  resizeMode="contain"
+                  onLoad={onImageLoad}
+                  style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }}
+                />
+              )
             ) : null}
 
-            <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, height: Math.max(0, frame.y), backgroundColor: 'rgba(0,0,0,0.55)' }} />
-            <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: frame.y + frame.h, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)' }} />
-            <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: frame.y, width: Math.max(0, frame.x), height: frame.h, backgroundColor: 'rgba(0,0,0,0.55)' }} />
-            <View pointerEvents="none" style={{ position: 'absolute', left: frame.x + frame.w, right: 0, top: frame.y, height: frame.h, backgroundColor: 'rgba(0,0,0,0.55)' }} />
-
-            <View
-              pointerEvents="none"
-              style={{
-                position: 'absolute',
-                left: frame.x,
-                top: frame.y,
-                width: frame.w,
-                height: frame.h,
-                borderWidth: 2,
-                borderColor: colors.accent,
-                borderRadius: 10,
-              }}
-            >
-              <View style={{ position: 'absolute', left: frame.w / 3, top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(255,255,255,0.22)' }} />
-              <View style={{ position: 'absolute', left: (2 * frame.w) / 3, top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(255,255,255,0.22)' }} />
-              <View style={{ position: 'absolute', top: frame.h / 3, left: 0, right: 0, height: 1, backgroundColor: 'rgba(255,255,255,0.22)' }} />
-              <View style={{ position: 'absolute', top: (2 * frame.h) / 3, left: 0, right: 0, height: 1, backgroundColor: 'rgba(255,255,255,0.22)' }} />
-              <View
-                style={{
-                  position: 'absolute',
-                  left: frame.w / 2 - 16,
-                  top: frame.h / 2 - 16,
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
-                  backgroundColor: 'rgba(0,0,0,0.45)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Move size={16} color="#FFFFFF" />
-              </View>
-            </View>
-          </View>
-
-          <Text style={{ fontSize: 11.5, color: colors.textSecondary, marginTop: 8, textAlign: 'center' }}>
-            {t('s.cropPinch')}
-          </Text>
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
-            <Pressable
-              onPress={() => zoomBy(1 / 1.25)}
-              accessibilityRole="button"
-              style={({ pressed }) => [{ ...pill, width: 40, height: 38, borderRadius: 12, opacity: pressed ? 0.7 : 1 }]}
-            >
-              <Minus size={16} color={colors.textPrimary} />
-            </Pressable>
-            <Text style={{ minWidth: 54, textAlign: 'center', fontSize: 13, fontWeight: '800', color: colors.textPrimary }}>
-              {(view.s / Math.max(0.0001, minScale())).toFixed(2)}x
-            </Text>
-            <Pressable
-              onPress={() => zoomBy(1.25)}
-              accessibilityRole="button"
-              style={({ pressed }) => [{ ...pill, width: 40, height: 38, borderRadius: 12, opacity: pressed ? 0.7 : 1 }]}
-            >
-              <Plus size={16} color={colors.textPrimary} />
-            </Pressable>
-            <Pressable
-              onPress={resetView}
-              accessibilityRole="button"
-              style={({ pressed }) => [
-                { flexDirection: 'row', alignItems: 'center', gap: 5, marginLeft: 'auto', paddingHorizontal: 12, height: 38, borderRadius: 12, backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.7 : 1 },
-              ]}
-            >
-              <RotateCcw size={14} color={colors.textSecondary} />
-              <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.textSecondary }}>{t('s.cropReset')}</Text>
-            </Pressable>
-          </View>
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 }}>
-            <View style={{ width: miniW, height: miniH, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.surfaceMuted }}>
-              {state ? <Image source={{ uri: state.uri }} resizeMode="stretch" style={{ width: miniW, height: miniH, opacity: 0.5 }} /> : null}
+            {!whole ? (
               <View
                 pointerEvents="none"
                 style={{
                   position: 'absolute',
-                  left: marker.x * miniW,
-                  top: marker.y * miniH,
-                  width: Math.max(8, marker.w * miniW),
-                  height: Math.max(8, marker.h * miniH),
+                  left: 0,
+                  top: 0,
+                  right: 0,
+                  bottom: 0,
                   borderWidth: 2,
                   borderColor: colors.accent,
-                  borderRadius: 6,
+                  borderRadius: 14,
                 }}
-              />
-            </View>
-            <Text style={{ flex: 1, fontSize: 12, lineHeight: 17, color: colors.textSecondary }}>{t('s.cropMoveHint')}</Text>
+              >
+                <View style={{ position: 'absolute', left: stageW / 3, top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(255,255,255,0.28)' }} />
+                <View style={{ position: 'absolute', left: (2 * stageW) / 3, top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(255,255,255,0.28)' }} />
+                <View style={{ position: 'absolute', top: stageH / 3, left: 0, right: 0, height: 1, backgroundColor: 'rgba(255,255,255,0.28)' }} />
+                <View style={{ position: 'absolute', top: (2 * stageH) / 3, left: 0, right: 0, height: 1, backgroundColor: 'rgba(255,255,255,0.28)' }} />
+              </View>
+            ) : null}
           </View>
+
+          {!whole ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}>
+              <Pressable
+                onPress={() => applyZoom.current(zoom / 1.25)}
+                accessibilityRole="button"
+                accessibilityLabel="zoom out"
+                style={({ pressed }) => [
+                  { alignItems: 'center', justifyContent: 'center', width: 40, height: 38, borderRadius: 12, backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.7 : 1 },
+                ]}
+              >
+                <Minus size={16} color={colors.textPrimary} />
+              </Pressable>
+              <Text style={{ minWidth: 54, textAlign: 'center', fontSize: 13, fontWeight: '800', color: colors.textPrimary }}>
+                {zoom.toFixed(2)}x
+              </Text>
+              <Pressable
+                onPress={() => applyZoom.current(zoom * 1.25)}
+                accessibilityRole="button"
+                accessibilityLabel="zoom in"
+                style={({ pressed }) => [
+                  { alignItems: 'center', justifyContent: 'center', width: 40, height: 38, borderRadius: 12, backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.7 : 1 },
+                ]}
+              >
+                <Plus size={16} color={colors.textPrimary} />
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  setFx(0.5);
+                  setFy(0.5);
+                  applyZoom.current(1);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={t('s.cropReset')}
+                style={({ pressed }) => [
+                  { flexDirection: 'row', alignItems: 'center', gap: 5, marginLeft: 'auto', paddingHorizontal: 12, height: 38, borderRadius: 12, backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.7 : 1 },
+                ]}
+              >
+                <RotateCcw size={14} color={colors.textSecondary} />
+                <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.textSecondary }}>{t('s.cropReset')}</Text>
+              </Pressable>
+            </View>
+          ) : null}
 
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
             <Pressable
               onPress={() => close(null)}
               accessibilityRole="button"
-              style={({ pressed }) => [{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 13, paddingVertical: 12, backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.75 : 1 }]}
+              style={({ pressed }) => [
+                { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 13, paddingVertical: 12, backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.75 : 1 },
+              ]}
             >
               <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textSecondary }}>{t('s.cropCancel')}</Text>
             </Pressable>
             <Pressable
-              onPress={() => close(toCrop())}
+              onPress={apply}
               accessibilityRole="button"
               style={({ pressed }) => [
                 { flex: 1.4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 13, paddingVertical: 12, backgroundColor: colors.darkButton, opacity: pressed ? 0.85 : 1 },
@@ -419,4 +398,3 @@ export function PhotoCropHost() {
 }
 
 export default PhotoCropHost;
-

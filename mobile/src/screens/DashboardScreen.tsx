@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { Bookmark, ChefHat, Flame, Library, Plus, Sparkles, UsersRound } from 'lucide-react-native';
+import { Bookmark, ChefHat, Flame, Library, Plus, Sparkles } from 'lucide-react-native';
 import { useQuery } from '../lib/convex-auth';
 import { useLocalPrefs } from '../lib/local-prefs';
 import { api } from '../lib/api';
@@ -115,7 +115,6 @@ export function DashboardScreen() {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           <QuickLink icon={<ChefHat size={17} color={colors.accent} />} label={t('s.mineTitle')} onPress={() => navigate('Main', { screen: 'MyRecipes' })} />
           <QuickLink icon={<Flame size={17} color={colors.accent} />} label={t('s.dashTracker')} onPress={() => navigate('Main', { screen: 'Tracker' })} />
-          <QuickLink icon={<UsersRound size={17} color={colors.accent} />} label={t('s.dashCommunity')} onPress={() => navigate('Community')} />
           <QuickLink icon={<Bookmark size={17} color={colors.accent} />} label={t('s.dashSaved')} onPress={() => navigate('Main', { screen: 'Saved' })} />
         </View>
 

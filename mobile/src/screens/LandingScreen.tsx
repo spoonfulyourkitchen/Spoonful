@@ -48,7 +48,6 @@ const EXPERIENCE_KEYS: Record<string, string> = {
   '5+ years': 'onb.exp5plus',
   professional: 'onb.expPro',
 };
-const AGES = [21, 30, 40, 50, 60, 70];
 const COOK_TIMES = ['15', '30', '45', '60'];
 const CUISINES = ['cItalian', 'cAsian', 'cMexican', 'cIndian', 'cMiddleEast', 'cFrench'];
 
@@ -116,7 +115,7 @@ export function LandingScreen() {
       }
       setReady(true);
     })();
-  }, []);
+  }, [showIntro]);
 
   useEffect(() => {
     if (!showIntro) return;
@@ -564,13 +563,6 @@ const welcomeDot = {
   alignItems: 'center' as const,
   justifyContent: 'center' as const,
   marginTop: 1,
-};
-const centerHint = {
-  textAlign: 'center' as const,
-  fontSize: 13,
-  color: colors.textSecondary,
-  marginTop: 12,
-  fontVariant: ['tabular-nums' as const],
 };
 const targetCard = {
   alignItems: 'center' as const,

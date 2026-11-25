@@ -14,7 +14,7 @@ const VIEW = { s: 0.15, ox: 0, oy: 37.5 };
 describe('cropFromFrame', () => {
   test('Rahmen in der Mitte über dem ganzen Bild -> mittiger Fokus', () => {
     const crop = cropFromFrame({
-      frame: { x: 0, y: 37.5, w: 300, h: 187.5 },
+      frame: { x: 0, y: 37.5, w: 300, h: 225 },
       view: VIEW,
       ...IMG,
     });

@@ -26,6 +26,7 @@ import { TutorialTarget } from '../components/TutorialTarget';
 import { tutorialAction, useTutorialTarget } from '../lib/tutorial';
 import { RecipeImage } from '../components/RecipeImage';
 import { LibraryRecipe, asRecipeFromDoc, formatCuisine, formatDiet, difficultyLabel, translateSearchTerm, totalMinutes } from '../lib/recipe';
+import { getRecipeTranslation, rememberRecipeTranslation, useTranslatedTexts } from '../lib/recipe-translation-cache';
 
 const ONBOARDING_LIBRARY_CUISINES: Record<string, string> = {
   cItalian: 'Italian', cAsian: 'Asian', cMexican: 'Mexican',
@@ -70,7 +71,7 @@ const MEAL_LABEL_KEYS: Record<string, string> = {
 };
 
 export function LibraryScreen() {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const { width: windowWidth } = useWindowDimensions();
   
   const tileWidth = Math.floor((windowWidth - 36 - 12) / 2);
@@ -124,7 +125,10 @@ export function LibraryScreen() {
     return { mine: (mineCache ?? []).filter(match).slice(0, 6), saved: (savedCache ?? []).filter(match).slice(0, 6) };
   }, [search, mineCache, savedCache]);
 
-  
+  const localHitTitles = useTranslatedTexts(
+    [...localHits.mine, ...localHits.saved].map((r: any) => String(r.title ?? '')),
+    lang,
+  );
 
   const translatedSearch = useMemo(() => translateSearchTerm(search), [search]);
 
@@ -192,13 +196,13 @@ export function LibraryScreen() {
     if (timeRange !== 'all') return;
     const minutes = Number(localPrefs.cookTime ?? 0);
     if (minutes > 0) setTimeRange(minutes <= 15 ? 'under15' : minutes <= 30 ? '15-30' : 'over30');
-  }, [localPrefs.cookTime]);
+  }, [localPrefs.cookTime, timeRange]);
 
   useEffect(() => {
     if (cuisine !== 'all') return;
     const mapped = (localPrefs.cuisines ?? []).map((key: string) => ONBOARDING_LIBRARY_CUISINES[key]).filter(Boolean);
     if (mapped.length) setCuisine(mapped[0]);
-  }, [localPrefs.cuisines]);
+  }, [localPrefs.cuisines, cuisine]);
 
   useEffect(() => {
     AsyncStorage.getItem(PRESETS_KEY)
@@ -427,6 +431,38 @@ export function LibraryScreen() {
     return list;
   }, [items]);
 
+  const titleTexts = useTranslatedTexts(
+    orderedItems.map((recipe) => String(recipe.title ?? '')),
+    lang,
+  );
+
+  useEffect(() => {
+    if (lang === 'en' || !orderedItems.length) return;
+    let alive = true;
+    void (async () => {
+      for (const item of orderedItems.slice(0, 4)) {
+        if (!alive) return;
+        const key = String(item.id ?? '');
+        if (!key || getRecipeTranslation(key, lang)) continue;
+        try {
+          const res: any = await runOp(api.translate.translateRecipe, 'action', null, {
+            recipeKey: key,
+            targetLanguage: lang,
+            title: item.title ?? '',
+            description: item.description ?? '',
+            ingredients: item.ingredients ?? [],
+            steps: item.steps ?? [],
+          });
+          if (!alive) return;
+          rememberRecipeTranslation(key, lang, res);
+        } catch {}
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [lang, orderedItems]);
+
   const cuisineOptions = useMemo(
     
     () => sortFilterValuesAZ((meta?.cuisines as string[] | undefined) ?? []).map((c: string) => ({ value: c, label: formatCuisine(c) })),
@@ -647,7 +683,7 @@ export function LibraryScreen() {
                   >
                     <Search size={14} color={colors.accent} />
                     <Text numberOfLines={1} style={{ flex: 1, fontSize: 13.5, color: colors.textPrimary, fontWeight: '600' }}>
-                      {r.title}
+                      {localHitTitles[r.title] ?? r.title}
                     </Text>
                   </Pressable>
                 ))}
@@ -738,6 +774,7 @@ export function LibraryScreen() {
               <TutorialTarget id="tut-library-card" style={{ flex: 1 }}>
                 <RecipeTile
                   recipe={item}
+                  title={titleTexts[item.title] ?? item.title}
                   quickReport={quickReport}
                   onReport={quickReportImage}
                   onOpen={(r) => {
@@ -751,6 +788,7 @@ export function LibraryScreen() {
             ) : (
               <RecipeTile
                 recipe={item}
+                title={titleTexts[item.title] ?? item.title}
                 quickReport={quickReport}
                 onReport={quickReportImage}
                 onOpen={openRecipe}
@@ -1027,6 +1065,7 @@ function FilterSection({ title, children }: { title: string; children: React.Rea
 
 const RecipeTile = React.memo(function RecipeTile({
   recipe,
+  title,
   onOpen,
   width,
   single,
@@ -1034,6 +1073,7 @@ const RecipeTile = React.memo(function RecipeTile({
   onReport,
 }: {
   recipe: LibraryRecipe;
+  title?: string;
   onOpen: (recipe: LibraryRecipe) => void;
   
   width?: number;
@@ -1055,7 +1095,7 @@ const RecipeTile = React.memo(function RecipeTile({
         <RecipeImage uri={recipe.imageUrl} thumbWidth={single ? 420 : 260} style={{ height: single ? 150 : 106, width: '100%' }} />
         <View style={{ flex: 1, padding: 11, justifyContent: 'space-between' }}>
           <Text numberOfLines={2} style={{ fontSize: 14.5, fontWeight: '700', color: colors.textPrimary, lineHeight: 19 }}>
-            {recipe.title}
+            {title ?? recipe.title}
           </Text>
           <View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>

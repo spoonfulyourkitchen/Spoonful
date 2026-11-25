@@ -44,6 +44,7 @@ export function mapRecipe(row: any): any {
     description: row.description ?? '',
     ingredients: row.ingredients ?? [],
     steps: row.steps ?? [],
+    guides: row.guides ?? [],
     prepTime: row.prep_time ?? 0,
     cookTime: row.cook_time ?? 0,
     cuisine: row.cuisine ?? '',

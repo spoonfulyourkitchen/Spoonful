@@ -6,24 +6,27 @@ export type PhotoCrop = {
   fx: number;
   fy: number;
   zoom: number;
-  
-
+  whole?: boolean;
   iw?: number;
   ih?: number;
 };
 
 export const DEFAULT_CROP: PhotoCrop = { fx: 0.5, fy: 0.5, zoom: 1 };
 
+export const FULL_IMAGE_CROP: PhotoCrop = { fx: 0.5, fy: 0.5, zoom: 1, whole: true };
+
 export const isCropDefault = (c?: PhotoCrop | null): boolean =>
-  !c || (Math.abs(c.fx - 0.5) < 0.01 && Math.abs(c.fy - 0.5) < 0.01 && c.zoom <= 1.01);
+  !c ||
+  (c.whole
+    ? false
+    : Math.abs(c.fx - 0.5) < 0.01 && Math.abs(c.fy - 0.5) < 0.01 && c.zoom <= 1.01);
 
 export const clampCrop = (c: PhotoCrop): PhotoCrop => {
-  const zoom = Math.max(1, Math.min(3, c.zoom));
-  const room = zoom <= 1.01 ? 0 : (zoom - 1) / (2 * zoom);
+  if (c.whole) return { ...FULL_IMAGE_CROP };
   return {
-    zoom,
-    fx: Math.max(0.5 - room, Math.min(0.5 + room, c.fx)),
-    fy: Math.max(0.5 - room, Math.min(0.5 + room, c.fy)),
+    zoom: Math.max(1, Math.min(4, c.zoom)),
+    fx: Math.max(0, Math.min(1, c.fx)),
+    fy: Math.max(0, Math.min(1, c.fy)),
     ...(c.iw && c.ih && c.iw > 0 && c.ih > 0 ? { iw: c.iw, ih: c.ih } : {}),
   };
 };

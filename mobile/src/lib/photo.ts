@@ -68,11 +68,11 @@ export async function pickSharpPhoto(): Promise<PickedPhoto | null> {
 
 const STEP_OPTIONS = {
   mediaType: 'photo' as const,
-  quality: 0.5 as const,
+  quality: 0.4 as const,
   selectionLimit: 1,
   includeBase64: true,
-  maxWidth: 1080,
-  maxHeight: 1080,
+  maxWidth: 900,
+  maxHeight: 900,
 };
 
 export async function takeStepPhoto(): Promise<PickedPhoto | null> {

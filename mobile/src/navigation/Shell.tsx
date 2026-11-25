@@ -4,8 +4,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AlertTriangle, Bookmark, ChefHat, Flame, Home, Library, LogOut, Menu,
-  MessageCircle, Palette, Search, Settings, Shield, ShoppingCart, Sparkles,
-  UsersRound, X,
+  MessageCircle, Palette, Search, Settings, Shield, ShoppingCart, Sparkles, X,
 } from 'lucide-react-native';
 import { useQuery, useAuthActions } from '../lib/convex-auth';
 import { api } from '../lib/api';
@@ -326,7 +325,6 @@ function DrawerSheet({ visible, onClose }: { visible: boolean; onClose: () => vo
 
             <DrawerLabel>{t('nav.more')}</DrawerLabel>
             <Row icon={<Home {...ic(colors.accent)} />} label={t('nav.overview')} onPress={() => go('Dashboard')} />
-            <Row icon={<UsersRound {...ic(colors.accent)} />} label={t('nav.community')} onPress={() => go('Community')} />
             <Row icon={<ShoppingCart {...ic(colors.accent)} />} label={t('nav.shopping')} onPress={() => go('Shopping')} />
             <Row icon={<Palette {...ic(colors.accent)} />} label={t('nav.theme')} onPress={() => go('Theme')} />
             <Row icon={<Settings {...ic(colors.accent)} />} label={t('nav.settings')} onPress={() => go('Settings')} />

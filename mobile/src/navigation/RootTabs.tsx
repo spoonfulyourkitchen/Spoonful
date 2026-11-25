@@ -11,7 +11,6 @@ import {
   Library,
   MessageCircle,
   ShoppingCart,
-  UsersRound,
 } from 'lucide-react-native';
 
 import { colors } from '../theme';
@@ -26,16 +25,15 @@ import { MyRecipesScreen } from '../screens/MyRecipesScreen';
 import { AssistantScreen } from '../screens/AssistantScreen';
 import { SavedScreen } from '../screens/SavedScreen';
 import { TrackerScreen } from '../screens/TrackerScreen';
-import { CommunityScreen } from '../screens/CommunityScreen';
 import { ShoppingScreen } from '../screens/ShoppingScreen';
 import { HouseholdScreen } from '../screens/HouseholdScreen';
 
 const Tab = createBottomTabNavigator();
 
 export type RootTabScreenNames =
-  | 'Library' | 'MyRecipes' | 'Assistant' | 'Saved' | 'Tracker' | 'Community' | 'Shopping' | 'Household';
+  | 'Library' | 'MyRecipes' | 'Assistant' | 'Saved' | 'Tracker' | 'Shopping' | 'Household';
 
-const ORDER: RootTabScreenNames[] = ['Library', 'MyRecipes', 'Assistant', 'Saved', 'Tracker', 'Community', 'Shopping', 'Household'];
+const ORDER: RootTabScreenNames[] = ['Library', 'MyRecipes', 'Assistant', 'Saved', 'Tracker', 'Shopping', 'Household'];
 
 const ICONS: Record<RootTabScreenNames, React.ComponentType<any>> = {
   Library,
@@ -43,7 +41,6 @@ const ICONS: Record<RootTabScreenNames, React.ComponentType<any>> = {
   Assistant: MessageCircle,
   Saved: Bookmark,
   Tracker: Flame,
-  Community: UsersRound,
   Shopping: ShoppingCart,
   Household: Home,
 };
@@ -54,7 +51,6 @@ const TAB_KEY: Record<RootTabScreenNames, string> = {
   Assistant: 'nav.ai',
   Saved: 'nav.saved',
   Tracker: 'nav.tracker',
-  Community: 'nav.community',
   Shopping: 'nav.shopping',
   Household: 's.hhTab',
 };
@@ -65,7 +61,6 @@ const SCREENS: Record<RootTabScreenNames, React.ComponentType<any>> = {
   Assistant: AssistantScreen,
   Saved: SavedScreen,
   Tracker: TrackerScreen,
-  Community: CommunityScreen,
   Shopping: ShoppingScreen,
   Household: HouseholdScreen,
 };

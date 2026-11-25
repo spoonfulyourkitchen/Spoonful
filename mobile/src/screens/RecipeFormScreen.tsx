@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Image, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Alert } from '../lib/alert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +10,7 @@ import { api } from '../lib/api';
 import { colors, readableText, rgbaHelper } from '../theme';
 import { goBack } from '../navigation/rootRef';
 import { AppButton, GlassCard, PageHeader, TextField } from '../components/ui';
+import { CroppedImage } from '../components/CroppedImage';
 import { notifyRecipeAdded } from '../lib/notifications';
 import { pickFromGallery, takePhoto, uploadPhotoToServer } from '../lib/photo';
 import { copyCrop, editPhotoCrop } from '../lib/photo-crop';
@@ -46,6 +47,7 @@ export function RecipeFormScreen({ route }: any) {
   const [imageUrl, setImageUrl] = useState(editing?.imageUrl ?? '');
   const [localPhoto, setLocalPhoto] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [cropVersion, setCropVersion] = useState(0);
   
 
   const [pendingPhoto, setPendingPhoto] = useState<{ base64: string; mime: string } | null>(null);
@@ -108,6 +110,7 @@ export function RecipeFormScreen({ route }: any) {
       const photo = source === 'camera' ? await takePhoto() : await pickFromGallery();
       if (!photo?.uri) return;
       await editPhotoCrop(photo.uri);
+      setCropVersion((v) => v + 1);
       setLocalPhoto(photo.uri);
       if (photo.base64) {
         const mime = photo.type ?? 'image/jpeg';
@@ -137,6 +140,13 @@ export function RecipeFormScreen({ route }: any) {
     }
   };
   const clearPhoto = () => { setLocalPhoto(null); setImageUrl(''); };
+
+  const recropPhoto = async () => {
+    const uri = localPhoto || imageUrl;
+    if (!uri) return;
+    await editPhotoCrop(uri);
+    setCropVersion((v) => v + 1);
+  };
 
   const discardDraft = () => {
     void clearDraft(draftKey);
@@ -170,7 +180,7 @@ export function RecipeFormScreen({ route }: any) {
       title: title.trim(), ingredients, steps, prepTime: prep,
       cookTime: toInt(cookTime), cuisine: cuisine.trim() || undefined,
       dietaryRestrictions: diets.split(',').map((d: string) => d.trim().toLowerCase()).filter(Boolean),
-      imageUrl: imageUrl.trim() || undefined, difficulty,
+      imageUrl: imageUrl.trim(), difficulty,
       calories: toInt(calories), protein: toInt(protein), carbs: toInt(carbs), fat: toInt(fat),
     };
     setBusy(true);
@@ -280,12 +290,28 @@ export function RecipeFormScreen({ route }: any) {
             </Pressable>
           </View>
 
-          {localPhoto ? (
+          {localPhoto || imageUrl ? (
             <View style={{ marginBottom: 12 }}>
-              <Image source={{ uri: localPhoto }} resizeMode="cover" style={{ width: '100%', height: 150, borderRadius: 14, backgroundColor: colors.surfaceMuted }} />
-              <Pressable onPress={clearPhoto} style={{ alignSelf: 'flex-end', marginTop: 6, paddingHorizontal: 10, paddingVertical: 5 }}>
-                <Text style={{ color: colors.rose, fontWeight: '700', fontSize: 12 }}>{t('dialog.removePhoto')}</Text>
+              <Pressable
+                onLongPress={() => void recropPhoto()}
+                delayLongPress={350}
+                accessibilityRole="button"
+                accessibilityLabel={t('s.cropLongPress')}
+              >
+                <CroppedImage
+                  uri={localPhoto || imageUrl}
+                  cropVersion={cropVersion}
+                  style={{ width: '100%', height: 170, borderRadius: 14, backgroundColor: colors.surfaceMuted }}
+                />
               </Pressable>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
+                <Pressable onPress={() => void recropPhoto()} style={{ paddingHorizontal: 2, paddingVertical: 5 }}>
+                  <Text style={{ color: colors.accent, fontWeight: '700', fontSize: 12 }}>{t('s.cropEdit')}</Text>
+                </Pressable>
+                <Pressable onPress={clearPhoto} style={{ paddingHorizontal: 2, paddingVertical: 5 }}>
+                  <Text style={{ color: colors.rose, fontWeight: '700', fontSize: 12 }}>{t('dialog.removePhoto')}</Text>
+                </Pressable>
+              </View>
             </View>
           ) : null}
 

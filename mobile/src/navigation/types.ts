@@ -15,10 +15,11 @@ export type RootStackParamList = {
   Theme: undefined;
   Settings: undefined;
   Admin: undefined;
-  RecipeDetail: { recipeId: string; title?: string; source?: string; recipe?: any };
+  RecipeDetail: { recipeId: string; title?: string; source?: string; recipe?: any; guides?: any };
   RecipeForm: { recipe?: any } | undefined;
   Cooking: {
     title?: string;
+    description?: string;
     steps: string[];
     totalTime?: number;
     ingredients?: string[];
@@ -27,6 +28,7 @@ export type RootStackParamList = {
     carbs?: number;
     fat?: number;
     recipeKey?: string;
+    guides?: any;
     translatedTitle?: string;
     translatedSteps?: string[];
     translatedIngredients?: string[];

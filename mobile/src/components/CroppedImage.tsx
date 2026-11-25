@@ -14,6 +14,7 @@ export function CroppedImage({
   resizeMode = 'cover',
   onError,
   thumbWidth,
+  cropVersion = 0,
 }: {
   uri?: string | null;
   
@@ -25,6 +26,7 @@ export function CroppedImage({
   
 
   thumbWidth?: number;
+  cropVersion?: number;
 }) {
   const [crop, setCropState] = useState<PhotoCrop | null>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
@@ -57,7 +59,7 @@ export function CroppedImage({
     return () => {
       alive = false;
     };
-  }, [uri]);
+  }, [uri, cropVersion]);
 
   
 
@@ -104,13 +106,23 @@ export function CroppedImage({
     const scale = base * c.zoom;
     const drawW = known.w * scale;
     const drawH = known.h * scale;
-    return { width: drawW, height: drawH, left: size.w / 2 - c.fx * drawW, top: size.h / 2 - c.fy * drawH };
+    const left = Math.min(0, Math.max(size.w - drawW, size.w / 2 - c.fx * drawW));
+    const top = Math.min(0, Math.max(size.h - drawH, size.h / 2 - c.fy * drawH));
+    return { width: drawW, height: drawH, left, top };
   })();
 
   return (
     <View style={[{ overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }, style]} onLayout={onLayout}>
       {uri ? (
-        view ? (
+        c?.whole ? (
+          <Image
+            source={pictureSource}
+            resizeMode="contain"
+            onError={handleError}
+            onLoad={onImageLoad}
+            style={[{ width: '100%', height: '100%' }, imageStyle]}
+          />
+        ) : view ? (
           <Image
             source={pictureSource}
             resizeMode="stretch"

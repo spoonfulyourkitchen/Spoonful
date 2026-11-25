@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 
 import { Alert } from '../lib/alert';
-import { ChevronRight, Check, Download, FileText, Globe, LogOut, Mail, Palette, Play, ShieldCheck, Star, Trash2, UserRound, Users } from 'lucide-react-native';
+import { ChevronRight, Download, FileText, Globe, LogOut, Mail, Palette, Play, ShieldCheck, Star, Trash2, Users } from 'lucide-react-native';
 import { useAction, useAuthActions, useMutation, useQuery } from '../lib/convex-auth';
 import { useTranslation, LANGUAGES, isRestartRequired, markLanguagePickerShown, tryReloadApp } from '../lib/i18n';
 import { loadPrefs, savePrefs, NotifPrefs } from '../lib/notifications';
@@ -23,13 +23,13 @@ import { APP_VERSION } from '../config';
 import { colors, subscribeTheme } from '../theme';
 import { Page } from '../navigation/Shell';
 import { navigate } from '../navigation/rootRef';
-import { Divider, GlassCard, PageHeader, SectionLabel } from '../components/ui';
+import { Divider, GlassCard, PageHeader } from '../components/ui';
 import { LanguagePicker } from '../components/LanguagePicker';
 import { ProfileEditor } from '../components/ProfileEditor';
 import { Popup } from '../components/Popup';
 import { restartTutorial } from '../lib/tutorial';
 import { clearCrashLog, getCrashLog, subscribeCrashLog } from '../lib/crash-log';
-import { useAdminQuickReport, useCookingAdvanced } from '../lib/app-prefs';
+import { useAdminQuickReport } from '../lib/app-prefs';
 
 function useCrashLog() {
   return useSyncExternalStore(subscribeCrashLog, getCrashLog, getCrashLog);
@@ -47,8 +47,6 @@ export function SettingsScreen() {
   
   const [popup, setPopup] = useState<{ title: string; body: string; restart?: boolean } | null>(null);
   const [prefs, setPrefs] = useState<NotifPrefs | null>(null);
-  
-  const [cookingAdvanced, setCookingAdvancedPref] = useCookingAdvanced();
   
   const [quickReport, setQuickReportPref] = useAdminQuickReport();
   
@@ -76,13 +74,9 @@ export function SettingsScreen() {
   const exportMyData = useAction(api.account.exportData);
   const deleteMyAccount = useMutation(api.account.deleteAccount);
   const household = useQuery(api.household.mine) as any;
-  const createHousehold = useMutation(api.household.create);
-  const makeInvite = useMutation(api.household.invite);
   const joinHousehold = useMutation(api.household.join);
-  const leaveHousehold = useMutation(api.household.leave);
   const [joinOpen, setJoinOpen] = useState(false);
   const [joinCode, setJoinCode] = useState('');
-  const [invite, setInvite] = useState<string | null>(null);
   const [hhBusy, setHhBusy] = useState(false);
 
   const hhRun = async (fn: () => Promise<any>, okMsg?: string) => {
@@ -96,15 +90,6 @@ export function SettingsScreen() {
       Alert.alert(t('hh.title'), e instanceof Error ? e.message : String(e));
     } finally {
       setHhBusy(false);
-    }
-  };
-
-  const createInvite = async () => {
-    const res: any = await hhRun(() => makeInvite({}));
-    const code = res?.code ?? res?.data?.code ?? null;
-    if (code) {
-      setInvite(code);
-      void Share.share({ message: `${t('hh.shareText')}: ${code}` });
     }
   };
 
@@ -179,16 +164,53 @@ export function SettingsScreen() {
   return (
     <Page>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 0, paddingBottom: 32 }}>
-        <PageHeader eyebrow={t('settings.settings')} title={t('settings.settings')} />
+        <PageHeader title={t('settings.settings')} />
 
-        <GlassCard pad={16} radius={20}>
-          <Row label={t('ui.name')} value={user?.name || '-'} />
-          <Divider />
-          <Row label={t('ui.email')} value={user?.email || '-'} />
-        </GlassCard>
+        <Pressable
+          onPress={() => setProfileOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={t('s.profileEdit')}
+          style={({ pressed }) => [
+            {
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 14,
+              borderRadius: 22,
+              borderWidth: 1,
+              borderColor: colors.cardBorder,
+              backgroundColor: colors.card,
+              padding: 16,
+              opacity: pressed ? 0.85 : 1,
+            },
+          ]}
+        >
+          <View
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: colors.accentSoft,
+            }}
+          >
+            <Text style={{ fontSize: 20, fontWeight: '800', color: colors.accent }}>
+              {(user?.name || user?.email || 'S').trim().charAt(0).toUpperCase()}
+            </Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: '700', color: colors.textPrimary }}>
+              {user?.name || t('s.profileTitle')}
+            </Text>
+            <Text numberOfLines={1} style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 2 }}>
+              {user?.email || ''}
+            </Text>
+          </View>
+          <ChevronRight size={18} color={colors.textSecondary} />
+        </Pressable>
+        <ProfileEditor visible={profileOpen} onClose={() => setProfileOpen(false)} />
 
-        <Text style={label}>{t('settings.settings')}</Text>
-        <GlassCard pad={4} radius={20}>
+        <GlassCard pad={4} radius={20} style={{ marginTop: 12 }}>
           <NavRow icon={<Palette size={18} color={colors.accent} />} label={t('settings.theme')} onPress={() => navigate('Theme')} />
           <Divider style={{ marginLeft: 16 }} />
           <NavRow
@@ -210,14 +232,76 @@ export function SettingsScreen() {
           ) : null}
         </GlassCard>
 
-        <Text style={label}>{t('s.advSection')}</Text>
+        <Text style={label}>{t('hh.title')}</Text>
         <GlassCard pad={4} radius={20}>
-          <PrefToggle
-            title={t('s.advTitle')}
-            value={cookingAdvanced}
-            onChange={() => setCookingAdvancedPref(!cookingAdvanced)}
+          <NavRow
+            icon={<Users size={18} color={colors.accent} />}
+            label={household?.name ?? t('hh.title')}
+            value={household ? `${(household.members ?? []).length}` : undefined}
+            onPress={() => navigate('Main' as any, { screen: 'Household' } as any)}
           />
         </GlassCard>
+
+        <Text style={label}>{t('ui.help')}</Text>
+        <GlassCard pad={4} radius={20}>
+          <NavRow
+            icon={<Play size={18} color={colors.accent} />}
+            label={t('tut.restart')}
+            onPress={() => {
+              void restartTutorial().then(() => setPopup({ title: t('tut.resetTitle'), body: t('tut.resetBody') }));
+            }}
+          />
+          <Divider style={{ marginLeft: 16 }} />
+          <NavRow icon={<Star size={18} color={colors.accent} />} label={t('s.xFeedbackTitle')} onPress={() => setShowFeedback(true)} />
+          <Divider style={{ marginLeft: 16 }} />
+          <NavRow icon={<Download size={18} color={colors.accent} />} label={t('ui.exportData')} onPress={() => void exportData()} />
+          <Divider style={{ marginLeft: 16 }} />
+          <NavRow icon={<Mail size={18} color={colors.accent} />} label={t('ui.contact')} onPress={() => Linking.openURL('mailto:spoonfulsupport@gmail.com')} />
+        </GlassCard>
+
+        {showFeedback ? (
+          <GlassCard pad={16} radius={20} style={{ marginTop: 12 }}>
+            {sent ? (
+              <>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: colors.success }}>{t('s.xFeedbackThanks')}</Text>
+              </>
+            ) : (
+              <>
+                <Text style={{ fontSize: 13, color: colors.textSecondary }}>{t('s.xFeedbackAsk')}</Text>
+                <View style={{ flexDirection: 'row', gap: 6, marginTop: 10 }}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Pressable key={n} onPress={() => setStars(n)} hitSlop={6}>
+                      <Star size={26} color={n <= stars ? '#eab308' : colors.textSecondary} fill={n <= stars ? '#eab308' : 'transparent'} />
+                    </Pressable>
+                  ))}
+                </View>
+                <TextInput
+                  value={feedbackText}
+                  onChangeText={setFeedbackText}
+                  placeholder={t('s.xPhFeedback')}
+                  placeholderTextColor={colors.textSecondary}
+                  multiline
+                  style={{ minHeight: 84, textAlignVertical: 'top', borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.surfaceMuted, color: colors.textPrimary, padding: 12, fontSize: 14, marginTop: 10 }}
+                />
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                  <Pressable
+                    onPress={() => setShowFeedback(false)}
+                    style={({ pressed }) => [{ flex: 1, borderRadius: 12, paddingVertical: 11, alignItems: 'center', backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.8 : 1 }]}
+                  >
+                    <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>{t('common.cancel')}</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => void sendFeedback()}
+                    disabled={feedbackBusy}
+                    style={({ pressed }) => [{ flex: 2, borderRadius: 12, paddingVertical: 11, alignItems: 'center', backgroundColor: colors.darkButton, opacity: pressed || feedbackBusy ? 0.8 : 1 }]}
+                  >
+                    <Text style={{ color: colors.darkButtonText, fontWeight: '700' }}>{feedbackBusy ? 'Sending…' : t('s.xFeedbackSend')}</Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
+          </GlassCard>
+        ) : null}
 
         {isAdmin ? (
           <>
@@ -233,26 +317,6 @@ export function SettingsScreen() {
           </>
         ) : null}
 
-        <Text style={label}>{t('s.profileTitle')}</Text>
-        <GlassCard pad={4} radius={20}>
-          <NavRow
-            icon={<UserRound size={18} color={colors.accent} />}
-            label={t('s.profileEdit')}
-            value={String((user as any)?.name ?? '')}
-            onPress={() => setProfileOpen(true)}
-          />
-        </GlassCard>
-        <ProfileEditor visible={profileOpen} onClose={() => setProfileOpen(false)} />
-
-        <Text style={label}>{t('ui.help')}</Text>
-        <GlassCard pad={4} radius={20}>
-          <NavRow icon={<Mail size={18} color={colors.accent} />} label={t('ui.contact')} onPress={() => Linking.openURL('mailto:spoonfulsupport@gmail.com')} />
-          <Divider style={{ marginLeft: 16 }} />
-          <NavRow icon={<Download size={18} color={colors.accent} />} label={t('ui.exportData')} onPress={() => void exportData()} />
-          <Divider style={{ marginLeft: 16 }} />
-          <NavRow icon={<LogOut size={18} color={colors.rose} />} label={t('nav.signOut')} tint={colors.rose} onPress={doSignOut} />
-        </GlassCard>
-
         <Text style={label}>{t('legal.privacyTitle')} · {t('legal.navTerms')}</Text>
         <GlassCard pad={4} radius={20}>
           <NavRow icon={<FileText size={18} color={colors.accent} />} label={t('legal.navImprint')} onPress={() => navigate('Legal', { page: 'impressum' })} />
@@ -264,116 +328,44 @@ export function SettingsScreen() {
           <NavRow icon={<FileText size={18} color={colors.accent} />} label={t('legal.navTerms')} onPress={() => navigate('Legal', { page: 'agb' })} />
         </GlassCard>
 
-        <Text style={label}>{t('hh.title')}</Text>
+        <Text style={label}>{t('s.profileTitle')}</Text>
         <GlassCard pad={4} radius={20}>
-          <NavRow
-            icon={<Users size={18} color={colors.accent} />}
-            label={household?.name ?? t('hh.title')}
-            value={household ? `${(household.members ?? []).length}` : undefined}
-            onPress={() => navigate('Main' as any, { screen: 'Household' } as any)}
-          />
-        </GlassCard>
-
-        <Text style={label}>{t('ui.danger')}</Text>
-        <GlassCard pad={4} radius={20}>
+          <NavRow icon={<LogOut size={18} color={colors.textPrimary} />} label={t('nav.signOut')} onPress={doSignOut} />
+          <Divider style={{ marginLeft: 16 }} />
           <NavRow icon={<Trash2 size={18} color={colors.rose} />} label={t('ui.deleteAccount')} tint={colors.rose} onPress={deleteAccountPrompt} />
         </GlassCard>
 
-        {!showFeedback ? (
-          <Pressable
-            onPress={() => setShowFeedback(true)}
-            style={({ pressed }) => [{ marginTop: 18, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10, opacity: pressed ? 0.8 : 1 }]}
-          >
-            <Star size={18} color="#eab308" fill="#eab308" />
-            <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>{t('s.xFeedbackTitle')}</Text>
-          </Pressable>
-        ) : sent ? (
-          <GlassCard pad={16} radius={20} style={{ marginTop: 18 }}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.success }}>{t('s.xFeedbackThanks')}</Text>
-            <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>
-              Your feedback was sent straight to the Spoonful team. We read every message.
-            </Text>
-          </GlassCard>
-        ) : (
-          <GlassCard pad={16} radius={20} style={{ marginTop: 18 }}>
-            <SectionLabel>{t('s.xFeedbackAsk')}</SectionLabel>
-            <View style={{ flexDirection: 'row', gap: 6 }}>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <Pressable key={n} onPress={() => setStars(n)} hitSlop={6}>
-                  <Star size={28} color={n <= stars ? '#eab308' : colors.textSecondary} fill={n <= stars ? '#eab308' : 'transparent'} />
-                </Pressable>
-              ))}
-            </View>
-            <TextInput
-              value={feedbackText}
-              onChangeText={setFeedbackText}
-              placeholder={t('s.xPhFeedback')}
-              placeholderTextColor={colors.textSecondary}
-              multiline
-              style={{ minHeight: 90, textAlignVertical: 'top', borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, color: colors.textPrimary, padding: 12, fontSize: 14, marginTop: 12 }}
-            />
-            <Pressable
-              onPress={() => void sendFeedback()}
-              disabled={feedbackBusy}
-              style={({ pressed }) => [{ marginTop: 12, borderRadius: 12, paddingVertical: 12, alignItems: 'center', backgroundColor: colors.darkButton, opacity: pressed || feedbackBusy ? 0.8 : 1 }]}
-            >
-              <Text style={{ color: colors.darkButtonText, fontWeight: '700' }}>{feedbackBusy ? 'Sending…' : 'Send feedback'}</Text>
-            </Pressable>
-          </GlassCard>
-        )}
-
-        <SectionLabel>{t('ui.tutorialSection')}</SectionLabel>
-        <GlassCard pad={14} style={{ marginTop: 6 }}>
-          <Pressable
-            onPress={() => {
-              void restartTutorial().then(() =>
-                setPopup({ title: t('tut.resetTitle'), body: t('tut.resetBody') }),
-              );
-            }}
-            accessibilityRole="button"
-            accessibilityLabel={t('tut.restart')}
-            style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, opacity: pressed ? 0.8 : 1 }]}
-          >
-            <Play size={18} color={colors.accent} strokeWidth={2.2} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textPrimary }}>{t('tut.restart')}</Text>
-              <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 2 }}>{t('tut.restartHint')}</Text>
-            </View>
-            <ChevronRight size={18} color={colors.textSecondary} />
-          </Pressable>
-        </GlassCard>
-
-        <SectionLabel>{t('s.errTitle')}</SectionLabel>
-        <GlassCard pad={14} style={{ marginTop: 6 }}>
-          {errors.length === 0 ? (
-            <Text style={{ fontSize: 13, color: colors.textSecondary }}>{t('s.errEmpty')}</Text>
-          ) : (
-            <View style={{ gap: 8 }}>
+        {errors.length > 0 ? (
+          <>
+            <Text style={label}>{t('s.errTitle')}</Text>
+            <GlassCard pad={14} radius={20}>
               <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.textPrimary }}>
                 {t('s.errCount', { n: errors.length })}
               </Text>
-              {errors.slice(0, 5).map((entry) => (
-                <View key={`${entry.at}-${entry.scope}`} style={{ borderRadius: 10, backgroundColor: colors.surfaceMuted, padding: 10 }}>
-                  <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.textSecondary }}>
-                    {`${new Date(entry.at).toLocaleString()} · ${entry.scope}`}
-                  </Text>
-                  <Text numberOfLines={3} style={{ fontSize: 12.5, color: colors.textPrimary, marginTop: 2 }}>
-                    {entry.message}
-                  </Text>
-                </View>
-              ))}
+              <View style={{ gap: 8, marginTop: 8 }}>
+                {errors.slice(0, 3).map((entry) => (
+                  <View key={`${entry.at}-${entry.scope}`} style={{ borderRadius: 10, backgroundColor: colors.surfaceMuted, padding: 10 }}>
+                    <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.textSecondary }}>
+                      {`${new Date(entry.at).toLocaleString()} · ${entry.scope}`}
+                    </Text>
+                    <Text numberOfLines={3} style={{ fontSize: 12.5, color: colors.textPrimary, marginTop: 2 }}>
+                      {entry.message}
+                    </Text>
+                  </View>
+                ))}
+              </View>
               <Pressable
                 onPress={() => void clearCrashLog()}
                 accessibilityRole="button"
                 accessibilityLabel={t('s.errClear')}
-                style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', opacity: pressed ? 0.8 : 1 }]}
+                style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', marginTop: 10, opacity: pressed ? 0.8 : 1 }]}
               >
                 <Trash2 size={15} color={colors.rose} />
                 <Text style={{ fontSize: 13, fontWeight: '700', color: colors.rose }}>{t('s.errClear')}</Text>
               </Pressable>
-            </View>
-          )}
-        </GlassCard>
+            </GlassCard>
+          </>
+        ) : null}
 
         <Text style={{ color: colors.textSecondary, fontSize: 12, textAlign: 'center', marginTop: 26 }}>© 2026 Spoonful · v{APP_VERSION}</Text>
       </ScrollView>
@@ -458,15 +450,6 @@ function buildSectionLabel() {
 }
 let label = buildSectionLabel();
 subscribeTheme(() => { label = buildSectionLabel(); });
-
-function Row({ label: l, value }: { label: string; value: string }) {
-  return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 }}>
-      <Text style={{ fontSize: 15, color: colors.textPrimary }}>{l}</Text>
-      <Text style={{ fontSize: 15, color: colors.textSecondary }}>{value}</Text>
-    </View>
-  );
-}
 
 function NavRow({ icon, label: l, value, tint, onPress }: { icon: React.ReactNode; label: string; value?: string; tint?: string; onPress: () => void }) {
   return (

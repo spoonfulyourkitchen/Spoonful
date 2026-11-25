@@ -205,6 +205,7 @@ ops['recipes.create'] = {
         description: args.description ?? '',
         ingredients: args.ingredients ?? [],
         steps: args.steps ?? [],
+        guides: args.guides ?? [],
         prep_time: args.prepTime ?? 0,
         cook_time: args.cookTime ?? 0,
         cuisine: args.cuisine ?? '',
@@ -231,6 +232,7 @@ ops['recipes.update'] = {
     if (args.description !== undefined) patch.description = args.description;
     if (args.ingredients !== undefined) patch.ingredients = args.ingredients;
     if (args.steps !== undefined) patch.steps = args.steps;
+    if (args.guides !== undefined) patch.guides = args.guides;
     if (args.prepTime !== undefined) patch.prep_time = args.prepTime;
     if (args.cookTime !== undefined) patch.cook_time = args.cookTime;
     if (args.cuisine !== undefined) patch.cuisine = args.cuisine;
@@ -372,6 +374,7 @@ ops['savedRecipes.save'] = {
       description: args.description ?? '',
       ingredients: args.ingredients ?? [],
       steps: args.steps ?? [],
+      guides: args.guides ?? [],
       prep_time: args.prepTime ?? 0,
       cook_time: args.cookTime ?? 0,
       cuisine: args.cuisine ?? '',
@@ -646,7 +649,7 @@ ops['shoppingList.addMany'] = {
   },
 };
 ops['shoppingList.toggle'] = {
-  async mutation({ uid }, args: any) {
+  async mutation(_ctx, args: any) {
     const cur = await supabase.from('shopping_list_items').select('checked').eq('id', args.id).maybeSingle();
     if (cur.error) throw rowError(cur.error);
     const next = !(cur.data?.checked ?? false);
@@ -1362,13 +1365,18 @@ ops['translate.translateRecipe'] = {
       .from('recipe_translations').select('*').eq('recipe_key', key).eq('language', lang).maybeSingle();
     if (readErr) throw rowError(readErr);
     if (cached) {
-      return {
-        language: lang,
-        title: cached.title ?? '',
-        description: cached.description ?? undefined,
-        ingredients: cached.ingredients ?? [],
-        steps: cached.steps ?? [],
-      };
+      const cachedDescription = typeof cached.description === 'string' ? cached.description.trim() : '';
+      const wantsDescription = String(args.description ?? '').trim().length > 0;
+      const cachedSteps = Array.isArray(cached.steps) ? cached.steps : [];
+      if (cachedSteps.length && (cachedDescription || !wantsDescription)) {
+        return {
+          language: lang,
+          title: cached.title ?? '',
+          description: cached.description ?? undefined,
+          ingredients: cached.ingredients ?? [],
+          steps: cached.steps ?? [],
+        };
+      }
     }
 
     const translated = await translateRecipeContentOnline(

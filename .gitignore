@@ -70,3 +70,6 @@ INSTRUCTIONS/
 .token.new
 
 Spoonful Website/
+
+# Android signing material
+android/keystore/

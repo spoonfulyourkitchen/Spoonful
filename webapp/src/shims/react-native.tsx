@@ -1,3 +1,4 @@
+import React, { useEffect, useRef } from 'react';
 import * as RNW from 'react-native-web';
 
 export * from 'react-native-web';
@@ -128,6 +129,62 @@ export const Platform = {
     spec.android !== undefined ? spec.android : spec.default !== undefined ? spec.default : spec.web,
 };
 
+type ModalEntry = { id: number; close: () => void; consumed: boolean };
+
+const modalStack: ModalEntry[] = [];
+let modalListenersReady = false;
+let modalIds = 0;
+let suppressModalPops = 0;
+
+function ensureModalListener() {
+  if (modalListenersReady || typeof window === 'undefined') return;
+  modalListenersReady = true;
+  window.addEventListener('popstate', () => {
+    if (suppressModalPops > 0) {
+      suppressModalPops -= 1;
+      return;
+    }
+    const top = modalStack[modalStack.length - 1];
+    if (!top) return;
+    top.consumed = true;
+    top.close();
+  });
+}
+
+/**
+ * Every open modal adds one browser history entry. Back closes the top modal
+ * instead of leaving the page; closing it in the app removes that entry again.
+ */
+function WebModal(props: any) {
+  const visible = !!props.visible;
+  const closeRef = useRef<(() => void) | undefined>(props.onRequestClose);
+  closeRef.current = props.onRequestClose;
+
+  useEffect(() => {
+    if (!visible || typeof window === 'undefined' || typeof closeRef.current !== 'function') return;
+    ensureModalListener();
+    modalIds += 1;
+    const entry: ModalEntry = {
+      id: modalIds,
+      consumed: false,
+      close: () => closeRef.current?.(),
+    };
+    modalStack.push(entry);
+    window.history.pushState({ ...(window.history.state ?? {}), spoonfulModal: entry.id }, '');
+    return () => {
+      const index = modalStack.indexOf(entry);
+      if (index >= 0) modalStack.splice(index, 1);
+      if (!entry.consumed) {
+        suppressModalPops += 1;
+        window.history.back();
+      }
+    };
+  }, [visible]);
+
+  return React.createElement(rnw.Modal, props);
+}
+
+export const Modal = rnw.Modal ? WebModal : rnw.Modal;
 export const Alert = rnw.Alert ?? AlertImpl;
 export const AccessibilityInfo = AccessibilityInfoImpl;
 export const AppState = AppStateImpl;

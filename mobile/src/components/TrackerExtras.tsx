@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
-import { Camera, Droplets, Minus, Plus, ScanLine, Search, TrendingDown, TrendingUp } from 'lucide-react-native';
+import { Camera, Droplets, Minus, ScanLine, Search, TrendingDown, TrendingUp } from 'lucide-react-native';
 import { markReviewAction } from '../lib/review';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMutation } from '../lib/convex-auth';

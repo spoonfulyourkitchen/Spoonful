@@ -53,7 +53,7 @@ export function TutorialGate() {
         void startTutorial();
       }, 1200);
     })();
-  }, [ready, profile]);
+  }, [ready, profile, isWeb]);
 
   const showPill =
     ready &&

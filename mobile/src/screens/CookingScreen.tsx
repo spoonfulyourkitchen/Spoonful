@@ -12,26 +12,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Camera,
   Check,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ChevronUp,
   CircleCheck,
-  Gauge,
-  Languages,
-  ListChecks,
   Maximize2,
   Minus,
   NotebookPen,
-  Pause,
   Play,
   Plus,
   RotateCcw,
   ShoppingCart,
-  SkipForward,
   Square,
   Timer,
-  UsersRound,
   Volume2,
   X,
 } from 'lucide-react-native';
@@ -43,46 +35,20 @@ import { goBack } from '../navigation/rootRef';
 import { AppButton } from '../components/ui';
 import { useTranslation } from '../lib/i18n';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  addTimer,
-  clearTimers,
-  extendTimer,
-  pauseTimer,
-  removeTimer,
-  resumeTimer,
-  timerRemaining,
-  useKitchenTimers,
-} from '../lib/kitchenTimers';
+import { addTimer, clearTimers, pauseTimer, removeTimer, resumeTimer, timerRemaining, useKitchenTimers } from '../lib/kitchenTimers';
 import { recipeLines } from '../lib/recipe';
-import { isTranslatableLanguage, translateLines } from '../lib/recipe-translate';
+import { translateLines } from '../lib/recipe-translate';
 import { loadStepGuides, type StepGuide } from '../lib/step-guides';
 import { speakText, speechAvailable, stopSpeaking } from '../lib/speech';
 import { showNotice } from '../components/AppNotice';
 import { useAction, useQuery } from '../lib/convex-auth';
-import {
-  estimateStepMinutes,
-  splitSubSteps,
-  stepAction,
-  stepDependency,
-  stepDifficulty,
-  stepGroup,
-  stepShortText,
-  type StepDifficulty,
-} from '../lib/step-meta';
-import {
-  lastActiveAt,
-  loadExtras,
-  markLastActive,
-  saveExtras,
-  type StepExtras,
-} from '../lib/cooking-extras';
+import { extractStepMinutes } from '../lib/step-meta';
+import { loadExtras, saveExtras, type StepExtras } from '../lib/cooking-extras';
 import { pickStepPhoto, takeStepPhoto } from '../lib/photo';
 import { editPhotoCrop } from '../lib/photo-crop';
-import { useCookingAdvanced } from '../lib/app-prefs';
 import { CroppedImage } from '../components/CroppedImage';
 
 const BASE_SERVINGS = 2;
-const PRESETS = [3, 5, 10, 15, 20, 30];
 
 function parseAmount(v: string): number | null {
   if (v.includes('/')) {
@@ -108,10 +74,7 @@ function scaleLine(ing: string, servings: number): string {
 const mm = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
 function extractMinutes(step: string): number | null {
-  const m = step.match(/(\d+)\s*(?:minutes?|min)\b/i);
-  if (!m) return null;
-  const mins = Number(m[1]);
-  return Number.isFinite(mins) && mins > 0 && mins <= 240 ? mins : null;
+  return extractStepMinutes(step);
 }
 
 function cleanIngredientForShop(line: string): string {
@@ -172,37 +135,81 @@ export function CookingScreen({ route }: any) {
 
   
 
-  const inlineTr = p.translatedSteps && recipeLines(p.translatedSteps).length
-    ? {
-        title: String(p.translatedTitle ?? origTitle),
-        steps: recipeLines(p.translatedSteps),
-        ingredients: p.translatedIngredients ? recipeLines(p.translatedIngredients) : [],
-      }
-    : null;
-  const [tr, setTr] = useState<typeof inlineTr>(inlineTr);
-  const [showTr, setShowTr] = useState(!!inlineTr);
-  const [busyTranslate, setBusyTranslate] = useState(false);
+  const inlineTr = useMemo(
+    () =>
+      p.translatedSteps && recipeLines(p.translatedSteps).length
+        ? {
+            title: String(p.translatedTitle ?? origTitle),
+            steps: recipeLines(p.translatedSteps),
+            ingredients: p.translatedIngredients ? recipeLines(p.translatedIngredients) : [],
+          }
+        : null,
+    [p.translatedTitle, p.translatedSteps, p.translatedIngredients, origTitle],
+  );
+  const [autoTr, setAutoTr] = useState<{ lang: string; title: string; steps: string[]; ingredients: string[] } | null>(
+    inlineTr ? { lang, ...inlineTr } : null,
+  );
   const translateRecipeAction = useAction(api.translate.translateRecipe);
+  const sourceRef = useRef({ title: origTitle, steps: origSteps, ingredients: origIngredients });
+  sourceRef.current = { title: origTitle, steps: origSteps, ingredients: origIngredients };
+  const entryLangRef = useRef(lang);
 
-  const view = showTr && tr ? tr : null;
+  useEffect(() => {
+    let alive = true;
+    if (lang === 'en') {
+      setAutoTr(null);
+      return () => {
+        alive = false;
+      };
+    }
+    if (inlineTr && inlineTr.steps.length && entryLangRef.current === lang) {
+      setAutoTr({ lang, ...inlineTr });
+      return () => {
+        alive = false;
+      };
+    }
+    const source = sourceRef.current;
+    void translateRecipeAction({
+      recipeKey,
+      title: source.title,
+      description: String(p.description ?? ''),
+      ingredients: source.ingredients,
+      steps: source.steps,
+      targetLanguage: lang,
+    } as any)
+      .then((res: any) => {
+        const trSteps = recipeLines(res?.steps);
+        if (!alive || !trSteps.length) return;
+        const trIngredients = recipeLines(res?.ingredients);
+        setAutoTr({
+          lang,
+          title: String(res?.title || source.title),
+          steps: trSteps,
+          ingredients: trIngredients.length ? trIngredients : source.ingredients,
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [lang, recipeKey, inlineTr, translateRecipeAction, p.description]);
+
+  const tr = autoTr && autoTr.lang === lang ? autoTr : null;
+  const view = tr;
   const title: string = view?.title || origTitle;
   const steps: string[] = view?.steps?.length ? view.steps : origSteps;
   const ingredients: string[] = view?.ingredients?.length ? view.ingredients : origIngredients;
 
   
   const [extras, setExtras] = useState<StepExtras>({ notes: {}, skipped: [], photos: {} });
-  const [showSub, setShowSub] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
-  const [awayFor, setAwayFor] = useState(0);
-  const householdCooking = useQuery(api.householdCooking.state) as any[] | undefined;
-  const publishCooking = useMutation(api.householdCooking.set);
-  const stopCooking = useMutation(api.householdCooking.stop);
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const [timersOpen, setTimersOpen] = useState(false);
+  const [photoVersion, setPhotoVersion] = useState(0);
   const myProfile = useQuery(api.users.currentUser) as any;
-  
+
   const profileReady = myProfile !== undefined;
-  
-  const [cookingAdvanced] = useCookingAdvanced();
   const totalTime: number = p.totalTime ?? 0;
   const nutrition = {
     calories: p.calories as number | undefined,
@@ -234,9 +241,7 @@ export function CookingScreen({ route }: any) {
   }, []);
   const [doneSteps, setDoneSteps] = useState<Set<number>>(new Set());
   const [checkedIng, setCheckedIng] = useState<Set<number>>(new Set());
-  const [, setSuggested] = useState<number | null>(null);
   const timers = useKitchenTimers();
-  const runningCount = timers.filter((t) => t.running).length;
 
   const total = steps.length;
   const progress = phase === 'done' ? 100 : total ? (doneSteps.size / total) * 100 : 0;
@@ -266,7 +271,8 @@ export function CookingScreen({ route }: any) {
       alive = false;
     };
   }, [recipeKey]);
-  const guideFor = (i: number) => guides?.find((g) => g.index === i) ?? null;
+  const passedGuides: StepGuide[] | null = Array.isArray(p.guides) ? p.guides : null;
+  const guideFor = (i: number) => passedGuides?.find((g) => g.index === i) ?? guides?.find((g) => g.index === i) ?? null;
 
   
 
@@ -345,38 +351,7 @@ export function CookingScreen({ route }: any) {
     if (speaking) void stopReadAloud();
   };
 
-  
-  const stepMeta = useMemo(
-    () =>
-      steps.map((s, i) => ({
-        action: stepAction(s),
-        difficulty: stepDifficulty(s) as StepDifficulty,
-        minutes: estimateStepMinutes(s, i, total),
-        group: stepGroup(s, i, total),
-        dependency: stepDependency(s),
-        sub: splitSubSteps(s),
-        title: stepShortText(s),
-      })),
-    [steps, total],
-  );
-  const currentMeta = stepMeta[index] ?? stepMeta[0];
-  const skippedSet = useMemo(() => new Set(extras.skipped), [extras.skipped]);
-  const remainingMinutes = useMemo(
-    () => stepMeta.reduce((sum, m, i) => (doneSteps.has(i) || skippedSet.has(i) ? sum : sum + m.minutes), 0),
-    [stepMeta, doneSteps, skippedSet],
-  );
-  const elapsedMinutes = extras.startedAt ? Math.max(0, Math.round((Date.now() - extras.startedAt) / 60000)) : 0;
-  const groupLabel = (g: string) =>
-    g === 'cook' ? t('s.cookGroupCook') : g === 'finish' ? t('s.cookGroupFinish') : t('s.cookGroupPrep');
-  const difficultyLabel = (d: StepDifficulty) =>
-    d === 'hard' ? t('s.cookDiffHard') : d === 'medium' ? t('s.cookDiffMedium') : t('s.cookDiffEasy');
-  const groupColor = (g: string) => (g === 'cook' ? colors.accent : g === 'finish' ? colors.success : colors.textSecondary);
-  const difficultyColor = (d: StepDifficulty) => (d === 'hard' ? colors.rose : d === 'medium' ? colors.accent : colors.success);
-  const others = (householdCooking ?? []).filter((h) => h.userId !== myProfile?.id && Date.now() - h.at < 12 * 3600 * 1000);
-  
-  const resumeIndex = stepMeta.findIndex((_m, i) => !doneSteps.has(i) && !skippedSet.has(i));
 
-  
   useEffect(() => {
     if (!profileReady) return;
     let alive = true;
@@ -391,45 +366,6 @@ export function CookingScreen({ route }: any) {
     };
   }, [recipeKey, profileReady, myProfile?.id]);
 
-  
-  useEffect(() => {
-    if (!profileReady) return;
-    let alive = true;
-    lastActiveAt(myProfile?.id, recipeKey).then((ts) => {
-      if (!alive || !ts) return;
-      const gap = Date.now() - ts;
-      if (gap > 5 * 60 * 1000) setAwayFor(gap);
-    });
-    void markLastActive(myProfile?.id, recipeKey);
-    return () => {
-      alive = false;
-    };
-  }, [recipeKey, index, phase, profileReady, myProfile?.id]);
-
-  
-  useEffect(() => {
-    if (phase === 'prep' || !cookingAdvanced) return;
-    const timer = setTimeout(() => {
-      void publishCooking({ recipeKey, title, step: index, total, done: doneSteps.size }).catch(() => {});
-    }, 700);
-    return () => clearTimeout(timer);
-  }, [recipeKey, title, index, total, doneSteps, phase, publishCooking, cookingAdvanced]);
-
-  
-  useEffect(() => () => { void stopCooking().catch(() => {}); }, [stopCooking]);
-
-  
-  const toggleSkip = (i: number) => {
-    const has = extras.skipped.includes(i);
-    const next = { ...extras, skipped: has ? extras.skipped.filter((n) => n !== i) : [...extras.skipped, i] };
-    setExtras(next);
-    void saveExtras(myProfile?.id, recipeKey, next);
-    if (!has) {
-      const d = new Set(doneSteps);
-      d.delete(i);
-      setDoneSteps(d);
-    }
-  };
 
   const saveNote = () => {
     const key = String(index);
@@ -442,17 +378,6 @@ export function CookingScreen({ route }: any) {
     setNoteOpen(false);
   };
 
-  const attachStepPhoto = () =>
-    showNotice({
-      title: t('s.cookPhoto'),
-      actions: [
-        { label: t('s.cookCamera'), onPress: () => void saveStepPhoto('camera') },
-        { label: t('s.formGallery'), onPress: () => void saveStepPhoto('gallery') },
-        { label: t('common.close'), variant: 'ghost' },
-      ],
-    });
-
-  
 
   const saveStepPhoto = async (source: 'camera' | 'gallery') => {
     try {
@@ -461,8 +386,11 @@ export function CookingScreen({ route }: any) {
       const mime = photo.type ?? 'image/jpeg';
       const uri = photo.base64 ? `data:${mime};base64,${photo.base64}` : photo.uri;
       if (!uri) return;
+      setPhotoOpen(false);
+      await new Promise<void>((resolve) => setTimeout(() => resolve(), 220));
       await editPhotoCrop(uri);
-      const next = { ...extras, photos: { ...extras.photos, [String(index)]: uri } };
+      setPhotoVersion((v) => v + 1);
+      const next = { ...extras, photos: { [String(index)]: uri } };
       setExtras(next);
       void saveExtras(myProfile?.id, recipeKey, next);
     } catch {
@@ -470,16 +398,29 @@ export function CookingScreen({ route }: any) {
     }
   };
 
+  const recropStepPhoto = async () => {
+    const uri = extras.photos[String(index)];
+    if (!uri) return;
+    await editPhotoCrop(uri);
+    setPhotoVersion((v) => v + 1);
+  };
+
+  const removeStepPhoto = () => {
+    const photos = { ...extras.photos };
+    delete photos[String(index)];
+    const next = { ...extras, photos };
+    setExtras(next);
+    void saveExtras(myProfile?.id, recipeKey, next);
+    setPhotoOpen(false);
+  };
+
   
   const markDoneAndNext = () => {
     const d = new Set(doneSteps);
     d.add(index);
     setDoneSteps(d);
-    setShowSub(false);
     if (index < total - 1) {
-      const nextIdx = index + 1;
-      setIndex(nextIdx);
-      setSuggested(extractMinutes(steps[nextIdx] ?? ''));
+      setIndex(index + 1);
       return;
     }
     setPhase('done');
@@ -487,66 +428,11 @@ export function CookingScreen({ route }: any) {
   };
 
   
-  const toggleTranslation = async () => {
-    if (showTr) {
-      setShowTr(false);
-      return;
-    }
-    if (tr) {
-      setShowTr(true);
-      return;
-    }
-    if (!isTranslatableLanguage(lang) || busyTranslate) return;
-    setBusyTranslate(true);
-    try {
-      const res: any = await translateRecipeAction({
-        recipeKey,
-        title: origTitle,
-        description: '',
-        ingredients: origIngredients,
-        steps: origSteps,
-        targetLanguage: lang,
-      } as any);
-      const stepsNew = recipeLines(res?.steps);
-      if (stepsNew.length) {
-        setTr({ title: String(res?.title || origTitle), steps: stepsNew, ingredients: recipeLines(res?.ingredients) });
-        setShowTr(true);
-      } else {
-        showNotice({ title: t('s.cookTranslateFail'), tone: 'error' });
-      }
-    } catch (e) {
-      showNotice({ title: t('s.cookTranslateFail'), body: e instanceof Error ? e.message : undefined, tone: 'error' });
-    } finally {
-      setBusyTranslate(false);
-    }
-  };
-  const canTranslate = isTranslatableLanguage(lang);
-
-  
-
-  const lastLangRef = useRef(lang);
-  useEffect(() => {
-    if (lastLangRef.current === lang) return;
-    lastLangRef.current = lang;
-    setTr(null);
-    setShowTr(false);
-  }, [lang]);
-
-  const stepIngredients = useMemo(() => {
-    if (!currentStep) return [];
-    const words = currentStep.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 3);
-    return scaledIngredients.filter((ing) => {
-      const iw = ing.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 3);
-      return iw.some((w) => words.includes(w));
-    }).slice(0, 5);
-  }, [currentStep, scaledIngredients]);
-
-  
 
   const sessionKey = `spoonful:cooking:${recipeKey}`;
   
 
-  const [resumedAt, setResumedAt] = useState<number | null>(null);
+  const [_resumedAt, setResumedAt] = useState<number | null>(null);
   useEffect(() => {
     let alive = true;
     AsyncStorage.getItem(sessionKey)
@@ -586,14 +472,11 @@ export function CookingScreen({ route }: any) {
   }, [sessionKey, index, phase, doneSteps, checkedIng, servings]);
 
   const startTimer = (mins: number, label?: string) => {
-    setSuggested(mins);
     void addTimer(mins, label ?? `${title} · ${t('cooking.step')} ${index + 1}`);
   };
 
   const begin = () => {
     setPhase('cook');
-    const mins = extractMinutes(steps[0] ?? '');
-    if (mins) setSuggested(mins);
   };
 
   
@@ -602,8 +485,6 @@ export function CookingScreen({ route }: any) {
     setIndex(0);
     setDoneSteps(new Set());
     setCheckedIng(new Set());
-    setShowSub(false);
-    setSuggested(null);
     void clearTimers();
   };
 
@@ -614,17 +495,12 @@ export function CookingScreen({ route }: any) {
       void finishAndLog();
       return;
     }
-    const nextIdx = index + 1;
-    setIndex(nextIdx);
-    const mins = extractMinutes(steps[nextIdx] ?? '');
-    setSuggested(mins);
+    setIndex(index + 1);
   };
 
   const goPrev = () => {
     if (index === 0) return;
     setIndex((i) => i - 1);
-    const mins = extractMinutes(steps[index - 1] ?? '');
-    setSuggested(mins);
   };
 
   const markIngredient = (i: number) =>
@@ -695,48 +571,206 @@ export function CookingScreen({ route }: any) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top, paddingBottom: insets.bottom }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 10, borderBottomWidth: 1, borderBottomColor: colors.cardBorder }}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: colors.accent }}>{t('s.cookHeader')}</Text>
-          <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: 16, fontWeight: '700', color: colors.textPrimary }}>{title}</Text>
-          {resumedAt ? (
-            <Text style={{ fontSize: 11, color: colors.textSecondary }}>{t('s.cookResume', { n: resumedAt })}</Text>
-          ) : null}
-        </View>
-        {canTranslate ? (
-          <Pressable
-            onPress={() => void toggleTranslation()}
-            disabled={busyTranslate}
-            accessibilityRole="button"
-            accessibilityLabel={showTr ? t('s.cookOriginal') : t('s.cookTranslate')}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: showTr ? colors.accentSoft : colors.surfaceMuted, opacity: busyTranslate ? 0.6 : 1 }}
+      <View
+        style={{
+          backgroundColor: colors.darkButton,
+          paddingHorizontal: 18,
+          paddingTop: 12,
+          paddingBottom: 16,
+          borderBottomLeftRadius: 36,
+          borderBottomRightRadius: 36,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text
+            numberOfLines={1}
+            style={{ flex: 1, fontSize: 11, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase', color: rgbaHelper(colors.darkButtonText, 0.62) }}
           >
-            <Languages size={13} color={showTr ? colors.accent : colors.textSecondary} />
-            <Text style={{ fontSize: 12, fontWeight: '700', color: showTr ? colors.accent : colors.textSecondary }}>
-              {busyTranslate ? t('s.cookTranslating') : showTr ? t('s.cookOriginal') : t('s.cookTranslate')}
-            </Text>
+            {t('s.cookHeader')}
+          </Text>
+          <Pressable
+            onPress={() => goBack()}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.close')}
+            style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: rgbaHelper(colors.darkButtonText, 0.22) }}
+          >
+            <X size={17} color={colors.darkButtonText} />
           </Pressable>
+        </View>
+
+        <Text
+          numberOfLines={2}
+          style={{ fontFamily: fonts.display, fontSize: 24, lineHeight: 28, fontWeight: '900', color: colors.darkButtonText, marginTop: 8 }}
+        >
+          {title}
+        </Text>
+
+        {phase === 'cook' ? (
+          <>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 }}>
+              <Text style={{ fontFamily: fonts.display, fontSize: 32, lineHeight: 34, fontWeight: '900', color: colors.darkButtonText, letterSpacing: -1 }}>
+                {String(index + 1).padStart(2, '0')}
+              </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 11.5, fontWeight: '700', color: rgbaHelper(colors.darkButtonText, 0.72) }}>
+                  {t('s.cookStepOf', { n: index + 1, total })}
+                </Text>
+                <View style={{ height: 5, borderRadius: 3, backgroundColor: rgbaHelper(colors.darkButtonText, 0.26), marginTop: 5, overflow: 'hidden' }}>
+                  <View style={{ height: 5, width: `${progress}%`, borderRadius: 3, backgroundColor: colors.darkButtonText }} />
+                </View>
+              </View>
+            </View>
+
+            {(stepMinutes && stepMinutes > 0) || timers.length ? (
+              <Pressable
+                onPress={() => {
+                  if (timers.length) setTimersOpen(true);
+                  else if (stepMinutes && stepMinutes > 0) startTimer(stepMinutes);
+                }}
+                style={({ pressed }) => [
+                  {
+                    marginTop: 10,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 7,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: rgbaHelper(colors.darkButtonText, 0.35),
+                    paddingHorizontal: 12,
+                    paddingVertical: 9,
+                    backgroundColor: rgbaHelper(colors.darkButtonText, timers.length ? 0.3 : 0.18),
+                    opacity: pressed ? 0.8 : 1,
+                  },
+                ]}
+              >
+                <Timer size={15} color={colors.darkButtonText} />
+                <Text style={{ flex: 1, color: colors.darkButtonText, fontWeight: '800', fontSize: 13 }}>
+                  {timers.length
+                    ? mm(Math.ceil(timerRemaining(timers[0]) / 1000))
+                    : `${t('cooking.startTimer')} · ${stepMinutes} ${t('common.min')}`}
+                </Text>
+                {timers.length ? (
+                  <>
+                    <Text style={{ color: colors.darkButtonText, fontWeight: '700', fontSize: 11.5 }}>
+                      {t('cooking.timerCount', { n: timers.length })}
+                    </Text>
+                    <ChevronRight size={14} color={colors.darkButtonText} />
+                  </>
+                ) : null}
+              </Pressable>
+            ) : null}
+
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+              {speechOk ? (
+                <CookIcon
+                  tone="dark"
+                  icon={<Volume2 size={18} color={speaking ? colors.darkButton : colors.darkButtonText} />}
+                  label={speaking ? t('s.cookListenStop') : t('s.cookListen')}
+                  active={speaking}
+                  onPress={() => void toggleSpeak()}
+                />
+              ) : null}
+              <CookIcon
+                tone="dark"
+                icon={<NotebookPen size={18} color={extras.notes[String(index)] ? colors.darkButton : colors.darkButtonText} />}
+                label={t('s.cookNote')}
+                active={!!extras.notes[String(index)]}
+                onPress={() => {
+                  setNoteDraft(extras.notes[String(index)] ?? '');
+                  setNoteOpen(true);
+                }}
+              />
+              <CookIcon
+                tone="dark"
+                icon={<Camera size={18} color={extras.photos[String(index)] ? colors.darkButton : colors.darkButtonText} />}
+                label={t('s.cookPhoto')}
+                active={!!extras.photos[String(index)]}
+                onPress={() => setPhotoOpen(true)}
+              />
+              <CookIcon
+                tone="dark"
+                icon={<Maximize2 size={18} color={colors.darkButtonText} />}
+                label={t('s.cookStepPopup')}
+                active={false}
+                onPress={openPopup}
+              />
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+              <Pressable
+                onPress={goPrev}
+                disabled={index === 0}
+                accessibilityRole="button"
+                accessibilityLabel={t('s.xBack')}
+                style={({ pressed }) => [
+                  {
+                    width: 50,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: 14,
+                    backgroundColor: rgbaHelper(colors.darkButtonText, 0.2),
+                    opacity: index === 0 ? 0.4 : pressed ? 0.7 : 1,
+                  },
+                ]}
+              >
+                <ChevronLeft size={19} color={colors.darkButtonText} />
+              </Pressable>
+              <Pressable
+                onPress={goNext}
+                style={({ pressed }) => [
+                  {
+                    flex: 1,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    borderRadius: 14,
+                    paddingVertical: 13,
+                    backgroundColor: colors.darkButtonText,
+                    opacity: pressed ? 0.85 : 1,
+                  },
+                ]}
+              >
+                {doneSteps.has(index) ? <Check size={17} color={colors.darkButton} /> : <CircleCheck size={17} color={colors.darkButton} />}
+                <Text numberOfLines={1} style={{ color: colors.darkButton, fontWeight: '800', fontSize: 14.5 }}>
+                  {doneSteps.has(index)
+                    ? isLast
+                      ? t('cooking.readyToServe')
+                      : t('cooking.nextStep')
+                    : t('cooking.nowDoThis')}
+                </Text>
+                {!isLast ? <ChevronRight size={17} color={colors.darkButton} /> : null}
+              </Pressable>
+            </View>
+
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 10, justifyContent: 'center' }}>
+              {steps.map((_step, i) => (
+                <Pressable
+                  key={i}
+                  onPress={() => setIndex(i)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t('cooking.step')} ${i + 1}`}
+                  style={{
+                    width: doneSteps.has(i) || i === index ? 22 : 6,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: i === index ? colors.darkButtonText : doneSteps.has(i) ? rgbaHelper(colors.darkButtonText, 0.65) : rgbaHelper(colors.darkButtonText, 0.3),
+                  }}
+                />
+              ))}
+            </View>
+          </>
         ) : null}
-        {timers.length ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: runningCount ? colors.accentSoft : colors.surfaceMuted }}>
-            <Timer size={14} color={runningCount ? colors.accent : colors.textSecondary} />
-            <Text style={{ color: runningCount ? colors.accent : colors.textSecondary, fontWeight: '800', fontSize: 13, fontVariant: ['tabular-nums'] }}>
-              {mm(Math.ceil(timerRemaining(timers[0]) / 1000))}
-              {timers.length > 1 ? ` +${timers.length - 1}` : ''}
-            </Text>
-          </View>
-        ) : null}
-        <Pressable onPress={() => goBack()} hitSlop={8}>
-          <X size={20} color={colors.textSecondary} />
-        </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        scrollEnabled={phase !== 'cook'}
+        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 18, paddingTop: 14, paddingBottom: 24 }}
+        showsVerticalScrollIndicator={false}
+      >
         {phase === 'prep' ? (
           <>
-            <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.surfaceMuted, overflow: 'hidden' }}>
-              <View style={{ height: 6, width: '0%', borderRadius: 3, backgroundColor: colors.accent }} />
-            </View>
             <Text style={{ marginTop: 6, fontSize: 13, color: colors.textSecondary }}>{total} {t('cooking.step')} · ~{totalTime || '?'} min</Text>
 
             <View style={{ marginTop: 10, borderRadius: 22, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 18 }}>
@@ -769,7 +803,7 @@ export function CookingScreen({ route }: any) {
               <View style={{ marginTop: 12, borderRadius: 20, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 16 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <Text style={{ fontSize: 13, fontWeight: '800', color: colors.textPrimary }}>{t('s.cookYourIngredients')}</Text>
-                  <Text style={{ fontSize: 11, color: colors.textSecondary }}>{checkedIng.size}/{ingredients.length} {t('s.cookReadyCount', { n: checkedIng.size, m: ingredients.length })}</Text>
+                  <Text style={{ fontSize: 11, color: colors.textSecondary }}>{t('s.cookReadyCount', { n: checkedIng.size, m: ingredients.length })}</Text>
                 </View>
                 <View style={{ marginTop: 6 }}>
                   {scaledIngredients.map((ing, i) => {
@@ -792,7 +826,7 @@ export function CookingScreen({ route }: any) {
             ) : null}
 
             <View style={{ marginTop: 18 }}>
-              <AppButton label={checkedIng.size === scaledIngredients.length && scaledIngredients.length > 0 ? (lang === 'de' ? 'Kochen starten' : 'Start cooking') : `${lang === 'de' ? 'Kochen starten' : 'Start cooking'} (${checkedIng.size}/${scaledIngredients.length}${lang === 'de' ? ' bereit' : ' ready'})`} variant="dark" icon={<Play size={18} color={colors.darkButtonText} />} onPress={begin} />
+              <AppButton label={t('dialog.startCooking')} variant="dark" icon={<Play size={18} color={colors.darkButtonText} />} onPress={begin} />
             </View>
           </>
         ) : phase === 'done' ? (
@@ -823,365 +857,195 @@ export function CookingScreen({ route }: any) {
             </View>
           </View>
         ) : (
-          <>
-            {cookingAdvanced ? (
-              <>
-            <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.surfaceMuted, overflow: 'hidden' }}>
-              <View style={{ height: 6, width: `${progress}%`, borderRadius: 3, backgroundColor: colors.accent }} />
-            </View>
-            <View style={{ height: 4, borderRadius: 2, backgroundColor: colors.surfaceMuted, overflow: 'hidden', marginTop: 4 }}>
-              <View style={{ height: 4, width: `${total ? ((index + 1) / total) * 100 : 0}%`, borderRadius: 2, backgroundColor: colors.cyan }} />
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-              <Text style={{ fontSize: 12, color: colors.textSecondary }}>{t('s.cookStepOf', { n: index + 1, total })} · {doneSteps.size}/{total}</Text>
-              <Text style={{ fontSize: 12, color: colors.accent, fontWeight: '800' }}>{Math.round(progress)}%</Text>
-            </View>
-
-            <Text numberOfLines={2} style={{ marginTop: 8, fontFamily: fonts.display, fontSize: 17, fontWeight: '700', color: colors.textPrimary }}>
-              {groupLabel(currentMeta?.group ?? 'prep')} · {currentMeta?.title}
+          <View {...pan.panHandlers} style={{ flex: 1, paddingTop: 18, justifyContent: 'center' }}>
+            <Text
+              numberOfLines={6}
+              style={{ fontFamily: fonts.display, fontSize: 24, lineHeight: 32, color: colors.textPrimary, fontWeight: '700' }}
+            >
+              {currentStep}
             </Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, backgroundColor: colors.surfaceMuted, paddingHorizontal: 9, paddingVertical: 3 }}>
-                <Gauge size={11} color={colors.textSecondary} />
-                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary }}>{difficultyLabel(currentMeta?.difficulty ?? 'easy')}</Text>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, backgroundColor: colors.surfaceMuted, paddingHorizontal: 9, paddingVertical: 3 }}>
-                <Timer size={11} color={colors.textSecondary} />
-                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary }}>{t('s.cookRemaining', { min: remainingMinutes })}</Text>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, backgroundColor: colors.surfaceMuted, paddingHorizontal: 9, paddingVertical: 3 }}>
-                <Play size={11} color={colors.textSecondary} />
-                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary }}>{t('s.cookElapsed', { min: elapsedMinutes })}</Text>
-              </View>
-            </View>
 
-            {others.length ? (
-              <View style={{ marginTop: 10, borderRadius: 14, borderWidth: 1, borderColor: rgbaHelper(colors.accent, 0.35), backgroundColor: colors.accentSoft, padding: 10, gap: 6 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <UsersRound size={14} color={colors.accent} />
-                  <Text style={{ fontSize: 12, fontWeight: '800', color: colors.accent }}>{t('s.cookHousehold')}</Text>
-                </View>
-                {others.slice(0, 3).map((h) => (
-                  <Pressable
-                    key={h.userId}
-                    onPress={() => { if (h.recipeKey === recipeKey && h.total === total) setIndex(Math.max(0, Math.min(total - 1, h.step))); }}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
-                  >
-                    <Text numberOfLines={1} style={{ flex: 1, fontSize: 12.5, color: colors.textPrimary }}>
-                      {t('s.cookHouseholdAt', { name: h.name || '-', n: h.step + 1, total: h.total })}
-                    </Text>
-                    {h.recipeKey === recipeKey && h.total === total ? (
-                      <Text style={{ fontSize: 11.5, fontWeight: '800', color: colors.accent }}>{t('s.cookHouseholdJump')}</Text>
-                    ) : null}
-                  </Pressable>
-                ))}
+            {guideText && guideText.coach ? (
+              <View style={{ marginTop: 14, borderRadius: 16, backgroundColor: colors.accentSoft, paddingHorizontal: 14, paddingVertical: 11 }}>
+                <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', color: colors.accent }}>
+                  {t('s.cookGuideCoach')}
+                </Text>
+                <Text numberOfLines={3} style={{ fontSize: 13, lineHeight: 18.5, color: colors.textPrimary, marginTop: 3 }}>
+                  {guideText.coach}
+                </Text>
               </View>
             ) : null}
 
-            {awayFor > 0 ? (
-              <Pressable
-                onPress={() => { if (resumeIndex >= 0) setIndex(resumeIndex); setAwayFor(0); }}
-                style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, borderWidth: 1, borderColor: rgbaHelper(colors.cyan, 0.35), backgroundColor: colors.cyanBg, padding: 10 }}
+            {guideText && guideText.look ? (
+              <View
+                style={{
+                  marginTop: 8,
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: rgbaHelper(colors.amber, 0.35),
+                  backgroundColor: rgbaHelper(colors.amber, 0.08),
+                  paddingHorizontal: 14,
+                  paddingVertical: 11,
+                }}
               >
-                <RotateCcw size={15} color={colors.cyan} />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.cyan }}>
-                    {t('s.cookWhereWasI', { n: (resumeIndex >= 0 ? resumeIndex : index) + 1 })}
-                  </Text>
-                  <Text style={{ fontSize: 11.5, color: colors.textSecondary }}>{t('s.cookWhereWasIDesc')}</Text>
-                </View>
-              </Pressable>
-            ) : null}
-              </>
-            ) : (
-              
-              <>
-                <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.surfaceMuted, overflow: 'hidden' }}>
-                  <View style={{ height: 6, width: `${progress}%`, borderRadius: 3, backgroundColor: colors.accent }} />
-                </View>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-                  <Text style={{ fontSize: 12, color: colors.textSecondary }}>{t('s.cookStepOf', { n: index + 1, total })} · {doneSteps.size}/{total}</Text>
-                  <Text style={{ fontSize: 12, color: colors.accent, fontWeight: '800' }}>{Math.round(progress)}%</Text>
-                </View>
-              </>
-            )}
-
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
-              {steps.map((_: string, i: number) => (
-                <Pressable key={i} onPress={() => { setIndex(i); const mins = extractMinutes(steps[i] ?? ''); setSuggested(mins); }} style={{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: i === index ? colors.accent : doneSteps.has(i) ? colors.successBg : colors.surfaceMuted }}>
-                  {doneSteps.has(i) ? <Check size={15} color={colors.success} strokeWidth={3} /> : <Text style={{ fontSize: 12, fontWeight: '800', color: i === index ? colors.accentText : colors.textSecondary }}>{i + 1}</Text>}
-                </Pressable>
-              ))}
-            </View>
-
-            <View {...pan.panHandlers} style={{ marginTop: 14 }}>
-              <View style={{ borderRadius: 22, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 20 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', color: colors.accent }}>
-                    {t('cooking.step')} {index + 1} {t('cooking.of')} {total}
-                  </Text>
-                  {cookingAdvanced ? (
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                    <View style={{ borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: rgbaHelper(groupColor(currentMeta?.group ?? 'prep'), 0.16) }}>
-                      <Text style={{ fontSize: 11, fontWeight: '800', color: groupColor(currentMeta?.group ?? 'prep') }}>{groupLabel(currentMeta?.group ?? 'prep')}</Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: colors.surfaceMuted }}>
-                      <Gauge size={11} color={difficultyColor(currentMeta?.difficulty ?? 'easy')} />
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary }}>{difficultyLabel(currentMeta?.difficulty ?? 'easy')}</Text>
-                    </View>
-                    <View style={{ borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: colors.surfaceMuted }}>
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary }}>{`~${currentMeta?.minutes ?? 0} min`}</Text>
-                    </View>
-                  </View>
-                  ) : (
-                    
-                    <View style={{ borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: colors.surfaceMuted }}>
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary }}>{stepMinutes ? `~${stepMinutes} min` : t('s.cookQuickStep')}</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={{ fontFamily: fonts.display, fontSize: 25, lineHeight: 34, color: colors.textPrimary, fontWeight: '700', marginTop: 14, paddingRight: speechOk ? 46 : 0 }}>
-                  {currentStep}
+                <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', color: colors.amber }}>
+                  {t('s.cookGuideLook')}
                 </Text>
-                <View style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  {
-}
-                  {speechOk ? (
-                    <Pressable
-                      onPress={() => void toggleSpeak()}
-                      accessibilityRole="button"
-                      accessibilityLabel={speaking ? t('s.cookListenStop') : t('s.cookListen')}
-                      style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, borderWidth: 1, borderColor: speaking ? colors.accent : colors.cardBorder, backgroundColor: speaking ? colors.accentSoft : colors.card, paddingHorizontal: 12, paddingVertical: 7, opacity: pressed ? 0.8 : 1 }]}
-                    >
-                      {speaking ? <Square size={13} color={colors.accent} /> : <Volume2 size={14} color={colors.accent} />}
-                      <Text style={{ fontSize: 12, fontWeight: '800', color: colors.accent }}>
-                        {speaking ? t('s.cookListenStop') : t('s.cookListen')}
-                      </Text>
-                    </Pressable>
-                  ) : null}
-                  {
-}
-                  <Pressable
-                    onPress={() => openPopup()}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('s.cookStepPopup')}
-                    style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 12, paddingVertical: 7, opacity: pressed ? 0.8 : 1 }]}
-                  >
-                    <Maximize2 size={13} color={colors.textSecondary} />
-                    <Text style={{ fontSize: 12, fontWeight: '800', color: colors.textSecondary }}>{t('s.cookStepPopup')}</Text>
-                  </Pressable>
-                </View>
-
-                {cookingAdvanced ? (
-                  <>
-                {currentMeta?.dependency ? (
-                  <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: colors.cyanBg }}>
-                    <Timer size={12} color={colors.cyan} />
-                    <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.cyan }}>
-                      {currentMeta.dependency === 'meanwhile' ? t('s.cookDependMeanwhile') : t('s.cookDependWait')}
-                    </Text>
-                  </View>
-                ) : null}
-
-                {currentMeta?.sub && currentMeta.sub.length > 1 ? (
-                  <View style={{ marginTop: 12 }}>
-                    <Pressable onPress={() => setShowSub((v) => !v)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start' }}>
-                      <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.accent }}>{t('s.cookSubSteps')} ({currentMeta.sub.length})</Text>
-                      {showSub ? <ChevronUp size={14} color={colors.accent} /> : <ChevronDown size={14} color={colors.accent} />}
-                    </Pressable>
-                    {showSub ? (
-                      <View style={{ marginTop: 8, gap: 6 }}>
-                        {currentMeta.sub.map((part, i) => (
-                          <View key={i} style={{ flexDirection: 'row', gap: 8 }}>
-                            <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.textSecondary }}>{i + 1}.</Text>
-                            <Text style={{ flex: 1, fontSize: 13, lineHeight: 19, color: colors.textPrimary }}>{part}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    ) : null}
-                  </View>
-                ) : null}
-
-                {stepIngredients.length > 0 ? (
-                  <View style={{ marginTop: 16 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                      <ListChecks size={14} color={colors.textSecondary} />
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('s.cookForStep')}</Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 7 }}>
-                      {stepIngredients.map((ing, i) => (
-                        <View key={i} style={{ borderRadius: 999, backgroundColor: colors.accentSoft, paddingHorizontal: 9, paddingVertical: 4 }}>
-                          <Text style={{ fontSize: 11, fontWeight: '600', color: colors.accent }}>{ing}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                ) : null}
-
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
-                  <Pressable
-                    onPress={() => { setNoteDraft(extras.notes[String(index)] ?? ''); setNoteOpen((v) => !v); }}
-                    style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7, backgroundColor: extras.notes[String(index)] ? colors.accentSoft : colors.surfaceMuted, opacity: pressed ? 0.7 : 1 }]}
-                  >
-                    <NotebookPen size={14} color={extras.notes[String(index)] ? colors.accent : colors.textSecondary} />
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: extras.notes[String(index)] ? colors.accent : colors.textSecondary }}>{t('s.cookNote')}</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => void attachStepPhoto()}
-                    style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7, backgroundColor: extras.photos[String(index)] ? colors.accentSoft : colors.surfaceMuted, opacity: pressed ? 0.7 : 1 }]}
-                  >
-                    <Camera size={14} color={extras.photos[String(index)] ? colors.accent : colors.textSecondary} />
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: extras.photos[String(index)] ? colors.accent : colors.textSecondary }}>{t('s.cookPhoto')}</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => toggleSkip(index)}
-                    style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7, backgroundColor: skippedSet.has(index) ? rgbaHelper(colors.rose, 0.14) : colors.surfaceMuted, opacity: pressed ? 0.7 : 1 }]}
-                  >
-                    <SkipForward size={14} color={skippedSet.has(index) ? colors.rose : colors.textSecondary} />
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: skippedSet.has(index) ? colors.rose : colors.textSecondary }}>
-                      {skippedSet.has(index) ? t('s.cookSkipped') : t('s.cookSkip')}
-                    </Text>
-                  </Pressable>
-                </View>
-
-                {noteOpen ? (
-                  <View style={{ marginTop: 10 }}>
-                    <TextInput
-                      value={noteDraft}
-                      onChangeText={setNoteDraft}
-                      placeholder={t('s.cookNote')}
-                      placeholderTextColor={colors.textSecondary}
-                      multiline
-                      style={{ borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.surfaceMuted, color: colors.textPrimary, paddingHorizontal: 12, paddingVertical: 9, fontSize: 13, minHeight: 62, textAlignVertical: 'top' }}
-                    />
-                    <Pressable onPress={saveNote} style={({ pressed }) => [{ alignSelf: 'flex-start', marginTop: 8, borderRadius: 11, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: colors.darkButton, opacity: pressed ? 0.85 : 1 }]}>
-                      <Text style={{ color: colors.darkButtonText, fontWeight: '700', fontSize: 13 }}>{t('s.cookNoteSave')}</Text>
-                    </Pressable>
-                  </View>
-                ) : null}
-                {!noteOpen && extras.notes[String(index)] ? (
-                  <Text style={{ marginTop: 8, fontSize: 12.5, color: colors.textSecondary, fontStyle: 'italic' }}>{extras.notes[String(index)]}</Text>
-                ) : null}
-                {extras.photos[String(index)] ? (
-                  <CroppedImage uri={extras.photos[String(index)]} style={{ marginTop: 10, width: '100%', height: 150, borderRadius: 14 }} />
-                ) : null}
-                  </>
-                ) : null}
-
-                {
-
-}
-                <View style={{ marginTop: 16, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.surfaceMuted, padding: 12 }}>
-                  <StepGuideBlock
-                    coach={guideText?.coach ?? null}
-                    look={guideText?.look ?? null}
-                    placeholder={t('s.cookGuideSoon')}
-                    coachLabel={t('s.cookGuideCoach')}
-                    lookLabel={t('s.cookGuideLook')}
-                  />
-                </View>
-
-                {stepMinutes && stepMinutes > 0 ? (
-                  <Pressable
-                    onPress={() => startTimer(stepMinutes)}
-                    style={({ pressed }) => [{ marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 13, paddingVertical: 12, backgroundColor: colors.cyanBg, opacity: pressed ? 0.8 : 1 }]}
-                  >
-                    <Timer size={17} color={colors.cyan} />
-                    <Text style={{ color: colors.cyan, fontWeight: '800', fontSize: 14 }}>
-                      {`${t('cooking.startTimer')} · ${stepMinutes} ${t('common.min')}`}
-                    </Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            </View>
-
-            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 16, flexWrap: 'wrap' }}>
-              {PRESETS.map((m) => (
-                <Pressable key={m} onPress={() => startTimer(m)} style={({ pressed }) => [{ paddingHorizontal: 13, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 }]}>
-                  <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 13 }}>{m}m</Text>
-                </Pressable>
-              ))}
-              {timers.length ? (
-                <Pressable onPress={() => void clearTimers()} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.7 : 1 }]}>
-                  <RotateCcw size={14} color={colors.textSecondary} />
-                  <Text style={{ color: colors.textSecondary, fontWeight: '700', fontSize: 13 }}>{t('cooking.resetTimer')}</Text>
-                </Pressable>
-              ) : null}
-            </View>
-
-            {timers.length ? (
-              <View style={{ marginTop: 12, gap: 8 }}>
-                {timers.map((timer) => {
-                  const left = Math.max(0, Math.ceil(timerRemaining(timer) / 1000));
-                  const done = left === 0;
-                  return (
-                    <View
-                      key={timer.id}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 10,
-                        borderRadius: 14,
-                        borderWidth: 1,
-                        borderColor: done ? colors.success : colors.cardBorder,
-                        backgroundColor: done ? colors.successBg : colors.card,
-                        paddingHorizontal: 12,
-                        paddingVertical: 10,
-                      }}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>
-                          {timer.label}
-                        </Text>
-                        <Text style={{ fontSize: 20, fontWeight: '800', color: done ? colors.success : colors.accent, fontVariant: ['tabular-nums'] }}>
-                          {mm(left)}
-                        </Text>
-                      </View>
-                      <Pressable
-                        onPress={() => (timer.running ? void pauseTimer(timer.id) : void resumeTimer(timer.id))}
-                        style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' }}
-                      >
-                        {timer.running ? <Pause size={15} color={colors.textPrimary} /> : <Play size={15} color={colors.textPrimary} />}
-                      </Pressable>
-                      <Pressable
-                        onPress={() => void extendTimer(timer.id, 1)}
-                        style={{ flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 9, height: 34, borderRadius: 17, backgroundColor: colors.surfaceMuted }}
-                      >
-                        <Plus size={13} color={colors.textPrimary} />
-                        <Text style={{ fontSize: 11, fontWeight: '800', color: colors.textPrimary }}>1m</Text>
-                      </Pressable>
-                      <Pressable onPress={() => void removeTimer(timer.id)} hitSlop={8} style={{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' }}>
-                        <X size={16} color={colors.rose} />
-                      </Pressable>
-                    </View>
-                  );
-                })}
+                <Text numberOfLines={2} style={{ fontSize: 13, lineHeight: 18.5, color: colors.amber, fontWeight: '600', marginTop: 3 }}>
+                  {guideText.look}
+                </Text>
               </View>
             ) : null}
 
-            {
-}
+            {extras.photos[String(index)] ? (
+              <Pressable
+                onLongPress={() => setPhotoOpen(true)}
+                delayLongPress={350}
+                accessibilityRole="button"
+                accessibilityLabel={t('s.cropLongPress')}
+              >
+                <CroppedImage
+                  uri={extras.photos[String(index)]}
+                  cropVersion={photoVersion}
+                  style={{ marginTop: 10, width: '100%', height: 96, borderRadius: 14 }}
+                />
+              </Pressable>
+            ) : null}
 
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
-              <Pressable onPress={goPrev} disabled={index === 0} style={({ pressed }) => [{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, paddingVertical: 14, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder, opacity: index === 0 ? 0.5 : pressed ? 0.8 : 1 }]}>
-                <ChevronLeft size={18} color={colors.textPrimary} />
-                <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>{t('s.xBack')}</Text>
-              </Pressable>
-              <Pressable onPress={goNext} style={({ pressed }) => [{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, paddingVertical: 14, backgroundColor: colors.darkButton, opacity: pressed ? 0.85 : 1 }]}>
-                {doneSteps.has(index) ? <Check size={18} color={colors.darkButtonText} /> : <CircleCheck size={18} color={colors.darkButtonText} />}
-                <Text style={{ color: colors.darkButtonText, fontWeight: '700', fontSize: 15 }}>
-                  {doneSteps.has(index) ? (isLast ? (lang === 'de' ? 'Fertig' : 'Finish') : (lang === 'de' ? 'Weiter' : 'Next step')) : (lang === 'de' ? 'Erledigt, weiter' : 'Done - next step')}
+            {extras.notes[String(index)] ? (
+              <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+                <NotebookPen size={12} color={colors.textSecondary} style={{ marginTop: 3 }} />
+                <Text style={{ flex: 1, fontSize: 12, lineHeight: 17, color: colors.textSecondary, fontStyle: 'italic' }}>
+                  {extras.notes[String(index)]}
                 </Text>
-                {!isLast ? <ChevronRight size={18} color={colors.darkButtonText} /> : null}
-              </Pressable>
-            </View>
-          </>
+              </View>
+            ) : null}
+          </View>
         )}
       </ScrollView>
 
-      {
+      <Modal visible={noteOpen} transparent animationType="fade" onRequestClose={() => setNoteOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: colors.overlayStrong, padding: 16, justifyContent: 'center' }}>
+          <View style={{ borderRadius: 22, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 16 }}>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textPrimary }}>
+              {`${t('s.cookNote')} · ${index + 1}`}
+            </Text>
+            <TextInput
+              autoFocus
+              multiline
+              value={noteDraft}
+              onChangeText={setNoteDraft}
+              placeholder={t('s.cookNote')}
+              placeholderTextColor={colors.textSecondary}
+              style={{
+                marginTop: 12,
+                minHeight: 110,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: colors.cardBorder,
+                backgroundColor: colors.surfaceMuted,
+                color: colors.textPrimary,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                fontSize: 14,
+                textAlignVertical: 'top',
+              }}
+            />
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+              <AppButton label={t('common.cancel')} variant="ghost" onPress={() => setNoteOpen(false)} style={{ flex: 1 }} />
+              <AppButton label={t('s.cookNoteSave')} onPress={saveNote} style={{ flex: 1 }} />
+            </View>
+          </View>
+        </View>
+      </Modal>
 
-}
+      <Modal visible={photoOpen} transparent animationType="fade" onRequestClose={() => setPhotoOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: colors.overlayStrong, padding: 16, justifyContent: 'center' }}>
+          <View style={{ borderRadius: 22, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={{ flex: 1, fontSize: 15, fontWeight: '800', color: colors.textPrimary }}>
+                {`${t('s.cookPhoto')} · ${index + 1}`}
+              </Text>
+              <Pressable onPress={() => setPhotoOpen(false)} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('common.close')}>
+                <X size={19} color={colors.textSecondary} />
+              </Pressable>
+            </View>
+            {extras.photos[String(index)] ? (
+              <CroppedImage
+                uri={extras.photos[String(index)]}
+                cropVersion={photoVersion}
+                style={{ marginTop: 12, width: '100%', height: 220, borderRadius: 14 }}
+              />
+            ) : null}
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+              <AppButton label={t('s.cookCamera')} variant="ghost" onPress={() => void saveStepPhoto('camera')} style={{ flex: 1 }} />
+              <AppButton label={t('s.formGallery')} variant="ghost" onPress={() => void saveStepPhoto('gallery')} style={{ flex: 1 }} />
+            </View>
+            {extras.photos[String(index)] ? (
+              <AppButton label={t('s.cropEdit')} variant="ghost" onPress={() => void recropStepPhoto()} style={{ marginTop: 8 }} />
+            ) : null}
+            {extras.photos[String(index)] ? (
+              <AppButton label={t('common.remove')} variant="danger" onPress={removeStepPhoto} style={{ marginTop: 8 }} />
+            ) : null}
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={timersOpen} transparent animationType="fade" onRequestClose={() => setTimersOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: colors.overlayStrong, padding: 16, justifyContent: 'center' }}>
+          <View style={{ borderRadius: 22, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={{ flex: 1, fontSize: 15, fontWeight: '800', color: colors.textPrimary }}>{t('cooking.kitchenTimer')}</Text>
+              <Pressable onPress={() => setTimersOpen(false)} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('common.close')}>
+                <X size={19} color={colors.textSecondary} />
+              </Pressable>
+            </View>
+            <Text style={{ marginTop: 4, fontSize: 12, lineHeight: 17, color: colors.textSecondary }}>{t('cooking.timersHint')}</Text>
+            {timers.length ? (
+              <View style={{ marginTop: 10 }}>
+                {timers.map((timer) => (
+                  <View key={timer.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: colors.cardBorder }}>
+                    <View style={{ flex: 1 }}>
+                      <Text numberOfLines={1} style={{ fontSize: 11.5, fontWeight: '600', color: colors.textSecondary }}>{timer.label}</Text>
+                      <Text style={{ marginTop: 2, fontSize: 20, fontWeight: '800', color: timer.running ? colors.textPrimary : colors.textSecondary }}>
+                        {mm(Math.ceil(timerRemaining(timer) / 1000))}
+                      </Text>
+                    </View>
+                    <Pressable
+                      onPress={() => { void (timer.running ? pauseTimer(timer.id) : resumeTimer(timer.id)); }}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={timer.running ? t('cooking.pauseTimer') : t('cooking.resumeTimer')}
+                      style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted }}
+                    >
+                      {timer.running ? <Square size={14} color={colors.textPrimary} /> : <Play size={15} color={colors.textPrimary} />}
+                    </Pressable>
+                    <Pressable
+                      onPress={() => void removeTimer(timer.id)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('common.remove')}
+                      style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted }}
+                    >
+                      <X size={16} color={colors.textSecondary} />
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={{ marginTop: 12, fontSize: 13, color: colors.textSecondary }}>{t('cooking.noTimers')}</Text>
+            )}
+            {stepMinutes && stepMinutes > 0 ? (
+              <AppButton
+                label={`${t('cooking.addTimer')} · ${stepMinutes} ${t('common.min')}`}
+                onPress={() => startTimer(stepMinutes)}
+                style={{ marginTop: 12 }}
+              />
+            ) : null}
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={popupOpen} transparent animationType="fade" onRequestClose={() => { void stopReadAloud(); setPopupOpen(false); }} statusBarTranslucent>
         <View {...popupPan.panHandlers} style={{ flex: 1, backgroundColor: colors.overlayStrong, padding: 16, justifyContent: 'center' }}>
           <View style={{ borderRadius: 24, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 20 }}>
@@ -1208,15 +1072,6 @@ export function CookingScreen({ route }: any) {
                 >
                   {speaking ? <Square size={13} color={colors.accent} /> : <Volume2 size={14} color={colors.accent} />}
                   <Text style={{ fontSize: 12, fontWeight: '800', color: colors.accent }}>{speaking ? t('s.cookListenStop') : t('s.cookListen')}</Text>
-                </Pressable>
-              ) : null}
-              {stepMinutes && stepMinutes > 0 ? (
-                <Pressable
-                  onPress={() => startTimer(stepMinutes)}
-                  style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, backgroundColor: colors.cyanBg, paddingHorizontal: 12, paddingVertical: 8, opacity: pressed ? 0.8 : 1 }]}
-                >
-                  <Timer size={15} color={colors.cyan} />
-                  <Text style={{ fontSize: 12, fontWeight: '800', color: colors.cyan }}>{`${stepMinutes} ${t('common.min')}`}</Text>
                 </Pressable>
               ) : null}
             </View>
@@ -1279,3 +1134,69 @@ function NutChip({ label, value }: { label: string; value: string }) {
   );
 }
 
+
+function CookIcon({
+  icon,
+  label,
+  active,
+  onPress,
+  tone = 'light',
+}: {
+  icon: React.ReactNode;
+  label: string;
+  active: boolean;
+  onPress: () => void;
+  tone?: 'light' | 'dark';
+}) {
+  const dark = tone === 'dark';
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed }) => [
+        {
+          flex: 1,
+          alignItems: 'center',
+          gap: 3,
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: dark
+            ? active
+              ? colors.darkButtonText
+              : rgbaHelper(colors.darkButtonText, 0.3)
+            : active
+              ? colors.accent
+              : colors.cardBorder,
+          backgroundColor: dark
+            ? active
+              ? colors.darkButtonText
+              : rgbaHelper(colors.darkButtonText, 0.16)
+            : active
+              ? colors.accentSoft
+              : colors.surfaceMuted,
+          paddingVertical: 8,
+          opacity: pressed ? 0.75 : 1,
+        },
+      ]}
+    >
+      {icon}
+      <Text
+        numberOfLines={1}
+        style={{
+          fontSize: 9.5,
+          fontWeight: '800',
+          color: dark
+            ? active
+              ? colors.darkButton
+              : colors.darkButtonText
+            : active
+              ? colors.accent
+              : colors.textSecondary,
+        }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}

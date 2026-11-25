@@ -22,6 +22,7 @@ export const APP_310: Record<string, Record<string, any>> = {
       hhRemindTitle: 'Spoonful Haushalt', hhRemindBody: 'Offene Aufgaben: {n} · Einkauf: {m}',
       cropTitle: 'Bild-Ausschnitt', cropHint: 'Ziehen, um die sichtbare Stelle zu wählen', cropReset: 'Zurücksetzen',
       cropCancel: 'Abbrechen', cropApply: 'Übernehmen',
+      cropPart: 'Ausschnitt', cropWhole: 'Ganzes Bild', cropEdit: 'Ausschnitt ändern', cropLongPress: 'Lange drücken zum Bearbeiten oder Löschen',
       advSection: 'Kochmodus', advTitle: 'Cooking Mode Advanced',
       advDesc: 'An: alle neuen Funktionen (Schritte, Notizen, Fotos, Zweitgericht, Haushalt). Aus: klassischer Kochmodus.',
       cookAgain: 'Nochmal kochen', cookFinishBtn: 'Fertig',
@@ -49,6 +50,7 @@ export const APP_310: Record<string, Record<string, any>> = {
       hhRemindTitle: 'Spoonful household', hhRemindBody: 'Open tasks: {n} · Shopping: {m}',
       cropTitle: 'Photo crop', cropHint: 'Drag to choose the visible part', cropReset: 'Reset',
       cropCancel: 'Cancel', cropApply: 'Apply',
+      cropPart: 'Crop area', cropWhole: 'Full image', cropEdit: 'Change crop', cropLongPress: 'Long press to edit or delete',
       advSection: 'Cooking mode', advTitle: 'Cooking Mode Advanced',
       advDesc: 'On: all new features (steps, notes, photos, second dish, household). Off: classic cooking mode.',
       cookAgain: 'Cook again', cookFinishBtn: 'Done',
@@ -75,6 +77,7 @@ export const APP_310: Record<string, Record<string, any>> = {
       hhRemindTitle: 'أسرة Spoonful', hhRemindBody: 'مهام مفتوحة: {n} · التسوق: {m}',
       cropTitle: 'اقتصاص الصورة', cropHint: 'اسحب لاختيار الجزء الظاهر', cropReset: 'إعادة',
       cropCancel: 'إلغاء', cropApply: 'تطبيق',
+      cropPart: 'الجزء المقتطع', cropWhole: 'الصورة كاملة', cropEdit: 'تغيير الاقتصاص', cropLongPress: 'اضغط مطولاً للتعديل أو الحذف',
       advSection: 'وضع الطهي', advTitle: 'وضع الطهي المتقدم',
       advDesc: 'تشغيل كل الميزات الجديدة، أو الوضع الكلاسيكي عند الإيقاف.',
       cookAgain: 'اطبخ مرة أخرى', cookFinishBtn: 'تم',
@@ -101,6 +104,7 @@ export const APP_310: Record<string, Record<string, any>> = {
       hhRemindTitle: 'Foyer Spoonful', hhRemindBody: 'Taches ouvertes: {n} · Courses: {m}',
       cropTitle: 'Cadrage photo', cropHint: 'Fais glisser pour choisir la partie visible', cropReset: 'Reinitialiser',
       cropCancel: 'Annuler', cropApply: 'Appliquer',
+      cropPart: 'Cadrage', cropWhole: 'Image entière', cropEdit: 'Modifier le cadrage', cropLongPress: 'Appui long pour modifier ou supprimer',
       advSection: 'Mode cuisine', advTitle: 'Mode cuisine avance',
       advDesc: 'On: toutes les nouveautes. Off: mode classique.',
       cookAgain: 'Recuisiner', cookFinishBtn: 'Termine',
@@ -127,6 +131,7 @@ export const APP_310: Record<string, Record<string, any>> = {
       hhRemindTitle: 'Hogar Spoonful', hhRemindBody: 'Tareas abiertas: {n} · Compra: {m}',
       cropTitle: 'Recorte de foto', cropHint: 'Arrastra para elegir la parte visible', cropReset: 'Restablecer',
       cropCancel: 'Cancelar', cropApply: 'Aplicar',
+      cropPart: 'Recorte', cropWhole: 'Imagen completa', cropEdit: 'Cambiar recorte', cropLongPress: 'Mantén pulsado para editar o eliminar',
       advSection: 'Modo cocina', advTitle: 'Modo cocina avanzado',
       advDesc: 'On: todas las funciones nuevas. Off: modo clásico.',
       cookAgain: 'Cocinar otra vez', cookFinishBtn: 'Listo',
@@ -153,6 +158,7 @@ export const APP_310: Record<string, Record<string, any>> = {
       hhRemindTitle: 'Famiglia Spoonful', hhRemindBody: 'Attività aperte: {n} · Spesa: {m}',
       cropTitle: 'Ritaglio foto', cropHint: 'Trascina per scegliere la parte visibile', cropReset: 'Reimposta',
       cropCancel: 'Annulla', cropApply: 'Applica',
+      cropPart: 'Ritaglio', cropWhole: 'Immagine intera', cropEdit: 'Cambia ritaglio', cropLongPress: 'Tieni premuto per modificare o eliminare',
       advSection: 'Modalità cucina', advTitle: 'Modalità cucina avanzata',
       advDesc: 'On: tutte le novità. Off: modalità classica.',
       cookAgain: 'Cucina ancora', cookFinishBtn: 'Fatto',
@@ -179,6 +185,7 @@ export const APP_310: Record<string, Record<string, any>> = {
       hhRemindTitle: 'Spoonful hane', hhRemindBody: 'Açık görevler: {n} · Alışveriş: {m}',
       cropTitle: 'Fotoğraf kırpma', cropHint: 'Görünen kısmı seçmek için sürükle', cropReset: 'Sıfırla',
       cropCancel: 'İptal', cropApply: 'Uygula',
+      cropPart: 'Kırpma', cropWhole: 'Tam görsel', cropEdit: 'Kırpmayı değiştir', cropLongPress: 'Düzenlemek veya silmek için basılı tut',
       advSection: 'Pişirme modu', advTitle: 'Gelişmiş pişirme modu',
       advDesc: 'Açık: tüm yeni özellikler. Kapalı: klasik mod.',
       cookAgain: 'Tekrar pişir', cookFinishBtn: 'Bitti',
@@ -205,6 +212,7 @@ export const APP_310: Record<string, Record<string, any>> = {
       hhRemindTitle: 'Agregado Spoonful', hhRemindBody: 'Tarefas abertas: {n} · Compras: {m}',
       cropTitle: 'Recorte da foto', cropHint: 'Arrasta para escolher a parte visível', cropReset: 'Reiniciar',
       cropCancel: 'Cancelar', cropApply: 'Aplicar',
+      cropPart: 'Recorte', cropWhole: 'Imagem completa', cropEdit: 'Alterar recorte', cropLongPress: 'Mantém premido para editar ou remover',
       advSection: 'Modo cozinha', advTitle: 'Modo cozinha avançado',
       advDesc: 'On: todas as novidades. Off: modo clássico.',
       cookAgain: 'Cozinhar outra vez', cookFinishBtn: 'Concluído',
@@ -231,6 +239,7 @@ export const APP_310: Record<string, Record<string, any>> = {
       hhRemindTitle: 'Spoonful huishouden', hhRemindBody: 'Open taken: {n} · Boodschappen: {m}',
       cropTitle: 'Foto uitsnede', cropHint: 'Sleep om het zichtbare deel te kiezen', cropReset: 'Herstellen',
       cropCancel: 'Annuleren', cropApply: 'Toepassen',
+      cropPart: 'Uitsnede', cropWhole: 'Hele afbeelding', cropEdit: 'Uitsnede wijzigen', cropLongPress: 'Houd ingedrukt om te bewerken of te verwijderen',
       advSection: 'Kookmodus', advTitle: 'Kookmodus uitgebreid',
       advDesc: 'Aan: alle nieuwe functies. Uit: klassieke kookmodus.',
       cookAgain: 'Opnieuw koken', cookFinishBtn: 'Klaar',
@@ -257,10 +266,41 @@ export const APP_310: Record<string, Record<string, any>> = {
       hhRemindTitle: 'Дом Spoonful', hhRemindBody: 'Открытые задачи: {n} · Покупки: {m}',
       cropTitle: 'Кадрирование', cropHint: 'Перетащите, чтобы выбрать видимую часть', cropReset: 'Сброс',
       cropCancel: 'Отмена', cropApply: 'Применить',
+      cropPart: 'Кадрирование', cropWhole: 'Всё изображение', cropEdit: 'Изменить кадрирование', cropLongPress: 'Удерживайте, чтобы изменить или удалить',
       advSection: 'Режим готовки', advTitle: 'Расширенный режим готовки',
       advDesc: 'Вкл: все новые функции. Выкл: классический режим.',
       cookAgain: 'Готовить снова', cookFinishBtn: 'Готово',
       slideTitle: 'Ваши фото шагов', slideOfStep: 'Шаг {n}', slideOf: '{n} из {m}',
+    },
+  },
+  uk: {
+    s: {
+      cropPart: 'Кадрування', cropWhole: 'Усе зображення', cropEdit: 'Змінити кадрування', cropLongPress: 'Утримуйте, щоб змінити або видалити',
+    },
+  },
+  zh: {
+    s: {
+      cropPart: '裁剪', cropWhole: '完整图片', cropEdit: '更改裁剪', cropLongPress: '长按以编辑或删除',
+    },
+  },
+  ja: {
+    s: {
+      cropPart: '切り抜き', cropWhole: '画像全体', cropEdit: '切り抜きを変更', cropLongPress: '長押しで編集または削除',
+    },
+  },
+  ko: {
+    s: {
+      cropPart: '자르기', cropWhole: '전체 이미지', cropEdit: '자르기 변경', cropLongPress: '길게 눌러 편집 또는 삭제',
+    },
+  },
+  hi: {
+    s: {
+      cropPart: 'क्रॉप', cropWhole: 'पूरी छवि', cropEdit: 'क्रॉप बदलें', cropLongPress: 'संपादित या हटाने के लिए देर तक दबाएं',
+    },
+  },
+  pl: {
+    s: {
+      cropPart: 'Kadrowanie', cropWhole: 'Całe zdjęcie', cropEdit: 'Zmień kadrowanie', cropLongPress: 'Przytrzymaj, aby edytować lub usunąć',
     },
   },
 };

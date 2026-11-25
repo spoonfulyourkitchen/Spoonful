@@ -1,15 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Animated,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   Share,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
@@ -17,8 +13,8 @@ import { Alert } from '../lib/alert';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  ArrowLeft, ArrowUp, Bookmark, Check, Clock3, Flame, Globe, Play, Share2,
-  ShoppingCart, Trash2, Pencil, UsersRound, Zap,
+  ArrowLeft, ArrowUp, Bookmark, Check, Clock3, Flame, Play, Share2,
+  ShoppingCart, Trash2, Pencil, Zap,
 } from 'lucide-react-native';
 import { useAction, useMutation, useQuery } from '../lib/convex-auth';
 import { api, SHARE_RETRY_WAIT_MS } from '../lib/api';
@@ -33,15 +29,18 @@ import { CollectionModal } from '../components/CollectionModal';
 import { useTranslation } from '../lib/i18n';
 import { addPendingOp, getConnNow } from '../lib/offline';
 import { LibraryRecipe, difficultyLabel, formatCuisine, recipeLines, totalMinutes } from '../lib/recipe';
+import { getRecipeTranslation, rememberRecipeTranslation } from '../lib/recipe-translation-cache';
+import { getRememberedRecipe, rememberRecipe } from '../lib/recipe-store';
 import { TutorialTarget } from '../components/TutorialTarget';
 import { tutorialAction, useTutorialTarget } from '../lib/tutorial';
 
 export function RecipeDetailScreen({ route }: any) {
   const insets = useSafeAreaInsets();
   const { t, lang } = useTranslation();
-  const { recipeId, source = 'library', recipe: inlineRecipe } = route.params ?? {};
+  const { recipeId, source = 'library', recipe: inlineRecipe, guides: routeGuides } = route.params ?? {};
   const detailSource = source as string;
-  const recipe: LibraryRecipe | undefined = inlineRecipe;
+  if (inlineRecipe) rememberRecipe(inlineRecipe);
+  const recipe: LibraryRecipe | undefined = inlineRecipe ?? getRememberedRecipe(recipeId);
   const recipeKey = inlineRecipe?.id ?? recipeId ?? inlineRecipe?.recipeKey ?? '';
 
   
@@ -55,17 +54,45 @@ export function RecipeDetailScreen({ route }: any) {
   const removeSaved = useMutation(api.savedRecipes.remove);
   const addToShopping = useMutation(api.shoppingList.addMany);
   const logMeal = useMutation(api.calorieEntries.log);
-  const shareRecipe = useMutation(api.sharing.create);
-  const removeShare = useMutation(api.sharing.removeShare);
   const removeRecipe = useMutation(api.recipes.remove);
   const translateRecipe = useAction(api.translate.translateRecipe);
-  const reportCorrection = useMutation(api.translate.reportCorrection);
-  const [translated, setTranslated] = useState<any>(null);
-  const [showTranslation, setShowTranslation] = useState(false);
-  const [fixOpen, setFixOpen] = useState(false);
-  const [fixText, setFixText] = useState('');
-  const [translating, setTranslating] = useState(false);
+  const [translated, setTranslated] = useState<any>(() => getRecipeTranslation(recipeKey, lang));
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    if (!recipe || !lang || lang === 'en') {
+      setTranslated(null);
+      return () => {
+        alive = false;
+      };
+    }
+    const cached = getRecipeTranslation(recipeKey, lang);
+    if (cached) {
+      setTranslated(cached);
+      return () => {
+        alive = false;
+      };
+    }
+    setTranslated(null);
+    void translateRecipe({
+      recipeKey: recipeKey || recipe.title,
+      targetLanguage: lang,
+      title: recipe.title,
+      description: recipe.description ?? '',
+      ingredients: recipe.ingredients ?? [],
+      steps: recipe.steps ?? [],
+    })
+      .then((res: any) => {
+        if (!alive || !res) return;
+        rememberRecipeTranslation(recipeKey, lang, res);
+        setTranslated(res);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [recipeKey, lang, translateRecipe, recipe]);
   const [logOpen, setLogOpen] = useState(false);
   const [logPortions, setLogPortions] = useState(1);
 
@@ -82,7 +109,7 @@ export function RecipeDetailScreen({ route }: any) {
   }, []);
   const [logBusy, setLogBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [retryAt, setRetryAt] = useState<number | null>(null);
+  const [_retryAt, setRetryAt] = useState<number | null>(null);
   
   const myProfile = useQuery(api.users.currentUser) as any;
   const { photos: stepPhotos } = useStepPhotos(recipeKey, myProfile?.id);
@@ -144,12 +171,14 @@ export function RecipeDetailScreen({ route }: any) {
     if (!recipe) return;
     
 
-    const useTr = showTranslation && !!translated;
-    const cookSteps = (useTr ? translated.steps : recipe.steps) ?? [];
-    const cookIngredients = (useTr ? translated.ingredients : recipe.ingredients) ?? [];
+    const useTr = !!translated;
+    const cookSteps = recipe.steps ?? [];
+    const cookIngredients = recipe.ingredients ?? [];
     navigate('Cooking', {
       recipeKey: recipeId ?? recipe.title,
-      title: useTr ? translated.title : recipe.title,
+      title: recipe.title,
+      description: recipe.description ?? '',
+      guides: (recipe as any).guides?.length ? (recipe as any).guides : routeGuides,
       steps: cookSteps.length ? cookSteps : ['Prepare your ingredients and enjoy.'],
       totalTime: totalMinutes(recipe),
       ingredients: cookIngredients,
@@ -252,35 +281,6 @@ export function RecipeDetailScreen({ route }: any) {
   };
 
 
-  const onTranslate = async () => {
-    if (showTranslation) {
-      setShowTranslation(false);
-      return;
-    }
-    if (!recipe || translating) return;
-    setTranslating(true);
-    try {
-      const res = await translateRecipe({
-        recipeKey: recipeKey || recipe.title,
-        targetLanguage: lang,
-        title: recipe.title,
-        description: recipe.description ?? '',
-        ingredients: recipe.ingredients ?? [],
-        steps: recipe.steps ?? [],
-      });
-      if (res) {
-        setTranslated(res);
-        setShowTranslation(true);
-      } else {
-        flash('Translation is not available for this language yet');
-      }
-    } catch (e) {
-      Alert.alert(t('s.xCouldNotTranslate'), e instanceof Error ? e.message : 'Please try again.');
-    } finally {
-      setTranslating(false);
-    }
-  };
-
   const shareDoc = (myShares ?? []).find((s: any) => s.sourceRecipeId === recipeId);
   const shareStatus: 'none' | 'pending' | 'approved' | 'rejected' = shareDoc?.status ?? 'none';
 
@@ -295,70 +295,6 @@ export function RecipeDetailScreen({ route }: any) {
     setRetryAt(until);
     void AsyncStorage.setItem(shareRetryKey, String(until)).catch(() => {});
   }, [shareStatus, shareRetryKey, retryUntil]);
-
-  const submitShare = async () => {
-    setBusy(true);
-    try {
-      await shareRecipe({ recipeId });
-      flash('Sent for review - an admin will approve it before it goes live.');
-    } catch (e) {
-      Alert.alert(t('s.xCouldNotShare'), e instanceof Error ? e.message : 'Please try again.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const shareThisRecipe = async () => {
-    if (!recipe || busy) return;
-    if (detailSource !== 'mine') {
-      flash('Share is available for your own recipes');
-      return;
-    }
-    if (shareStatus === 'pending') {
-      flash('Already sent - waiting for the admin review.');
-      return;
-    }
-    if (shareStatus === 'rejected') {
-      const reasonLabel = shareDoc.rejectionReason === 'no_photo' ? 'No photo'
-        : shareDoc.rejectionReason === 'harmless' ? 'Harmless / too plain' : 'Other';
-      const waitMs = (retryAt ?? 0) - Date.now();
-      if (waitMs > 0) {
-        const days = Math.max(1, Math.ceil(waitMs / 86400000));
-        Alert.alert(t('s.xPleaseWait'), `${reasonLabel}.${shareDoc.rejectionNote ? `\n\n${shareDoc.rejectionNote}` : ''}\n\nYou can submit this recipe again in about ${days} day${days > 1 ? 's' : ''}, so we can keep the community tidy.`, [{ text: 'OK' }]);
-        return;
-      }
-      Alert.alert(t('s.xNotApproved'), `${reasonLabel}.${shareDoc.rejectionNote ? `\n\n${shareDoc.rejectionNote}` : ''}`, [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Send again', onPress: () => void submitShare() },
-      ]);
-      return;
-    }
-    await submitShare();
-  };
-
-  const withdrawShare = async () => {
-    if (!shareDoc || busy) return;
-    Alert.alert(t('s.xRemoveFromCommunity'), 'This unpublishes the approved recipe so nobody can find it in Community anymore.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove from community',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            setBusy(true);
-            try {
-              await removeShare({ id: shareDoc._id });
-              flash('Removed from the community.');
-            } catch (e) {
-              Alert.alert(t('s.xCouldNotRemove'), e instanceof Error ? e.message : 'Please try again.');
-            } finally {
-              setBusy(false);
-            }
-          })();
-        },
-      },
-    ]);
-  };
 
   const deleteOwn = () => {
     Alert.alert(t('recipe.deleteConfirm'), t('recipe.deleteDesc'), [
@@ -386,13 +322,12 @@ export function RecipeDetailScreen({ route }: any) {
 
   const diff = difficultyColor(recipe.difficulty);
   const hasNutrition = recipe.calories != null || recipe.protein != null || recipe.carbs != null || recipe.fat != null;
-  const showingTr = showTranslation && !!translated;
-  const view = showingTr
+  const view = translated
     ? {
         title: translated.title || recipe.title,
-        description: (translated.description ?? recipe.description) as string | undefined,
-        ingredients: translated.ingredients ?? recipe.ingredients ?? [],
-        steps: translated.steps ?? recipe.steps ?? [],
+        description: (translated.description || recipe.description) as string | undefined,
+        ingredients: translated.ingredients?.length ? translated.ingredients : recipe.ingredients ?? [],
+        steps: translated.steps?.length ? translated.steps : recipe.steps ?? [],
       }
     : recipe;
 
@@ -484,38 +419,6 @@ export function RecipeDetailScreen({ route }: any) {
             </GlassCard>
           ) : null}
 
-          {lang && lang !== 'en' ? (
-            <Pressable
-              onPress={() => void onTranslate()}
-              disabled={translating}
-              style={({ pressed }) => [
-                {
-                  marginTop: 16,
-                  borderRadius: 999,
-                  alignSelf: 'flex-start',
-                  paddingHorizontal: 13,
-                  paddingVertical: 8,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 7,
-                  borderWidth: 1,
-                  borderColor: showingTr ? colors.success : colors.accent,
-                  backgroundColor: showingTr ? colors.successBg : colors.accentSoft,
-                },
-                (pressed || translating) && { opacity: 0.75 },
-              ]}
-            >
-              {translating ? (
-                <ActivityIndicator size="small" color={colors.accent} />
-              ) : (
-                <Globe size={14} color={showingTr ? colors.success : colors.accent} />
-              )}
-              <Text style={{ fontSize: 12.5, fontWeight: '800', color: showingTr ? colors.success : colors.accent }}>
-                {translating ? 'Translating…' : showingTr ? 'Show original' : `Translate to ${String(lang).toUpperCase()}`}
-              </Text>
-            </Pressable>
-          ) : null}
-
           <SectionLabel style={{ marginTop: 20 }}>{t('recipe.ingredients')}</SectionLabel>
           <TutorialTarget id="tut-detail-ingredients">
             <GlassCard pad={16} radius={20} variant="solid">
@@ -554,45 +457,6 @@ export function RecipeDetailScreen({ route }: any) {
           ) : null}
         </View>
       </ScrollView>
-
-      <Modal visible={fixOpen} transparent animationType="slide" onRequestClose={() => setFixOpen(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <View style={{ flex: 1, backgroundColor: colors.overlayStrong, justifyContent: 'flex-end' }}>
-            <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 28 }}>
-              <Text style={{ fontSize: 17, fontWeight: '800', color: colors.textPrimary }}>{t('shr.fix')}</Text>
-              <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 6 }}>{t('shr.fixHint')}</Text>
-              <TextInput
-                value={fixText}
-                onChangeText={setFixText}
-                multiline
-                placeholder="…"
-                placeholderTextColor={colors.textSecondary}
-                style={{ minHeight: 80, textAlignVertical: 'top', marginTop: 10, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 12, color: colors.textPrimary }}
-              />
-              <AppButton
-                label={t('common.send')}
-                variant="dark"
-                style={{ marginTop: 12 }}
-                onPress={() => {
-                  if (fixText.trim().length < 2) return;
-                  void reportCorrection({
-                    recipeKey,
-                    language: lang ?? 'en',
-                    source: (view?.steps ?? []).slice(0, 40).join(' '),
-                    suggestion: fixText.trim(),
-                  });
-                  setFixText('');
-                  setFixOpen(false);
-                  flash(t('shr.thanks'));
-                }}
-              />
-              <Pressable onPress={() => setFixOpen(false)} style={{ marginTop: 10, alignItems: 'center' }}>
-                <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>{t('common.cancel')}</Text>
-              </Pressable>
-            </View>
-          </View>
-      
-        </KeyboardAvoidingView></Modal>
 
       {toast ? (
         <View style={{ position: 'absolute', top: insets.top + 16, left: 30, right: 30, borderRadius: 16, backgroundColor: colors.darkButton, paddingVertical: 12, alignItems: 'center', zIndex: 50 }}>
@@ -643,36 +507,11 @@ export function RecipeDetailScreen({ route }: any) {
           <Pressable onPress={() => void shareAsText()} disabled={busy} style={({ pressed }) => [actionBtnSecondary, pressed && { opacity: 0.82 }]} accessibilityLabel={t('shr.share')}>
             <Share2 size={20} color={colors.textPrimary} strokeWidth={2} />
           </Pressable>
-          {showingTr ? (
-            <Pressable onPress={() => setFixOpen(true)} disabled={busy} style={({ pressed }) => [actionBtnSecondary, pressed && { opacity: 0.82 }]} accessibilityLabel={t('shr.fix')}>
-              <Pencil size={20} color={colors.textPrimary} strokeWidth={2} />
-            </Pressable>
-          ) : null}
           {detailSource !== 'mine' ? (
             <Pressable onPress={() => { setLogPortions(1); setLogOpen(true); }} disabled={busy} style={({ pressed }) => [actionBtnSecondary, pressed && { opacity: 0.82 }]} accessibilityLabel={t('s.xLogMeal')}>
               <Zap size={20} color={colors.textPrimary} strokeWidth={2} />
             </Pressable>
-          ) : (
-            <Pressable
-              onPress={shareStatus === 'approved' ? withdrawShare : shareThisRecipe}
-              disabled={busy || shareStatus === 'pending'}
-              style={({ pressed }) => [
-                actionBtnSecondary,
-                shareStatus === 'approved' ? { backgroundColor: colors.roseBg, borderColor: rgbaHelper('#e11d48', 0.3) } : null,
-                pressed && { opacity: 0.82 },
-              ]}
-              accessibilityLabel={shareStatus === 'approved' ? 'Remove from community' : t('shr.share')}
-            >
-              {shareStatus === 'approved' ? (
-                <Trash2 size={20} color={colors.rose} strokeWidth={2} />
-              ) : shareStatus === 'pending' ? (
-                <Clock3 size={20} color={colors.medium} />
-              ) : (
-                
-                <UsersRound size={20} color={colors.textPrimary} strokeWidth={2} />
-              )}
-            </Pressable>
-          )}
+          ) : null}
         </View>
         <AppButton label={busy ? 'Working…' : t('dialog.startCooking')} variant="dark" style={{ marginTop: 8 }} icon={<Flame size={18} color={colors.darkButtonText} />} onPress={startCooking} />
       </View>

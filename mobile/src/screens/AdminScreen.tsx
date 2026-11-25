@@ -195,8 +195,8 @@ export function AdminScreen() {
         ) : null}
         <Segmented
           options={isAdmin
-            ? [{ value: 'Users', label: 'Users' }, { value: 'Mods', label: 'Mods' }, { value: 'Feedback', label: 'Feedback' }, { value: 'Reports', label: 'Reports' }, { value: 'Reviews', label: 'Reviews' }, { value: 'Broadcast', label: 'Broadcast' }, { value: 'Logins', label: t('adminAlert.listTitle') }]
-            : [{ value: 'Feedback', label: 'Feedback' }, { value: 'Reports', label: 'Reports' }, { value: 'Reviews', label: 'Reviews' }]}
+            ? [{ value: 'Users', label: 'Users' }, { value: 'Mods', label: 'Mods' }, { value: 'Feedback', label: 'Feedback' }, { value: 'Reports', label: 'Reports' }, { value: 'Broadcast', label: 'Broadcast' }, { value: 'Logins', label: t('adminAlert.listTitle') }]
+            : [{ value: 'Feedback', label: 'Feedback' }, { value: 'Reports', label: 'Reports' }]}
           value={tab}
           onChange={setTab}
         />

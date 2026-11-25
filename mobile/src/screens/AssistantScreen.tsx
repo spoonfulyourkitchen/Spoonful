@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 
 import { Alert } from '../lib/alert';
-import { Minus, Play, Plus, Send, SlidersHorizontal, Sparkles, Trash2, Video, X } from 'lucide-react-native';
+import { Minus, Plus, Send, SlidersHorizontal, Sparkles, Trash2, Video, X } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAction, useMutation, useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';
@@ -60,7 +60,9 @@ export function AssistantScreen() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
   const [preview, setPreview] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [savedKey, setSavedKey] = useState<string | null>(null);
+  const [draftKey, setDraftKey] = useState('');
+  const saved = !!draftKey && savedKey === draftKey;
   const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   const [mode, setMode] = useState<'ingredients' | 'describe' | 'video'>('ingredients');
@@ -97,7 +99,7 @@ export function AssistantScreen() {
       const cuisines = (stored?.cuisines ?? []).map((key) => ONBOARDING_CUISINES[key]).filter(Boolean);
       if (cuisines.length) setFavoriteCuisines(cuisines);
     }).catch(() => {});
-  }, []);
+  }, [localPrefs.householdSize, profile?.householdSize]);
 
   useEffect(() => {
     if (!aiTarget.active || ingredients.length) return;
@@ -274,7 +276,8 @@ export function AssistantScreen() {
     setError(null);
     setBusy(true);
     setResult(null);
-    setSaved(false);
+    setDraftKey('');
+    setSavedKey(null);
     setAiRunning();
     try {
       const r = await generate(
@@ -305,6 +308,7 @@ export function AssistantScreen() {
         },
       );
       setResult(r);
+      setDraftKey(`assistant-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`);
       setPreview(true);
       pushHistory(r);
       markReviewAction('ai');
@@ -340,19 +344,20 @@ export function AssistantScreen() {
   };
 
   const saveToMine = () => {
-    if (!result || saved) return;
+    if (!result || saved || !draftKey) return;
     setCollectionPickerOpen(true);
   };
 
   const saveGeneratedRecipe = async (collectionId: string | null) => {
-    if (!result || saved) return;
+    if (!result || saved || !draftKey) return;
     setCollectionPickerOpen(false);
     const payload = {
-      recipeKey: `assistant-${Date.now()}`,
+      recipeKey: draftKey,
       title: result.title ?? 'AI recipe',
       description: result.description ?? '',
       ingredients: result.ingredients ?? [],
       steps: result.steps ?? [],
+      guides: result.guides ?? [],
       prepTime: result.prepTime ?? 0,
       cookTime: result.cookTime ?? 0,
       cuisine: result.cuisine ?? 'Other',
@@ -368,7 +373,7 @@ export function AssistantScreen() {
     try {
       if (getConnNow() === 'offline') await addPendingOp('saved.save', payload);
       else await saveRecipe(payload);
-      setSaved(true);
+      setSavedKey(draftKey);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save the recipe.');
     }
@@ -379,6 +384,7 @@ export function AssistantScreen() {
     navigate('RecipeDetail', {
       recipeId: 'assistant', title: result.title ?? 'AI recipe', source: 'assistant',
       recipe: asRecipeFromDoc(result, 'assistant'),
+      guides: result.guides ?? [],
     });
   };
 

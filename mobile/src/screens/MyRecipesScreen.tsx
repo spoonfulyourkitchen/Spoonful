@@ -13,6 +13,7 @@ import { RecipeImage } from '../components/RecipeImage';
 import { formatCuisine } from '../lib/recipe';
 import { useCachedList, addPendingOp, getConnNow } from '../lib/offline';
 import { useTranslation } from '../lib/i18n';
+import { useTranslatedTexts } from '../lib/recipe-translation-cache';
 
 function asLibrary(r: any) {
   return {
@@ -28,7 +29,8 @@ function asLibrary(r: any) {
 export function MyRecipesScreen() {
   const live = useQuery(api.recipes.list);
   const { data: mine, apply } = useCachedList('mine', live);
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
+  const titleTexts = useTranslatedTexts((mine ?? []).map((recipe: any) => String(recipe.title ?? '')), lang);
   const removeRecipe = useMutation(api.recipes.remove);
   const openEditor = () => navigate('RecipeForm', {});
 
@@ -102,7 +104,9 @@ export function MyRecipesScreen() {
               >
                 <RecipeImage uri={recipe.imageUrl} thumbWidth={110} style={{ width: 100, height: 100 }} />
                 <View style={{ flex: 1, padding: 13, justifyContent: 'center' }}>
-                  <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: '700', color: colors.textPrimary }}>{recipe.title}</Text>
+                  <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: '700', color: colors.textPrimary }}>
+                    {titleTexts[recipe.title] ?? recipe.title}
+                  </Text>
                   <Text numberOfLines={1} style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 5 }}>
                     {`${(recipe.prepTime ?? 0) + (recipe.cookTime ?? 0)} min${recipe.cuisine ? ` · ${formatCuisine(recipe.cuisine)}` : ''}${recipe.calories != null ? ` · ${recipe.calories} kcal` : ''}`}
                   </Text>
