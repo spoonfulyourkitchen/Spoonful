@@ -1,5 +1,11 @@
 ## Spoonful 3.7.2
 
+**Important: delete the old Spoonful app and install this build again.**
+
+We lost the signing key of the previous versions. Android only installs updates that are signed with the same key, so this APK cannot be installed over 3.6 or 3.7. Delete Spoonful on your phone, then install `Spoonful-v3.7.2.apk` from this page.
+
+Your account, saved recipes, tracker entries and lists stay on the server. Local drafts and step photos stored only on the phone are removed with the app.
+
 Faster translations, a cleaner photo flow and timers that explain themselves.
 
 **Download:** `Spoonful-v3.7.2.apk` under Assets below. Android 7.0 or newer, arm64 and armv7. Install it over your current version, account, recipes, tracker and lists stay as they are.

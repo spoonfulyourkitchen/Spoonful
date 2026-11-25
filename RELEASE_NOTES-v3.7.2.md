@@ -1,5 +1,9 @@
 # Spoonful v3.7.2
 
+## Important: reinstall required
+
+The signing key of the previous versions was lost. This build is signed with a new key, so Android cannot install it over 3.6 or 3.7. Delete the old app and install 3.7.2 again. Account, saved recipes, tracker entries and lists stay on the server. Local drafts and step photos stored only on the phone are removed.
+
 ## Highlights
 
 - **Translations are ready when you open a recipe.** Full recipe translations are kept on the device, a language switch translates every visible recipe title in one request, and the first library recipes are prepared in the background. Opening a recipe no longer waits for the translator when it was seen before.
