@@ -14,8 +14,10 @@ import {
 } from 'react-native';
 
 import { Alert } from '../lib/alert';
-import { ChevronRight, Download, FileText, Globe, LogOut, Mail, Palette, Play, ShieldCheck, Star, Trash2, Users } from 'lucide-react-native';
-import { useAction, useAuthActions, useMutation, useQuery } from '../lib/convex-auth';
+import { ChevronRight, Download, FileText, Globe, LogOut, Mail, Palette, Play, ShieldCheck, Star, Trash2, Upload, Users } from 'lucide-react-native';
+import { convexClient, useAction, useAuthActions, useMutation, useQuery } from '../lib/convex-auth';
+import { cacheRemove } from '../lib/offline';
+import { hydrateAccountFromServer, importAccountData } from '../lib/account-sync';
 import { useTranslation, LANGUAGES, isRestartRequired, markLanguagePickerShown, tryReloadApp } from '../lib/i18n';
 import { loadPrefs, savePrefs, NotifPrefs } from '../lib/notifications';
 import { api } from '../lib/api';
@@ -51,6 +53,10 @@ export function SettingsScreen() {
   const [quickReport, setQuickReportPref] = useAdminQuickReport();
   
   const [profileOpen, setProfileOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importBusy, setImportBusy] = useState(false);
+  const L = (de: string, en: string) => (lang === 'de' ? de : en);
 
   useEffect(() => {
     let alive = true;
@@ -73,6 +79,7 @@ export function SettingsScreen() {
   const submitFeedback = useMutation(api.feedback.submit);
   const exportMyData = useAction(api.account.exportData);
   const deleteMyAccount = useMutation(api.account.deleteAccount);
+  const restartProfileRefresh = useMutation(api.users.restartProfileRefresh);
   const household = useQuery(api.household.mine) as any;
   const joinHousehold = useMutation(api.household.join);
   const [joinOpen, setJoinOpen] = useState(false);
@@ -104,6 +111,52 @@ export function SettingsScreen() {
       });
     } catch (e) {
       Alert.alert(t('s.xExportFailed'), e instanceof Error ? e.message : 'Please try again.');
+    }
+  };
+
+  const redoOnboarding = () => {
+    void (async () => {
+      try {
+        await restartProfileRefresh({});
+        Alert.alert(
+          L('Profil neu einrichten', 'Set up profile again'),
+          L(
+            'Das Onboarding öffnet sich gleich. Deine Antworten werden diesmal mit deinem Konto gespeichert und sind nach einer Neuinstallation wieder da.',
+            'The onboarding opens in a moment. This time your answers are saved to your account and come back after a reinstall.',
+          ),
+        );
+      } catch (e) {
+        Alert.alert(L('Hat nicht geklappt', 'Could not start'), e instanceof Error ? e.message : String(e));
+      }
+    })();
+  };
+
+  const runImport = async () => {
+    if (importBusy) return;
+    setImportBusy(true);
+    try {
+      const parsed = JSON.parse(importText);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error(L('Das ist keine Spoonful-Sicherung.', 'This is not a Spoonful backup.'));
+      }
+      const counts = await importAccountData(parsed);
+      const me = await convexClient.query(api.users.currentUser as any, {});
+      await hydrateAccountFromServer(me);
+      for (const key of ['mine', 'saved', 'tracker', 'shopping']) await cacheRemove(key);
+      setImportOpen(false);
+      setImportText('');
+      const summary = Object.entries(counts ?? {})
+        .filter(([, value]) => Number(value) > 0)
+        .map(([key, value]) => `${key.replace(/_/g, ' ')}: ${value}`)
+        .join('\n');
+      Alert.alert(
+        L('Import abgeschlossen', 'Import complete'),
+        summary || L('Deine Daten wurden übernommen.', 'Your data was restored.'),
+      );
+    } catch (e) {
+      Alert.alert(L('Import fehlgeschlagen', 'Import failed'), e instanceof Error ? e.message : String(e));
+    } finally {
+      setImportBusy(false);
     }
   };
 
@@ -256,6 +309,10 @@ export function SettingsScreen() {
           <Divider style={{ marginLeft: 16 }} />
           <NavRow icon={<Download size={18} color={colors.accent} />} label={t('ui.exportData')} onPress={() => void exportData()} />
           <Divider style={{ marginLeft: 16 }} />
+          <NavRow icon={<Upload size={18} color={colors.accent} />} label={L('Daten importieren', 'Import my data')} onPress={() => setImportOpen(true)} />
+          <Divider style={{ marginLeft: 16 }} />
+          <NavRow icon={<Users size={18} color={colors.accent} />} label={L('Profil & Ziele neu einrichten', 'Redo profile setup')} onPress={redoOnboarding} />
+          <Divider style={{ marginLeft: 16 }} />
           <NavRow icon={<Mail size={18} color={colors.accent} />} label={t('ui.contact')} onPress={() => Linking.openURL('mailto:spoonfulsupport@gmail.com')} />
         </GlassCard>
 
@@ -369,6 +426,44 @@ export function SettingsScreen() {
 
         <Text style={{ color: colors.textSecondary, fontSize: 12, textAlign: 'center', marginTop: 26 }}>© 2026 Spoonful · v{APP_VERSION}</Text>
       </ScrollView>
+
+      <Modal visible={importOpen} transparent animationType="slide" onRequestClose={() => setImportOpen(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <View style={{ flex: 1, backgroundColor: colors.overlayStrong, justifyContent: 'flex-end' }}>
+            <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 28, maxHeight: '85%' }}>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: colors.textPrimary }}>{L('Daten importieren', 'Import my data')}</Text>
+              <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 6 }}>
+                {L(
+                  'Füge hier den Inhalt deiner Spoonful-Sicherung ein. Rezepte, Sammlungen, Mahlzeiten, Gewicht, Einkaufsliste und Onboarding werden übernommen. Vorhandene Einträge bleiben, doppelte werden übersprungen.',
+                  'Paste the content of your Spoonful backup here. Recipes, collections, meals, weight, shopping list and onboarding are restored. Existing entries stay and duplicates are skipped.',
+                )}
+              </Text>
+              <TextInput
+                value={importText}
+                onChangeText={setImportText}
+                multiline
+                autoCapitalize="none"
+                autoCorrect={false}
+                placeholder='{"format":"spoonful-export-v2", …}'
+                placeholderTextColor={colors.textSecondary}
+                style={{ marginTop: 10, minHeight: 150, maxHeight: 300, textAlignVertical: 'top', borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 13, paddingVertical: 12, color: colors.textPrimary, fontSize: 12 }}
+              />
+              <Pressable
+                onPress={() => void runImport()}
+                disabled={importBusy || !importText.trim()}
+                style={({ pressed }) => [{ marginTop: 12, borderRadius: 13, paddingVertical: 13, alignItems: 'center', backgroundColor: colors.darkButton, opacity: pressed || importBusy || !importText.trim() ? 0.6 : 1 }]}
+              >
+                <Text style={{ color: colors.darkButtonText, fontWeight: '800' }}>
+                  {importBusy ? L('Wird importiert…', 'Importing…') : L('Sicherung einlesen', 'Restore backup')}
+                </Text>
+              </Pressable>
+              <Pressable onPress={() => setImportOpen(false)} style={{ marginTop: 10, alignItems: 'center' }}>
+                <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>{t('common.cancel')}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <Modal visible={joinOpen} transparent animationType="slide" onRequestClose={() => setJoinOpen(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>

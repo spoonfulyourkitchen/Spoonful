@@ -77,6 +77,10 @@ export function ProfileRefreshGate() {
   const visible = !closed && isAuthenticated && due === true;
 
   useEffect(() => {
+    if (due === true) setClosed(false);
+  }, [due]);
+
+  useEffect(() => {
     void readIntroAnswers()
       .then((stored) => {
         if (stored) setAnswers({ ...DEFAULT_INTRO_ANSWERS, ...stored });
@@ -124,12 +128,17 @@ export function ProfileRefreshGate() {
       targetWeight: answers.targetWeight || undefined,
       syncedAt: Date.now(),
     });
+    const completedAt = Date.now();
+    const onboarding = { ...answers, completedAt };
     await addPendingOp('profile.save', {
+      name: answers.name || undefined,
       goal: answers.goal || 'keep',
       diet: answers.diet,
       allergies: answers.allergies,
       cookingExperience: answers.experience || undefined,
-      onboardedAt: Date.now(),
+      onboardedAt: completedAt,
+      onboarding,
+      prefs: { startedAt: completedAt },
     }).catch(() => {});
     await convexClient.mutation(api.users.completeProfileRefresh as any, {}).catch(() => {});
     dismiss();

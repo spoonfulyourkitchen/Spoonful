@@ -230,13 +230,19 @@ async function runPendingOp(op: PendingOp) {
       return;
     case 'profile.save':
       await convexClient.mutation(api.users.saveProfile as any, {
+        name: p.name,
         goal: p.goal,
         diet: p.diet,
         allergies: p.allergies,
         cookingExperience: p.cookingExperience,
         onboardedAt: p.onboardedAt,
         waterGoalMl: p.waterGoalMl,
+        onboarding: p.onboarding,
+        prefs: p.prefs,
       });
+      return;
+    case 'recipe.create':
+      await convexClient.mutation(api.recipes.create as any, p);
       return;
     case 'recipe.remove':
       await convexClient.mutation(api.recipes.remove as any, { id: p.id });

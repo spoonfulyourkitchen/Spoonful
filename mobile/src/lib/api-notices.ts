@@ -24,6 +24,17 @@ ops['users.completeProfileRefresh'] = {
   },
 };
 
+ops['users.restartProfileRefresh'] = {
+  async mutation() {
+    const { error } = await supabase.rpc('restart_profile_refresh');
+    if (error) {
+      if (isMissingRpc(error)) return null;
+      throw rowError(error);
+    }
+    return null;
+  },
+};
+
 ops['announcement.latest'] = {
   async query() {
     const { data, error } = await supabase.rpc('latest_announcement');
@@ -164,6 +175,16 @@ ops['updates.deactivate'] = {
 ops['account.exportData'] = {
   async action() {
     const { data, error } = await supabase.rpc('export_my_data');
+    if (error) throw rowError(error);
+    return data ?? {};
+  },
+};
+
+ops['account.importData'] = {
+  async mutation(_ctx, args: any) {
+    const payload = args?.data;
+    if (!payload || typeof payload !== 'object') throw new Error('This file is not a Spoonful export.');
+    const { data, error } = await supabase.rpc('import_my_data', { p_data: payload });
     if (error) throw rowError(error);
     return data ?? {};
   },

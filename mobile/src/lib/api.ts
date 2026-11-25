@@ -78,6 +78,7 @@ export const api = {
     saveProfile: R('users.saveProfile', 'mutation'),
     profileRefreshDue: R('users.profileRefreshDue', 'query'),
     completeProfileRefresh: R('users.completeProfileRefresh', 'mutation'),
+    restartProfileRefresh: R('users.restartProfileRefresh', 'mutation'),
   },
   admin: {
     isAdmin: R('admin.isAdmin', 'query'),
@@ -151,6 +152,7 @@ export const api = {
   },
   account: {
     exportData: R('account.exportData', 'action'),
+    importData: R('account.importData', 'mutation'),
     deleteAccount: R('account.deleteAccount', 'mutation'),
   },
   household: {
@@ -746,6 +748,8 @@ ops['users.saveProfile'] = {
     if (args.region !== undefined) patch.region = args.region;
     if (args.onboardedAt !== undefined) patch.onboarded_at = args.onboardedAt;
     if (args.waterGoalMl !== undefined) patch.water_goal_ml = args.waterGoalMl;
+    if (args.onboarding !== undefined) patch.onboarding = args.onboarding;
+    if (args.prefs !== undefined) patch.prefs = args.prefs;
     const { data, error } = await supabase.from('users').update(patch).eq('id', uid).select().single();
     if (error) throw rowError(error);
     return data ? mapUser(data) : null;

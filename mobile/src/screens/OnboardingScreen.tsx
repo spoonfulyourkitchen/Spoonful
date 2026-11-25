@@ -6,7 +6,7 @@ import { useTranslation } from '../lib/i18n';
 import { colors, fonts } from '../theme';
 import { SpoonfulLogo as Logo } from '../components/Logo';
 import { WashBackground } from '../components/GlassBackground';
-import { clearIntroAnswers, readIntroAnswers } from '../lib/intro-answers';
+import { DEFAULT_INTRO_ANSWERS, clearIntroAnswers, readIntroAnswers } from '../lib/intro-answers';
 import { ensureStartedAt, saveLocalPrefs } from '../lib/local-prefs';
 import { addWeightLocal } from '../lib/tracker-local';
 import {
@@ -54,17 +54,22 @@ export function OnboardingScreen() {
       setNutritionProfile({ ...profile, targetWeight: answers?.targetWeight || undefined });
       addWeightLocal(profile.weight);
 
+      const startedAt = await ensureStartedAt().catch(() => Date.now());
+      const completedAt = Date.now();
+      const onboarding = { ...DEFAULT_INTRO_ANSWERS, ...(answers ?? {}), completedAt };
+
       await addPendingOp('profile.save', {
-        goal: answers?.goal || 'keep',
-        diet: answers?.diet ?? '',
-        allergies: answers?.allergies ?? [],
-        cookingExperience: answers?.experience || undefined,
-        onboardedAt: Date.now(),
+        name: onboarding.name || undefined,
+        goal: onboarding.goal || 'keep',
+        diet: onboarding.diet ?? '',
+        allergies: onboarding.allergies ?? [],
+        cookingExperience: onboarding.experience || undefined,
+        onboardedAt: completedAt,
         waterGoalMl,
+        onboarding,
+        prefs: { startedAt },
       });
       await addPendingOp('tracker.weight.add', { kg: profile.weight, at: Date.now() });
-
-      await ensureStartedAt().catch(() => 0);
       await AsyncStorage.setItem('spoonful:profile-refresh:v1', '1').catch(() => {});
       await saveLocalPrefs({
         name: answers?.name,

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
-import { Bookmark, Heart, Play, Plus, ShoppingCart, Trash2 } from 'lucide-react-native';
+import { Bookmark, ChefHat, Heart, Play, Plus, ShoppingCart, Trash2 } from 'lucide-react-native';
 import { CollectionModal } from '../components/CollectionModal';
 import { useMutation, useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';
@@ -12,6 +12,7 @@ import { asRecipeFromDoc } from '../lib/recipe';
 import { useCachedList, addPendingOp, getConnNow } from '../lib/offline';
 import { loadDraft, saveDraft } from '../lib/draft';
 import { useTranslation } from '../lib/i18n';
+import { Alert } from '../lib/alert';
 import { useTranslatedTexts } from '../lib/recipe-translation-cache';
 
 export function SavedScreen() {
@@ -20,6 +21,7 @@ export function SavedScreen() {
   const collections = useQuery(api.collections.list);
   const updateSaved = useMutation(api.savedRecipes.update);
   const removeSaved = useMutation(api.savedRecipes.remove);
+  const createRecipe = useMutation(api.recipes.create);
   const [search, setSearch] = useState('');
   const [active, setActive] = useState<string>('all');
   const [filtersReady, setFiltersReady] = useState(false);
@@ -98,6 +100,46 @@ export function SavedScreen() {
       }
     })();
   };
+  const addToKitchen = (doc: any) => {
+    const payload = {
+      title: doc.title || 'Recipe',
+      description: doc.description ?? '',
+      ingredients: doc.ingredients ?? [],
+      steps: doc.steps ?? [],
+      guides: doc.guides ?? [],
+      prepTime: doc.prepTime ?? 0,
+      cookTime: doc.cookTime ?? 0,
+      cuisine: doc.cuisine ?? '',
+      dietaryRestrictions: doc.dietaryRestrictions ?? [],
+      imageUrl: doc.imageUrl ?? undefined,
+      difficulty: doc.difficulty ?? 'easy',
+      calories: doc.calories ?? undefined,
+      protein: doc.protein ?? undefined,
+      carbs: doc.carbs ?? undefined,
+      fat: doc.fat ?? undefined,
+    };
+    void (async () => {
+      try {
+        if (getConnNow() === 'offline') {
+          await addPendingOp('recipe.create', payload);
+        } else {
+          await createRecipe(payload as any);
+        }
+        Alert.alert(
+          lang === 'de' ? 'In deiner Küche' : 'In your kitchen',
+          lang === 'de'
+            ? 'Das Rezept liegt jetzt in „Meine Rezepte“ und ist mit deinem Konto gespeichert.'
+            : 'The recipe is now in My Recipes and saved to your account.',
+        );
+      } catch (e) {
+        Alert.alert(
+          lang === 'de' ? 'Hat nicht geklappt' : 'Could not add recipe',
+          e instanceof Error ? e.message : String(e),
+        );
+      }
+    })();
+  };
+
   const countFor = (g: string) =>
     g === 'all' ? items.length
       : g === 'favorites' ? items.filter((r) => r.favorite).length
@@ -146,6 +188,7 @@ export function SavedScreen() {
               openRecipe={openRecipe}
               toggleFavorite={toggleFavorite}
               onRemove={onRemove}
+              addToKitchen={addToKitchen}
             />
           )}
         />
@@ -155,7 +198,7 @@ export function SavedScreen() {
   );
 }
 
-function SavedRow({ item, title, openRecipe, toggleFavorite, onRemove }: { item: any; title?: string; openRecipe: (i: any) => void; toggleFavorite: (d: any) => void; onRemove: (d: any) => void }) {
+function SavedRow({ item, title, openRecipe, toggleFavorite, onRemove, addToKitchen }: { item: any; title?: string; openRecipe: (i: any) => void; toggleFavorite: (d: any) => void; onRemove: (d: any) => void; addToKitchen: (d: any) => void }) {
   const { t } = useTranslation();
   return (
     <GlassCard variant="solid" pad={0} radius={20}>
@@ -179,6 +222,14 @@ function SavedRow({ item, title, openRecipe, toggleFavorite, onRemove }: { item:
       <View style={{ flexDirection: 'row', gap: 8, padding: 10, borderTopWidth: 1, borderTopColor: colors.cardBorder }}>
         <ActionBtn label={t('common.open')} icon={<Play size={14} color={colors.accent} />} onPress={() => openRecipe(item)} />
         <ActionBtn label={t('nav.shopping')} icon={<ShoppingCart size={14} color={colors.accent} />} onPress={() => openRecipe(item)} />
+        <Pressable
+          onPress={() => addToKitchen(item)}
+          accessibilityRole="button"
+          accessibilityLabel="Add to my kitchen"
+          style={{ width: 38, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accentSoft }}
+        >
+          <ChefHat size={16} color={colors.accent} strokeWidth={2} />
+        </Pressable>
         <Pressable onPress={() => onRemove(item)} style={{ width: 38, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.roseBg }}>
           <Trash2 size={15} color={colors.rose} strokeWidth={2} />
         </Pressable>

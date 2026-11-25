@@ -14,6 +14,7 @@ import { requestNotifications, applyReminders } from './src/lib/notifications';
 import { colors, fonts, getThemeId, subscribeTheme, applyTheme, loadStoredThemeId } from './src/theme';
 import { hydrateOfflineCaches } from './src/lib/offline';
 import { hydrateLocalOnboarded, useLocalOnboarded } from './src/lib/onboarding';
+import { hydrateAccountFromServer } from './src/lib/account-sync';
 import { hydrateShoppingLocal } from './src/lib/shopping-local';
 import { hydrateTrackerLocal } from './src/lib/tracker-local';
 import {
@@ -170,6 +171,7 @@ function RootNavigator() {
   const SESSION_KEY = 'spoonful:session';
   
   const loginLogged = React.useRef(false);
+  const accountHydrated = React.useRef<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -211,6 +213,17 @@ function RootNavigator() {
     });
     return () => { alive = false; };
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      accountHydrated.current = null;
+      return;
+    }
+    const id = profile?.id;
+    if (!id || accountHydrated.current === id) return;
+    accountHydrated.current = id;
+    void hydrateAccountFromServer(profile);
+  }, [isAuthenticated, profile]);
 
   useEffect(() => {
     if (isLoading) return;

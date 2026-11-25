@@ -99,6 +99,8 @@ export function mapUser(row: any): any {
     region: row.region ?? undefined,
     onboardedAt: row.onboarded_at ?? undefined,
     waterGoalMl: row.water_goal_ml ?? undefined,
+    onboarding: row.onboarding && typeof row.onboarding === 'object' ? row.onboarding : undefined,
+    prefs: row.prefs && typeof row.prefs === 'object' ? row.prefs : undefined,
     householdId: row.household_id ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
