@@ -186,23 +186,11 @@ export function LibraryScreen() {
       const minutes = Number(localPrefs.cookTime ?? 0);
       if (minutes > 0) setTimeRange(minutes <= 15 ? 'under15' : minutes <= 30 ? '15-30' : 'over30');
     }
-    if (!saved || !saved.cuisine || saved.cuisine === 'all') {
+    if (!saved || !saved.cuisine) {
       const mapped = (localPrefs.cuisines ?? []).map((key: string) => ONBOARDING_LIBRARY_CUISINES[key]).filter(Boolean);
       if (mapped.length) setCuisine(mapped[0]);
     }
   }, [profile, localPrefs, filtersReady]);
-
-  useEffect(() => {
-    if (timeRange !== 'all') return;
-    const minutes = Number(localPrefs.cookTime ?? 0);
-    if (minutes > 0) setTimeRange(minutes <= 15 ? 'under15' : minutes <= 30 ? '15-30' : 'over30');
-  }, [localPrefs.cookTime, timeRange]);
-
-  useEffect(() => {
-    if (cuisine !== 'all') return;
-    const mapped = (localPrefs.cuisines ?? []).map((key: string) => ONBOARDING_LIBRARY_CUISINES[key]).filter(Boolean);
-    if (mapped.length) setCuisine(mapped[0]);
-  }, [localPrefs.cuisines, cuisine]);
 
   useEffect(() => {
     AsyncStorage.getItem(PRESETS_KEY)
