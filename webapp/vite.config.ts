@@ -87,6 +87,7 @@ export default defineConfig({
   base,
   plugins: [buildVersionPlugin(buildId), webappPackages(), assetRequire(), react()],
   resolve: {
+    extensions: ['.web.tsx', '.web.ts', '.web.jsx', '.web.js', '.tsx', '.ts', '.jsx', '.js', '.json'],
     alias: [
       // React Native -> React Native Web (+ browser fallbacks for native APIs)
       { find: /^react-native$/, replacement: shim('react-native.tsx') },

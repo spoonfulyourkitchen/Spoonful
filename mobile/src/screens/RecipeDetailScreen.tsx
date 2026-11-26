@@ -228,6 +228,8 @@ export function RecipeDetailScreen({ route }: any) {
       protein: recipe.protein,
       carbs: recipe.carbs,
       fat: recipe.fat,
+      tips: (recipe as any).tips ?? [],
+      note: (recipe as any).note,
       collectionIds: collectionId ? [collectionId] : [],
     };
     try {
@@ -442,6 +444,29 @@ export function RecipeDetailScreen({ route }: any) {
             </View>
           ))}
           {!recipeLines(view.steps).length ? <Text style={{ color: colors.textSecondary }}>{t('s.xNoSteps')}</Text> : null}
+
+          {(recipe as any).note ? (
+            <>
+              <SectionLabel style={{ marginTop: 20 }}>{lang === 'de' ? 'Achte auf' : 'Good to know'}</SectionLabel>
+              <GlassCard pad={16} radius={20} variant="solid">
+                <Text style={{ fontSize: 14.5, lineHeight: 21, color: colors.textPrimary }}>{(recipe as any).note}</Text>
+              </GlassCard>
+            </>
+          ) : null}
+
+          {(recipe as any).tips?.length ? (
+            <>
+              <SectionLabel style={{ marginTop: 20 }}>{lang === 'de' ? 'Tipps' : 'Tips'}</SectionLabel>
+              <GlassCard pad={16} radius={20} variant="solid">
+                {((recipe as any).tips as string[]).map((tip, i) => (
+                  <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 5 }}>
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent, marginTop: 7, marginRight: 10 }} />
+                    <Text style={{ fontSize: 14.5, lineHeight: 21, color: colors.textPrimary, flex: 1 }}>{tip}</Text>
+                  </View>
+                ))}
+              </GlassCard>
+            </>
+          ) : null}
 
           {detailSource === 'mine' ? (
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>

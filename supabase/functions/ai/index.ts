@@ -132,7 +132,7 @@ const AI_DAILY_LIMIT = Math.max(0, Number(Deno.env.get('AI_DAILY_LIMIT') ?? '3')
 
 type QuotaResult = { allowed: boolean; used: number; limit: number; remaining: number; unlimited?: boolean } | null;
 
-async function consumeQuota(token: string): Promise<QuotaResult> {
+async function consumeQuota(token: string, requestId?: string): Promise<QuotaResult> {
   const url = `${Deno.env.get('SUPABASE_URL') ?? ''}/rest/v1/rpc/ai_usage_consume`;
   const anon = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
   if (!url.startsWith('http') || !anon) return null; 
@@ -144,7 +144,7 @@ async function consumeQuota(token: string): Promise<QuotaResult> {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ p_limit: AI_DAILY_LIMIT }),
+      body: JSON.stringify({ p_limit: AI_DAILY_LIMIT, p_request_id: requestId ?? null }),
     });
     if (!res.ok) return null;
     const data = await res.json().catch(() => null);
@@ -180,7 +180,8 @@ Deno.serve(async (req: Request) => {
 
   
 
-  const usage = await consumeQuota(token);
+  const requestId = typeof payload?.requestId === 'string' ? payload.requestId.slice(0, 80) : undefined;
+  const usage = await consumeQuota(token, requestId);
   if (usage && usage.allowed === false) {
     return json(
       {
@@ -214,7 +215,7 @@ Deno.serve(async (req: Request) => {
   const models = freeModels();
   const errors: string[] = [];
   const skipped: string[] = [];
-  let deadline = Date.now() + 20_000;
+  let deadline = Date.now() + 30_000;
   const KEYS_PER_MODEL = 1;
 
   const tryModel = async (model: string, paid: boolean): Promise<Response | null> => {
@@ -270,7 +271,7 @@ Deno.serve(async (req: Request) => {
 
   
 
-  deadline = Date.now() + 30_000;
+  deadline = Date.now() + 35_000;
   if (PAID_ALLOWED) {
     for (const model of MODEL_CHAIN) {
       if (!modelAllowedNow(model)) {

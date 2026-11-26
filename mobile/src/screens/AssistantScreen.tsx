@@ -314,8 +314,8 @@ export function AssistantScreen() {
       markReviewAction('ai');
       setAiDone(r?.title ?? 'Recipe ready');
       void notifyAiReady(r?.title ?? 'Recipe');
-    } catch {
-      setError(t('s.errBody'));
+    } catch (e) {
+      setError(e instanceof Error && e.message ? e.message : t('s.errBody'));
       setAiError();
     } finally {
       setBusy(false);
@@ -368,6 +368,8 @@ export function AssistantScreen() {
       protein: result.protein,
       carbs: result.carbs,
       fat: result.fat,
+      tips: result.tips ?? [],
+      note: result.note,
       collectionIds: collectionId ? [collectionId] : [],
     };
     try {
@@ -637,18 +639,36 @@ export function AssistantScreen() {
                 <Pressable onPress={() => setPreview(false)} hitSlop={8} style={{ position: 'absolute', top: 14, right: 14, width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(15,23,42,0.5)', alignItems: 'center', justifyContent: 'center' }}>
                   <X size={18} color="#fff" />
                 </Pressable>
-                <View style={{ padding: 18 }}>
+                <ScrollView style={{ maxHeight: 430 }} contentContainerStyle={{ padding: 18 }}>
                   <Text style={{ fontSize: 22, fontWeight: '800', color: colors.textPrimary, fontFamily: 'serif' }}>{result.title}</Text>
                   <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>
                     {result.cuisine || 'Home cooking'} · {result.calories ?? '?'} kcal · {result.prepTime ?? 0} min prep
                   </Text>
+                  {result.note ? (
+                    <View style={{ marginTop: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.surfaceMuted, padding: 12 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase', color: colors.accent }}>
+                        {lang === 'de' ? 'Achte auf' : 'Good to know'}
+                      </Text>
+                      <Text style={{ fontSize: 13.5, lineHeight: 19, color: colors.textPrimary, marginTop: 4 }}>{result.note}</Text>
+                    </View>
+                  ) : null}
+                  {Array.isArray(result.tips) && result.tips.length ? (
+                    <View style={{ marginTop: 10 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase', color: colors.textSecondary }}>
+                        {lang === 'de' ? 'Tipps' : 'Tips'}
+                      </Text>
+                      {result.tips.map((tip: string, i: number) => (
+                        <Text key={i} style={{ fontSize: 13.5, lineHeight: 19, color: colors.textPrimary, marginTop: 5 }}>{'• '}{tip}</Text>
+                      ))}
+                    </View>
+                  ) : null}
                   <View style={{ marginTop: 16, gap: 10 }}>
                     <AppButton label={t('s.chefViewRecipe')} variant="dark" icon={<Sparkles size={17} color={colors.darkButtonText} />} onPress={() => { setPreview(false); openResult(); }} />
                     <Pressable onPress={() => void saveToMine()} disabled={saved} style={({ pressed }) => [{ borderRadius: 14, paddingVertical: 12, alignItems: 'center', backgroundColor: saved ? colors.success : colors.darkButton, opacity: pressed ? 0.85 : 1 }]}>
                       <Text style={{ color: saved ? readableText(colors.success) : colors.darkButtonText, fontWeight: '700', fontSize: 14 }}>{saved ? `${t('assistant.saved')} ✓` : t('assistant.saveToRecipes')}</Text>
                     </Pressable>
                   </View>
-                </View>
+                </ScrollView>
               </View>
             </View>
         

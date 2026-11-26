@@ -55,6 +55,8 @@ export function mapRecipe(row: any): any {
     protein: row.protein ?? undefined,
     carbs: row.carbs ?? undefined,
     fat: row.fat ?? undefined,
+    tips: Array.isArray(row.tips) ? row.tips : [],
+    note: row.ai_note ?? undefined,
     createdAt: row.created_at ?? undefined,
     updatedAt: row.updated_at ?? undefined,
   };

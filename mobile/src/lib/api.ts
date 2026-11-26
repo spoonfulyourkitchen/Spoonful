@@ -387,6 +387,8 @@ ops['savedRecipes.save'] = {
       protein: args.protein ?? null,
       carbs: args.carbs ?? null,
       fat: args.fat ?? null,
+      tips: Array.isArray(args.tips) ? args.tips : [],
+      ai_note: args.note ?? null,
       notes: args.notes ?? '',
       favorite: args.favorite ?? false,
       collection_ids: args.collectionIds ?? [],

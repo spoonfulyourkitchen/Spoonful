@@ -17,6 +17,9 @@ export type LibraryRecipe = {
   protein?: number;
   carbs?: number;
   fat?: number;
+  guides?: any[];
+  tips?: string[];
+  note?: string;
 };
 
 export function formatCuisine(code: string): string {
@@ -113,6 +116,9 @@ export function asRecipeFromDoc(doc: any, id?: string): LibraryRecipe {
     protein: doc.protein,
     carbs: doc.carbs,
     fat: doc.fat,
+    guides: Array.isArray(doc.guides) ? doc.guides : [],
+    tips: recipeLines(doc.tips),
+    note: recipeLine(doc.note ?? doc.aiNote),
   };
 }
 

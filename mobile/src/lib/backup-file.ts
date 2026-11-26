@@ -1,5 +1,3 @@
-import { Platform } from 'react-native';
-
 export type SaveBackupResult = 'saved' | 'cancelled' | 'unsupported';
 
 function nativeModules() {
@@ -16,7 +14,6 @@ function isCancel(error: any): boolean {
 
 /** Opens Android's "save as" dialog so the user can pick a folder for the JSON backup. */
 export async function saveBackupToFolder(json: string): Promise<SaveBackupResult> {
-  if (Platform.OS === 'web') return 'unsupported';
   const { picker, fs } = nativeModules();
   const stamp = new Date().toISOString().slice(0, 10);
   const fileName = `spoonful-backup-${stamp}.json`;
@@ -41,7 +38,6 @@ export async function saveBackupToFolder(json: string): Promise<SaveBackupResult
 
 /** Lets the user pick a .json backup and returns its text. */
 export async function readBackupFile(): Promise<string | null> {
-  if (Platform.OS === 'web') return null;
   const { picker, fs } = nativeModules();
   try {
     const [file] = await picker.pick({ type: [picker.types.json] });

@@ -4,7 +4,11 @@ import { supabase } from './supabase';
 import { withTimeout } from './safe';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const AI_TIMEOUT_MS = 60000;
+const AI_TIMEOUT_MS = 120000;
+
+function newRequestId(): string {
+  return `ai-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 export type AiUsage = { used: number; limit: number; remaining: number; unlimited: boolean };
 
@@ -90,13 +94,14 @@ async function functionError(error: any): Promise<string> {
   return `AI request failed${status ? ` (${status})` : ''}${detail ? `: ${detail.slice(0, 200)}` : ''}`;
 }
 
-async function chatJSON(system: string, user: string, temperature = 0.7): Promise<any> {
+async function chatJSON(system: string, user: string, temperature = 0.7, requestId = newRequestId()): Promise<any> {
   const { data, error } = await withTimeout(
     supabase.functions.invoke('ai', {
       body: {
         system,
         user,
         temperature: Math.max(0, Math.min(1.2, Number(temperature) || 0.7)),
+        requestId,
       },
     }),
     AI_TIMEOUT_MS,
@@ -341,9 +346,10 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
     .join('\n');
   let raw: any = null;
   let lastError: unknown = null;
+  const requestId = newRequestId();
   for (let attempt = 0; attempt < 2 && !raw; attempt += 1) {
     try {
-      raw = await chatJSON(system, user, args.temperature);
+      raw = await chatJSON(system, user, args.temperature, requestId);
     } catch (e) {
       lastError = e;
     }
