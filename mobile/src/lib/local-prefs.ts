@@ -10,6 +10,7 @@ export type LocalPrefs = {
   householdSize?: number;
   cookTime?: string;
   cuisines?: string[];
+  waterGoalMl?: number;
   startedAt?: number;
 };
 

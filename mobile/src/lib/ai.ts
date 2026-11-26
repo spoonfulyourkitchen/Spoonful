@@ -229,12 +229,18 @@ export type AiRecipeArgs = {
 
 export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
   const experience = String(args.experience ?? '').toLowerCase();
-  const detailRule =
-    experience === 'beginner' || experience === '1-2 years'
-      ? 'Write for a beginner: explain every technique in short, simple sentences and mention what "done" looks like.'
-      : experience === 'professional' || experience === '5+ years'
-        ? 'Write for an experienced cook: keep steps tight, use precise culinary terms and temperatures.'
-        : 'Write for an average home cook: clear steps without over-explaining.';
+  const beginner = experience === 'beginner' || experience === '1-2 years';
+  const advanced = experience === 'professional' || experience === '5+ years';
+  const detailRule = beginner
+    ? 'Write for a beginner: explain every technique in short, simple sentences and say what "done" looks like.'
+    : advanced
+      ? 'Write for an experienced cook: keep steps tight, use precise culinary terms and temperatures.'
+      : 'Write for an average home cook: clear steps without over-explaining.';
+  const guideRule = beginner
+    ? 'Coaching tips are for a beginner or someone with 1-2 years of practice. Only steps that are genuinely difficult or easy to get wrong get a tip: browning, frying, reducing a sauce, baking, cooking meat through, tempering, resting, or anything where timing matters. Simple steps (boiling water, adding pasta, washing vegetables, plating) MUST have coach: null and look: null. For a difficult step write a coach tip of two short, concrete sentences that says what to do, why, and the mistake beginners usually make. The look hint is one sensory check (colour, texture, sound, smell) that tells them it is right. Every word must refer to THIS step and THIS recipe, never generic advice.'
+    : advanced
+      ? 'Only the two or three truly tricky steps get a guide, each one concise sentence with a precise sensory check. Every other step MUST have coach: null and look: null. Never add generic advice.'
+      : 'Only steps that are genuinely difficult or easy to get wrong get a guide, at most one or two sentences. Simple steps MUST have coach: null and look: null. Every tip must name what to watch in THIS step, never generic advice.';
   const goalRule =
     args.goal === 'lose'
       ? 'Keep calories moderate and favour vegetables, lean protein and fibre.'
@@ -294,7 +300,7 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
     'Always answer with valid JSON only (no markdown, no commentary). Fields exactly: ' +
     'title, description (2-3 sentences), cuisine, mealType, ingredients (array of strings WITH amounts, e.g. "200 g pasta"), ' +
     'steps (array of clear imperative strings, each 1-2 sentences, ordered), ' +
-    'guides (array with exactly one object per step, same order, each {"coach": string, "look": string}), prepTime (minutes, number), ' +
+    'guides (array with exactly one object per step, same order, each {"coach": string or null, "look": string or null}; null for steps that are not difficult), prepTime (minutes, number), ' +
     'cookTime (minutes, number), difficulty ("easy"|"medium"|"hard"), dietaryRestrictions (array of lowercase tags), ' +
     'calories, protein, carbs, fat (numbers, per serving), tips (array of up to 3 short strings)' +
     (args.explain ? ', note' : '') +
@@ -307,9 +313,10 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
     'Use lactose-free dairy when requested. Do not replace a user-specified type or fat content. ' +
     'Write every step so it can be followed without thinking: one action per step, ' +
     'with amounts and times inside the step. ' +
-    'For every step write a coach tip and a look-for hint. The coach tip is one practical sentence, ' +
-    'max 18 words, it names only ingredients that appear in THIS recipe and never mentions another dish. ' +
-    'The look-for hint is one sensory check, max 14 words: colour, texture, sound or smell. ' +
+    guideRule +
+    ' A coach tip names only ingredients that appear in THIS recipe and never mentions another dish. ' +
+    'The look hint is a sensory check, max 16 words: colour, texture, sound or smell. ' +
+    'A guide must match its own step, not the recipe as a whole. ' +
     'Never use em dashes or en dashes in any field. ' +
     detailRule +
     ' ' +
@@ -400,8 +407,10 @@ export async function aiImproveRecipe(args: {
   const system =
     'You are the Spoonful AI Chef. Improve an existing recipe and answer with valid JSON only. ' +
     'Same fields as a recipe: title, description, cuisine, mealType, ingredients (WITH amounts), steps, ' +
+    'guides (one object per step, same order, each {"coach": string or null, "look": string or null}; only difficult steps get a tip), ' +
     'prepTime, cookTime, difficulty, dietaryRestrictions, calories, protein, carbs, fat, tips (max 3) and ' +
     '"changes" (array of max 4 short strings describing what you changed). ' +
+    'Every guide must match its own step; simple steps stay null. ' +
     'Keep the character of the dish, keep it realistic and metric. ' +
     (allergyTags.length ? `Never use: ${allergyTags.join(', ')}. ` : '') +
     (args.experience ? `Write the steps for a ${args.experience} cook. ` : '') +
@@ -419,6 +428,14 @@ export async function aiImproveRecipe(args: {
     cuisine: str(raw.cuisine, 'Other'),
     ingredients: strList(raw.ingredients),
     steps: strList(raw.steps),
+    guides: strList(raw.steps).map((_step, i) => {
+      const guide = Array.isArray(raw.guides) ? raw.guides[i] : null;
+      return {
+        index: i,
+        coach: guide?.coach ? String(guide.coach).slice(0, 220) : null,
+        look: guide?.look ? String(guide.look).slice(0, 180) : null,
+      };
+    }),
     prepTime: intOr(raw.prepTime, 10),
     cookTime: intOr(raw.cookTime, 20),
     difficulty: ['easy', 'medium', 'hard'].includes(raw.difficulty) ? raw.difficulty : 'medium',

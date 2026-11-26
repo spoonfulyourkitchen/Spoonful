@@ -218,6 +218,8 @@ ops['recipes.create'] = {
         protein: args.protein ?? null,
         carbs: args.carbs ?? null,
         fat: args.fat ?? null,
+        tips: Array.isArray(args.tips) ? args.tips : [],
+        ai_note: args.note ?? null,
         created_at: t,
         updated_at: t,
       })
@@ -235,6 +237,8 @@ ops['recipes.update'] = {
     if (args.ingredients !== undefined) patch.ingredients = args.ingredients;
     if (args.steps !== undefined) patch.steps = args.steps;
     if (args.guides !== undefined) patch.guides = args.guides;
+    if (args.tips !== undefined) patch.tips = Array.isArray(args.tips) ? args.tips : [];
+    if (args.note !== undefined) patch.ai_note = args.note ?? null;
     if (args.prepTime !== undefined) patch.prep_time = args.prepTime;
     if (args.cookTime !== undefined) patch.cook_time = args.cookTime;
     if (args.cuisine !== undefined) patch.cuisine = args.cuisine;
@@ -412,6 +416,23 @@ ops['savedRecipes.save'] = {
 ops['savedRecipes.update'] = {
   async mutation({ uid }, args: any) {
     const patch: any = { updated_at: ts() };
+    if (args.title !== undefined) patch.title = args.title;
+    if (args.description !== undefined) patch.description = args.description;
+    if (args.ingredients !== undefined) patch.ingredients = args.ingredients;
+    if (args.steps !== undefined) patch.steps = args.steps;
+    if (args.guides !== undefined) patch.guides = args.guides;
+    if (args.prepTime !== undefined) patch.prep_time = args.prepTime;
+    if (args.cookTime !== undefined) patch.cook_time = args.cookTime;
+    if (args.cuisine !== undefined) patch.cuisine = args.cuisine;
+    if (args.dietaryRestrictions !== undefined) patch.dietary_restrictions = args.dietaryRestrictions;
+    if (args.imageUrl !== undefined) patch.image_url = args.imageUrl;
+    if (args.difficulty !== undefined) patch.difficulty = args.difficulty;
+    if (args.calories !== undefined) patch.calories = args.calories;
+    if (args.protein !== undefined) patch.protein = args.protein;
+    if (args.carbs !== undefined) patch.carbs = args.carbs;
+    if (args.fat !== undefined) patch.fat = args.fat;
+    if (args.tips !== undefined) patch.tips = Array.isArray(args.tips) ? args.tips : [];
+    if (args.note !== undefined) patch.ai_note = args.note ?? null;
     if (args.favorite !== undefined) patch.favorite = args.favorite;
     if (args.notes !== undefined) patch.notes = args.notes;
     if (args.collectionIds !== undefined) patch.collection_ids = args.collectionIds;

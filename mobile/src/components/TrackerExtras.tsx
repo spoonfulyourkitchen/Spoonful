@@ -17,6 +17,7 @@ import { Popup } from './Popup';
 import { tutorialAction, useTutorialTarget } from '../lib/tutorial';
 import { BARCODE_L10N, TRACKER_L10N, pick } from '../lib/l10n';
 import { addPendingOp, getConnNow } from '../lib/offline';
+import { useLocalPrefs } from '../lib/local-prefs';
 import {
   addWaterLocal,
   addWeightLocal,
@@ -34,6 +35,7 @@ import {
 const PROFILE_KEY = 'spoonful:nutrition-profile';
 
 export function TrackerExtras({ onLocalLog, mode }: { onLocalLog?: (payload: any) => void; mode?: 'food' | 'water' | 'weight' } = {}) {
+  const localPrefs = useLocalPrefs();
   const { t, lang } = useTranslation();
   const logManual = useMutation(api.calorieEntries.logManual);
   
@@ -103,7 +105,8 @@ export function TrackerExtras({ onLocalLog, mode }: { onLocalLog?: (payload: any
     };
   }, []);
 
-  const waterGoalMl = Math.round((bodyWeight * 35) / 100) * 100;
+  const savedWaterGoal = Number(localPrefs.waterGoalMl ?? 0);
+  const waterGoalMl = savedWaterGoal > 0 ? Math.round(savedWaterGoal) : Math.round((bodyWeight * 35) / 100) * 100;
   const totalMl = waterLocal.totalMl;
   const waterPct = waterGoalMl ? Math.min(100, Math.round((totalMl / waterGoalMl) * 100)) : 0;
 

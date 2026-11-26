@@ -644,24 +644,6 @@ export function AssistantScreen() {
                   <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>
                     {result.cuisine || 'Home cooking'} · {result.calories ?? '?'} kcal · {result.prepTime ?? 0} min prep
                   </Text>
-                  {result.note ? (
-                    <View style={{ marginTop: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.surfaceMuted, padding: 12 }}>
-                      <Text style={{ fontSize: 11, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase', color: colors.accent }}>
-                        {lang === 'de' ? 'Achte auf' : 'Good to know'}
-                      </Text>
-                      <Text style={{ fontSize: 13.5, lineHeight: 19, color: colors.textPrimary, marginTop: 4 }}>{result.note}</Text>
-                    </View>
-                  ) : null}
-                  {Array.isArray(result.tips) && result.tips.length ? (
-                    <View style={{ marginTop: 10 }}>
-                      <Text style={{ fontSize: 11, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase', color: colors.textSecondary }}>
-                        {lang === 'de' ? 'Tipps' : 'Tips'}
-                      </Text>
-                      {result.tips.map((tip: string, i: number) => (
-                        <Text key={i} style={{ fontSize: 13.5, lineHeight: 19, color: colors.textPrimary, marginTop: 5 }}>{'• '}{tip}</Text>
-                      ))}
-                    </View>
-                  ) : null}
                   <View style={{ marginTop: 16, gap: 10 }}>
                     <AppButton label={t('s.chefViewRecipe')} variant="dark" icon={<Sparkles size={17} color={colors.darkButtonText} />} onPress={() => { setPreview(false); openResult(); }} />
                     <Pressable onPress={() => void saveToMine()} disabled={saved} style={({ pressed }) => [{ borderRadius: 14, paddingVertical: 12, alignItems: 'center', backgroundColor: saved ? colors.success : colors.darkButton, opacity: pressed ? 0.85 : 1 }]}>

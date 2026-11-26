@@ -279,7 +279,18 @@ export function SettingsScreen() {
         </Pressable>
         <ProfileEditor visible={profileOpen} onClose={() => setProfileOpen(false)} />
 
-        <GlassCard pad={4} radius={20} style={{ marginTop: 12 }}>
+        <Text style={label}>{L('Haushalt', 'Household')}</Text>
+        <GlassCard pad={4} radius={20}>
+          <NavRow
+            icon={<Users size={18} color={colors.accent} />}
+            label={household?.name ?? t('hh.title')}
+            value={household ? `${(household.members ?? []).length}` : undefined}
+            onPress={() => navigate('Main' as any, { screen: 'Household' } as any)}
+          />
+        </GlassCard>
+
+        <Text style={label}>{L('App & Darstellung', 'App & appearance')}</Text>
+        <GlassCard pad={4} radius={20}>
           <NavRow icon={<Palette size={18} color={colors.accent} />} label={t('settings.theme')} onPress={() => navigate('Theme')} />
           <Divider style={{ marginLeft: 16 }} />
           <NavRow
@@ -301,14 +312,13 @@ export function SettingsScreen() {
           ) : null}
         </GlassCard>
 
-        <Text style={label}>{t('hh.title')}</Text>
+        <Text style={label}>{L('Daten & Sicherung', 'Data & backup')}</Text>
         <GlassCard pad={4} radius={20}>
-          <NavRow
-            icon={<Users size={18} color={colors.accent} />}
-            label={household?.name ?? t('hh.title')}
-            value={household ? `${(household.members ?? []).length}` : undefined}
-            onPress={() => navigate('Main' as any, { screen: 'Household' } as any)}
-          />
+          <NavRow icon={<Download size={18} color={colors.accent} />} label={t('ui.exportData')} onPress={() => void exportData()} />
+          <Divider style={{ marginLeft: 16 }} />
+          <NavRow icon={<Upload size={18} color={colors.accent} />} label={L('Daten importieren', 'Import my data')} onPress={() => setImportOpen(true)} />
+          <Divider style={{ marginLeft: 16 }} />
+          <NavRow icon={<Users size={18} color={colors.accent} />} label={L('Profil & Ziele neu einrichten', 'Redo profile setup')} onPress={redoOnboarding} />
         </GlassCard>
 
         <Text style={label}>{t('ui.help')}</Text>
@@ -322,12 +332,6 @@ export function SettingsScreen() {
           />
           <Divider style={{ marginLeft: 16 }} />
           <NavRow icon={<Star size={18} color={colors.accent} />} label={t('s.xFeedbackTitle')} onPress={() => setShowFeedback(true)} />
-          <Divider style={{ marginLeft: 16 }} />
-          <NavRow icon={<Download size={18} color={colors.accent} />} label={t('ui.exportData')} onPress={() => void exportData()} />
-          <Divider style={{ marginLeft: 16 }} />
-          <NavRow icon={<Upload size={18} color={colors.accent} />} label={L('Daten importieren', 'Import my data')} onPress={() => setImportOpen(true)} />
-          <Divider style={{ marginLeft: 16 }} />
-          <NavRow icon={<Users size={18} color={colors.accent} />} label={L('Profil & Ziele neu einrichten', 'Redo profile setup')} onPress={redoOnboarding} />
           <Divider style={{ marginLeft: 16 }} />
           <NavRow icon={<Mail size={18} color={colors.accent} />} label={t('ui.contact')} onPress={() => Linking.openURL('mailto:spoonfulsupport@gmail.com')} />
         </GlassCard>

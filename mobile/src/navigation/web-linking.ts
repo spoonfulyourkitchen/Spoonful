@@ -18,7 +18,6 @@ const config = {
         Library: path('library'),
         MyRecipes: path('my-recipes'),
         Assistant: path('assistant'),
-        Saved: path('saved'),
         Tracker: path('tracker'),
         Shopping: path('shopping-tab'),
         Household: path('household'),

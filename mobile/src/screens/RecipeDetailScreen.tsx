@@ -218,6 +218,7 @@ export function RecipeDetailScreen({ route }: any) {
       description: recipe.description ?? '',
       ingredients: recipe.ingredients ?? [],
       steps: recipe.steps ?? [],
+      guides: (recipe as any).guides ?? [],
       prepTime: recipe.prepTime ?? 0,
       cookTime: recipe.cookTime ?? 0,
       cuisine: recipe.cuisine ?? 'Other',
@@ -332,6 +333,9 @@ export function RecipeDetailScreen({ route }: any) {
         steps: translated.steps?.length ? translated.steps : recipe.steps ?? [],
       }
     : recipe;
+  const stepGuides: any[] = (Array.isArray((recipe as any).guides) && (recipe as any).guides.length
+    ? (recipe as any).guides
+    : Array.isArray(routeGuides) ? routeGuides : []) ?? [];
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -435,38 +439,36 @@ export function RecipeDetailScreen({ route }: any) {
           </TutorialTarget>
 
           <SectionLabel style={{ marginTop: 20 }}>{t('recipe.steps')}</SectionLabel>
-          {recipeLines(view.steps).map((step: string, i: number) => (
-            <View key={i} style={{ flexDirection: 'row', marginBottom: 12 }}>
-              <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', marginRight: 12, marginTop: 1 }}>
-                <Text style={{ color: colors.accentText, fontSize: 13, fontWeight: '800' }}>{i + 1}</Text>
+          {recipeLines(view.steps).map((step: string, i: number) => {
+            const guide = stepGuides[i];
+            return (
+              <View key={i} style={{ flexDirection: 'row', marginBottom: 14 }}>
+                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', marginRight: 12, marginTop: 1 }}>
+                  <Text style={{ color: colors.accentText, fontSize: 13, fontWeight: '800' }}>{i + 1}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, lineHeight: 22, color: colors.textPrimary }}>{step}</Text>
+                  {guide?.coach || guide?.look ? (
+                    <View style={{ marginTop: 7, borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.surfaceMuted, padding: 10, gap: 4 }}>
+                      {guide?.coach ? (
+                        <Text style={{ fontSize: 13, lineHeight: 19, color: colors.textPrimary }}>
+                          <Text style={{ fontWeight: '800', color: colors.accent }}>{lang === 'de' ? 'Kochtipp: ' : 'Coach tip: '}</Text>
+                          {guide.coach}
+                        </Text>
+                      ) : null}
+                      {guide?.look ? (
+                        <Text style={{ fontSize: 13, lineHeight: 19, color: colors.textSecondary }}>
+                          <Text style={{ fontWeight: '800' }}>{lang === 'de' ? 'Achte auf: ' : 'Look for: '}</Text>
+                          {guide.look}
+                        </Text>
+                      ) : null}
+                    </View>
+                  ) : null}
+                </View>
               </View>
-              <Text style={{ fontSize: 15, lineHeight: 22, color: colors.textPrimary, flex: 1 }}>{step}</Text>
-            </View>
-          ))}
+            );
+          })}
           {!recipeLines(view.steps).length ? <Text style={{ color: colors.textSecondary }}>{t('s.xNoSteps')}</Text> : null}
-
-          {(recipe as any).note ? (
-            <>
-              <SectionLabel style={{ marginTop: 20 }}>{lang === 'de' ? 'Achte auf' : 'Good to know'}</SectionLabel>
-              <GlassCard pad={16} radius={20} variant="solid">
-                <Text style={{ fontSize: 14.5, lineHeight: 21, color: colors.textPrimary }}>{(recipe as any).note}</Text>
-              </GlassCard>
-            </>
-          ) : null}
-
-          {(recipe as any).tips?.length ? (
-            <>
-              <SectionLabel style={{ marginTop: 20 }}>{lang === 'de' ? 'Tipps' : 'Tips'}</SectionLabel>
-              <GlassCard pad={16} radius={20} variant="solid">
-                {((recipe as any).tips as string[]).map((tip, i) => (
-                  <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 5 }}>
-                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent, marginTop: 7, marginRight: 10 }} />
-                    <Text style={{ fontSize: 14.5, lineHeight: 21, color: colors.textPrimary, flex: 1 }}>{tip}</Text>
-                  </View>
-                ))}
-              </GlassCard>
-            </>
-          ) : null}
 
           {detailSource === 'mine' ? (
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>

@@ -7,7 +7,6 @@ export type RootStackParamList = {
   Library: undefined;
   MyRecipes: undefined;
   Assistant: undefined;
-  Saved: undefined;
   Tracker: undefined;
   Community: undefined;
   Shopping: undefined;
@@ -16,7 +15,7 @@ export type RootStackParamList = {
   Settings: undefined;
   Admin: undefined;
   RecipeDetail: { recipeId: string; title?: string; source?: string; recipe?: any; guides?: any };
-  RecipeForm: { recipe?: any } | undefined;
+  RecipeForm: { recipe?: any; savedId?: string } | undefined;
   Cooking: {
     title?: string;
     description?: string;
@@ -40,7 +39,6 @@ export type RootTabParamList = {
   Library: undefined;
   MyRecipes: undefined;
   Assistant: undefined;
-  Saved: undefined;
   Tracker: undefined;
 };
 
@@ -48,6 +46,5 @@ export const TAB_ROUTES: { name: keyof RootTabParamList; label: string }[] = [
   { name: 'Library', label: 'Library' },
   { name: 'MyRecipes', label: 'My Recipes' },
   { name: 'Assistant', label: 'AI Chef' },
-  { name: 'Saved', label: 'Saved' },
   { name: 'Tracker', label: 'Tracker' },
 ];

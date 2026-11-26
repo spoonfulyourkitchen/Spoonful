@@ -115,7 +115,7 @@ export function DashboardScreen() {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           <QuickLink icon={<ChefHat size={17} color={colors.accent} />} label={t('s.mineTitle')} onPress={() => navigate('Main', { screen: 'MyRecipes' })} />
           <QuickLink icon={<Flame size={17} color={colors.accent} />} label={t('s.dashTracker')} onPress={() => navigate('Main', { screen: 'Tracker' })} />
-          <QuickLink icon={<Bookmark size={17} color={colors.accent} />} label={t('s.dashSaved')} onPress={() => navigate('Main', { screen: 'Saved' })} />
+          <QuickLink icon={<Bookmark size={17} color={colors.accent} />} label={t('s.dashSaved')} onPress={() => navigate('Main', { screen: 'MyRecipes' })} />
         </View>
 
         <Text style={label}>{t('onboarding.gettingStarted')}</Text>

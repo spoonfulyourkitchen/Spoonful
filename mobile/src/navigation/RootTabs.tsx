@@ -4,7 +4,6 @@ import { useWindowDimensions } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  Bookmark,
   ChefHat,
   Flame,
   Home,
@@ -23,7 +22,6 @@ import { useTutorialTarget } from '../lib/tutorial';
 import { LibraryScreen } from '../screens/LibraryScreen';
 import { MyRecipesScreen } from '../screens/MyRecipesScreen';
 import { AssistantScreen } from '../screens/AssistantScreen';
-import { SavedScreen } from '../screens/SavedScreen';
 import { TrackerScreen } from '../screens/TrackerScreen';
 import { ShoppingScreen } from '../screens/ShoppingScreen';
 import { HouseholdScreen } from '../screens/HouseholdScreen';
@@ -31,15 +29,14 @@ import { HouseholdScreen } from '../screens/HouseholdScreen';
 const Tab = createBottomTabNavigator();
 
 export type RootTabScreenNames =
-  | 'Library' | 'MyRecipes' | 'Assistant' | 'Saved' | 'Tracker' | 'Shopping' | 'Household';
+  | 'Library' | 'MyRecipes' | 'Assistant' | 'Tracker' | 'Shopping' | 'Household';
 
-const ORDER: RootTabScreenNames[] = ['Library', 'MyRecipes', 'Assistant', 'Saved', 'Tracker', 'Shopping', 'Household'];
+const ORDER: RootTabScreenNames[] = ['Library', 'MyRecipes', 'Assistant', 'Tracker', 'Shopping', 'Household'];
 
 const ICONS: Record<RootTabScreenNames, React.ComponentType<any>> = {
   Library,
   MyRecipes: ChefHat,
   Assistant: MessageCircle,
-  Saved: Bookmark,
   Tracker: Flame,
   Shopping: ShoppingCart,
   Household: Home,
@@ -49,7 +46,6 @@ const TAB_KEY: Record<RootTabScreenNames, string> = {
   Library: 'nav.discover',
   MyRecipes: 'nav.kitchen',
   Assistant: 'nav.ai',
-  Saved: 'nav.saved',
   Tracker: 'nav.tracker',
   Shopping: 'nav.shopping',
   Household: 's.hhTab',
@@ -59,7 +55,6 @@ const SCREENS: Record<RootTabScreenNames, React.ComponentType<any>> = {
   Library: LibraryScreen,
   MyRecipes: MyRecipesScreen,
   Assistant: AssistantScreen,
-  Saved: SavedScreen,
   Tracker: TrackerScreen,
   Shopping: ShoppingScreen,
   Household: HouseholdScreen,

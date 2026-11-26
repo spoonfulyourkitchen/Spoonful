@@ -197,30 +197,7 @@ export const TOUR_STEPS: TutorialStep[] = [
       ru: 'Ингредиенты внутрь, рецепт наружу. Сюда попадает и ссылка из TikTok, Instagram или YouTube - нажмите вкладку.',
     },
   },
-  {
-    id: 'nav-saved',
-    targetId: 'tut-tab-Saved',
-    expect: 'tap',
-    before: openTab('Saved'),
-    padding: 6,
-    newIn: 4,
-    title: {
-      en: 'Saved', de: 'Gemerkt', ar: 'المحفوظات', fr: 'Enregistres', es: 'Guardado',
-      it: 'Salvati', tr: 'Kaydedilenler', pt: 'Guardados', nl: 'Bewaard', ru: 'Сохранённое',
-    },
-    text: {
-      en: 'Everything you bookmark waits here, with your own notes. Tap the tab.',
-      de: 'Alles, was du merkst, liegt hier - mit deinen eigenen Notizen. Tippe den Tab.',
-      ar: 'كل ما تحفظه يبقى هنا مع ملاحظاتك. انقر التبويب.',
-      fr: 'Tout ce que tu gardes reste ici, avec tes notes. Touche l onglet.',
-      es: 'Todo lo que guardas espera aqui, con tus notas. Toca la pestana.',
-      it: 'Tutto cio che salvi resta qui, con le tue note. Tocca la scheda.',
-      tr: 'Kaydettiklerin notlarinla birlikte burada. Sekmeye dokun.',
-      pt: 'Tudo o que guardas fica aqui, com as tuas notas. Toca no separador.',
-      nl: 'Alles wat je bewaart staat hier, met je eigen notities. Tik op de tab.',
-      ru: 'Всё сохранённое лежит здесь, вместе с вашими заметками. Нажмите вкладку.',
-    },
-  },
+  
   {
     id: 'nav-household',
     targetId: 'tut-tab-Household',

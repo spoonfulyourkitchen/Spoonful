@@ -12,4 +12,4 @@ export const SUPABASE_STORAGE_BUCKET = 'recipe-images';
 
 export const APP_NAME = 'Spoonful';
 
-export const APP_VERSION = '3.7.3';
+export const APP_VERSION = '3.7.4';

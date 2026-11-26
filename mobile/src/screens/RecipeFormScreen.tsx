@@ -29,8 +29,10 @@ export function RecipeFormScreen({ route }: any) {
   const insets = useSafeAreaInsets();
   const { t, lang } = useTranslation();
   const editing = route.params?.recipe as any;
+  const savedId = route.params?.savedId as string | undefined;
   const createRecipe = useMutation(api.recipes.create);
   const updateRecipe = useMutation(api.recipes.update);
+  const updateSaved = useMutation(api.savedRecipes.update);
 
   const [title, setTitle] = useState(editing?.title ?? '');
   const [cuisine, setCuisine] = useState(editing?.cuisine ?? '');
@@ -59,7 +61,7 @@ export function RecipeFormScreen({ route }: any) {
   const [draftRestored, setDraftRestored] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const draftKey = editing ? `recipe-${editing._id ?? editing.id}` : 'recipe-new';
+  const draftKey = savedId ? `saved-${savedId}` : editing ? `recipe-${editing._id ?? editing.id}` : 'recipe-new';
   const savedRef = useRef(false);
 
   useEffect(() => {
@@ -182,31 +184,38 @@ export function RecipeFormScreen({ route }: any) {
       dietaryRestrictions: diets.split(',').map((d: string) => d.trim().toLowerCase()).filter(Boolean),
       imageUrl: imageUrl.trim(), difficulty,
       calories: toInt(calories), protein: toInt(protein), carbs: toInt(carbs), fat: toInt(fat),
+      guides: Array.isArray(editing?.guides) ? editing.guides : [],
+      tips: Array.isArray(editing?.tips) ? editing.tips : [],
+      note: editing?.note,
     };
     setBusy(true);
     try {
-      let savedId: string | undefined;
-      if (editing?.id || editing?._id) {
-        savedId = editing._id ?? editing.id;
-        await updateRecipe({ id: savedId, ...payload });
+      let savedRecipeId: string | undefined;
+      if (savedId) {
+        savedRecipeId = savedId;
+        await updateSaved({ id: savedId, ...payload });
+      } else if (editing?.id || editing?._id) {
+        savedRecipeId = editing._id ?? editing.id;
+        await updateRecipe({ id: savedRecipeId, ...payload });
       } else {
         const created: any = await createRecipe(payload as any);
-        savedId = created?._id ?? created?.id;
+        savedRecipeId = created?._id ?? created?.id;
         void notifyRecipeAdded(title.trim());
       }
       
 
-      if (pendingPhoto && savedId) {
+      if (pendingPhoto && savedRecipeId) {
         try {
           const remote = await uploadPhotoToServer(pendingPhoto.base64, pendingPhoto.mime);
           if (remote) {
-            await updateRecipe({ id: savedId, imageUrl: remote });
+            if (savedId) await updateSaved({ id: savedId, imageUrl: remote });
+            else await updateRecipe({ id: savedRecipeId, imageUrl: remote });
             if (localPhoto) await copyCrop(localPhoto, remote);
           } else {
-            await addPendingOp('photo.upload', { recipeId: savedId, base64: pendingPhoto.base64, mime: pendingPhoto.mime });
+            await addPendingOp('photo.upload', { recipeId: savedRecipeId, base64: pendingPhoto.base64, mime: pendingPhoto.mime });
           }
         } catch {
-          await addPendingOp('photo.upload', { recipeId: savedId, base64: pendingPhoto.base64, mime: pendingPhoto.mime });
+          await addPendingOp('photo.upload', { recipeId: savedRecipeId, base64: pendingPhoto.base64, mime: pendingPhoto.mime });
         }
       }
       savedRef.current = true;

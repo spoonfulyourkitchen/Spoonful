@@ -3,7 +3,7 @@ import { Animated, Easing, Modal, PanResponder, Pressable, ScrollView, Text, Vie
 import Svg, { Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  AlertTriangle, Bookmark, ChefHat, Flame, Home, Library, LogOut, Menu,
+  AlertTriangle, ChefHat, Flame, Home, Library, LogOut, Menu,
   MessageCircle, Palette, Search, Settings, Shield, ShoppingCart, Sparkles, X,
 } from 'lucide-react-native';
 import { useQuery, useAuthActions } from '../lib/convex-auth';
@@ -320,7 +320,6 @@ function DrawerSheet({ visible, onClose }: { visible: boolean; onClose: () => vo
             <Row icon={<Library {...ic(colors.accent)} />} label={t('nav.discover')} onPress={() => goTab('Library')} />
             <Row icon={<ChefHat {...ic(colors.accent)} />} label={t('nav.kitchen')} onPress={() => goTab('MyRecipes')} />
             <Row icon={<MessageCircle {...ic(colors.accent)} />} label={t('nav.ai')} onPress={() => goTab('Assistant')} />
-            <Row icon={<Bookmark {...ic(colors.accent)} />} label={t('nav.saved')} onPress={() => goTab('Saved')} />
             <Row icon={<Flame {...ic(colors.accent)} />} label={t('nav.tracker')} onPress={() => goTab('Tracker')} />
 
             <DrawerLabel>{t('nav.more')}</DrawerLabel>
