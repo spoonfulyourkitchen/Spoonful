@@ -444,7 +444,7 @@ export function isJunkLine(line: string): boolean {
   if (/https?:\/\/|www\.|\.com|\.de\b|\.net|bit\.ly|youtu\.be/i.test(s)) return true;
   if (/(^|\s)#[^\s#]+/.test(s)) return true;
   if (/^\s*\d{1,2}:\d{2}/.test(s)) return true;  if (/[❤️🔥👌😍👇🙏✅💯]/u.test(s)) return true;
-  return /(subscribe|abonnier|abonniert|kanal|channel|follow (me|us)|folge mir|like (this|the) video|daumen hoch|teile das video|share (this|the) video|bewert|kommentier|comment below|schreib.*kommentar|glocke|bell icon|benachrichtigung|notification|link in (the )?bio|link in der beschreibung|bio|patreon|sponsor|werbung|ad\b|giveaway|gewinnspiel|rabattcode|discount code|watch (the )?full|ganzes video|thanks for watching|danke f.rs zuschauen|bis zum n.chsten|see you (next|in)|new video|playlist)/i.test(s);
+  return /(subscribe|abonnier|abonniert|kanal|channel|follow (me|us)|folge mir|like (this|the) video|daumen hoch|teile das video|share (this|the) video|bewert|kommentier|comment below|schreib.*kommentar|glocke|bell icon|benachrichtigung|notification|abos?\b|abonn|liket|like das video|knacken|follower|link in (the )?bio|link in der beschreibung|bio|patreon|sponsor|werbung|ad\b|giveaway|gewinnspiel|rabattcode|discount code|watch (the )?full|ganzes video|thanks for watching|danke f.rs zuschauen|bis zum n.chsten|see you (next|in)|new video|playlist)/i.test(s);
 }
 
 export function cleanJunkLines(lines: string[]): string[] {
@@ -484,6 +484,7 @@ export function mergeIngredients(video: string[], ai: string[]): string[] {
     s.toLowerCase().replace(/\d+([.,]\d+)?/g, ' ').replace(/[^a-z0-9äöüß ]/g, ' ').replace(/\s+/g, ' ').trim();
   const add = (raw: string) => {
     const value = String(raw ?? '').trim();
+    if (!value || isJunkLine(value)) return;
     const key = norm(value);
     if (!key) return;
     const near = out.findIndex((existing) => {
@@ -553,13 +554,11 @@ async function composeRecipe(input: ComposeInput, allowAi: boolean): Promise<Vid
     ingredients: cleanJunkLines(local.ingredients),
     steps: cleanJunkLines(local.steps),
   };
-  const junkFound =
-    cleaned.ingredients.length !== local.ingredients.length || cleaned.steps.length !== local.steps.length;
-  const tooFewSteps = cleaned.ingredients.length >= 2 && cleaned.steps.length < 3;
-  const aiAvailable = allowAi && text.trim().length >= 120;
   const tag = { source: input.source, language: input.language };
 
-  if ((tooFewSteps || junkFound) && aiAvailable) {
+  // The description is the source of truth: it is handed to the AI untouched,
+  // before the local heuristic parser can cut it into lines and lose amounts.
+  if (allowAi && text.trim().length >= 60) {
     const structured = await aiRecipeFromText({ title: input.title, text }).catch(() => null);
     if (structured && structured.steps.length >= 2) {
       const ingredients = mergeIngredients(cleaned.ingredients, structured.ingredients);
@@ -586,20 +585,6 @@ async function composeRecipe(input: ComposeInput, allowAi: boolean): Promise<Vid
       textSource: input.origin,
       needsReview: cleaned.ingredients.length < 3,
     };
-  }
-
-  if (allowAi && text.trim().length >= 200) {
-    const structured = await aiRecipeFromText({ title: input.title, text }).catch(() => null);
-    if (structured && structured.ingredients.length && structured.steps.length) {
-      return {
-        title: structured.title || craftTitle(input.title, structured.ingredients[0] ?? ''),
-        ingredients: structured.ingredients,
-        steps: structured.steps,
-        ...tag,
-        textSource: 'ai',
-        needsReview: true,
-      };
-    }
   }
 
   const lines = toSegments(text)

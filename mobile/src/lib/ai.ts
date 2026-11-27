@@ -611,26 +611,37 @@ export async function aiRecipeFromText(args: {
   const raw = String(args.text ?? '').trim();
   if (raw.length < 60) return null;
   const system =
-    'You turn the description or the subtitles of a cooking video into a clean, complete recipe. ' +
+    'You adapt the description of a cooking video into the recipe format of the Spoonful app. ' +
+    'The user text below is the description copied 1:1, word for word. Read all of it and treat it as ' +
+    'the only source of truth: it is often one flowing paragraph without a list, and it may mix ' +
+    'ingredients, amounts and narration in the same sentence. ' +
     'Answer with valid JSON only: {"title": string, "ingredients": string[], "steps": string[]}. ' +
     
 
-    'CRAFT the title yourself: a clean, appetising dish name (max 6 words, no emojis, no hashtags, ' +
-    'no channel or creator name, no "recipe", no clickbait, no ALL CAPS). Only keep the video title ' +
-    'if it already is a proper dish name. ' +
+    'PICK the title out of the description: use the dish name the description actually names ' +
+    '(max 6 words, no emojis, no hashtags, no channel or creator name, no "recipe", no clickbait, ' +
+    'no ALL CAPS). Only when the description names no dish at all, clean up the video title instead. ' +
     
 
+    'PULL OUT every ingredient the description mentions, with the exact amount written there ' +
+    '(e.g. "500 g Mehl", "2 EL Olivenöl", "1 Prise Salz"). Keep the wording of the amounts as written. ' +
     'REMOVE everything that is not part of the recipe: subscribe/follow/like/share requests, ' +
     'channel or social media names, links and URLs, hashtags, emojis, giveaways, sponsor mentions, ' +
     '"watch the full video", timestamps and any sentence that is only talking to the audience. ' +
-    'Split longer narration into individual short imperative steps, in the correct cooking order. ' +
-    'Write 5 to 9 complete steps, each one real action, and never pad the list to reach a count. ' +
+    'Split the description into individual short imperative steps, in the correct cooking order, ' +
+    'and write them the way the cook performs them (informal du-form in German). ' +
+    'Write 4 to 9 complete steps, each one real action, and never pad the list to reach a count. ' +
+    'Name the amount of each ingredient inside the step where it is used (e.g. "200 g Spaghetti"). ' +
     'Never add a step that only explains a rule, a temperature, a consistency or a timing range, ' +
-    'never cut a step with "...", and only add a step when the text clearly says that action. ' +
-    'Never invent ingredients or amounts that are not in the text. ' +
-    'Keep the original language of the text and keep every amount (e.g. "500 g Mehl"). ' +
-    'If the text contains no recipe at all, answer {"title":"","ingredients":[],"steps":[]}.';
-  const user = [args.title ? `Video title: ${args.title}` : '', 'Text:', raw.slice(0, 6000)]
+    'never cut a step with "...", and only add a step when the description clearly says that action. ' +
+    'Never invent ingredients, amounts or actions that are not in the description. ' +
+    'Keep the original language of the description and keep every amount exactly as written. ' +
+    'If the description contains no recipe at all, answer {"title":"","ingredients":[],"steps":[]}.';
+  const user = [
+    args.title ? `Video title (only a hint, the title must come from the description): ${args.title}` : '',
+    'Description (1:1, verbatim):',
+    raw.slice(0, 9000),
+  ]
     .filter(Boolean)
     .join('\n');
   const parsed = await chatJSON(system, user, 0.2);

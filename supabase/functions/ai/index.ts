@@ -4,8 +4,10 @@ const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 const PAID_MODEL = Deno.env.get('OPENROUTER_PAID_MODEL') ?? 'openai/gpt-4o-mini';
 
 const BEST_FREE_MODELS: string[] = [
-  'nvidia/nemotron-3-ultra-550b-a55b:free',
   'nvidia/nemotron-3.5-lightning:free',
+  'particle-ai/particle-1:free',
+  'baidu/ernie-5.5-flash-preview:free',
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
   'google/gemma-4-31b-it:free',
 ];
 
@@ -14,14 +16,13 @@ function freeModelList(): string[] {
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean);
-  return custom.length ? custom.slice(0, 3) : BEST_FREE_MODELS;
+  return custom.length ? custom.slice(0, 6) : BEST_FREE_MODELS;
 }
 
 const MODEL_CHAIN: string[] = [
-  'meta-llama/llama-3.1-8b-instruct',
-  'microsoft/phi-4',
-  'deepseek/deepseek-v4.1-flash',
   'openai/gpt-4o-mini',
+  'deepseek/deepseek-v4.1-flash',
+  'microsoft/phi-4',
 ];
 
 const PEAK_RESTRICTED = ['deepseek/deepseek-v4.1-flash'];
