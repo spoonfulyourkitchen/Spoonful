@@ -28,7 +28,7 @@ const INPUT_DRAFT = 'shopping-input';
 type Item = LocalShoppingItem & { shared?: boolean };
 
 export function ShoppingScreen() {
-  const { t } = useTranslation();
+  const { t, tn } = useTranslation();
   const rows = useQuery(api.shoppingList.list) as any[] | undefined;
   const addItem = useMutation(api.shoppingList.add);
   const addMany = useMutation(api.shoppingList.addMany);
@@ -188,7 +188,7 @@ export function ShoppingScreen() {
   return (
     <Page>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 0, paddingBottom: 64 }} keyboardShouldPersistTaps="handled">
-        <PageHeader eyebrow={t('shopping.whatYouNeed')} title={t('shopping.title')} subtitle={`${openItems.length} ${t('s.shopOpen')}`} />
+        <PageHeader eyebrow={t('shopping.whatYouNeed')} title={t('shopping.title')} subtitle={`${openItems.length} ${tn('s.shopOpen', openItems.length)}`} />
 
         {!synced ? (
           <View style={{ paddingVertical: 18, alignItems: 'center' }}>

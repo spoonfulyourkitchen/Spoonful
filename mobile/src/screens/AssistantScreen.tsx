@@ -40,6 +40,7 @@ import { readIntroAnswers } from '../lib/intro-answers';
 import { computeTargets, useNutritionProfile } from '../lib/nutrition-profile';
 import { saveLocalPrefs, useLocalPrefs } from '../lib/local-prefs';
 import { experienceForAi, skillLevel } from '../lib/skill';
+import { quickIngredientLabel } from '../lib/quick-ingredients';
 
 const QUICK = ['eggs', 'tomato', 'cheese', 'pasta', 'rice', 'chicken', 'onion', 'garlic', 'spinach', 'potato'];
 const ONBOARDING_CUISINES: Record<string, string> = {
@@ -461,7 +462,7 @@ export function AssistantScreen() {
           <Text style={fieldLabel}>{t('s.chefIngredientsAvail')}</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
             {ingredients.map((ing) => (
-              <Chip key={ing} label={ing} active onPress={() => removeIng(ing)} icon={<Text style={{ color: colors.accentText, fontWeight: '800' }}>×</Text>} />
+              <Chip key={ing} label={quickIngredientLabel(lang, ing)} active onPress={() => removeIng(ing)} icon={<Text style={{ color: colors.accentText, fontWeight: '800' }}>×</Text>} />
             ))}
           </View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -475,7 +476,7 @@ export function AssistantScreen() {
           <Text style={[fieldLabel, { marginTop: 6 }]}>{t('s.chefSuggestions')}</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
             {QUICK.map((q) => (
-              <Chip key={q} label={q} active={ingredients.includes(q)} onPress={() => addIngredient(q)} />
+              <Chip key={q} label={quickIngredientLabel(lang, q)} active={ingredients.includes(q)} onPress={() => addIngredient(q)} />
             ))}
           </View>
         </GlassCard>

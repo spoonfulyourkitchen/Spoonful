@@ -237,7 +237,7 @@ export function TextField(
       {
 
 }
-      <View style={{ height: 17, justifyContent: 'center' }}>
+      <View style={{ minHeight: 17, justifyContent: 'center' }}>
         {label ? (
           <Text
             numberOfLines={1}

@@ -232,7 +232,7 @@ export function CommunityScreen() {
         hitSlop={8}
         style={{ position: 'absolute', top: 14, right: 16, zIndex: 6, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: colors.darkButton }}
       >
-        <Text style={{ fontSize: 11, color: colors.darkButtonText, fontWeight: '700' }}>{'← Back to the list'}</Text>
+        <Text style={{ fontSize: 11, color: colors.darkButtonText, fontWeight: '700' }}>{'← ' + t('common.back')}</Text>
       </Pressable>
       <FlatList
             data={items}

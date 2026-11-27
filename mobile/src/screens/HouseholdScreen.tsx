@@ -61,7 +61,7 @@ type ShopItem = { id: string; name: string; checked: boolean; recipeTitle?: stri
 
 export function HouseholdScreen() {
   const insets = useSafeAreaInsets();
-  const { t, lang } = useTranslation();
+  const { t, tn, lang } = useTranslation();
 
   const household = useQuery(api.household.mine) as any;
   const cooking = useQuery(api.householdCooking.state) as any[] | undefined;
@@ -814,7 +814,7 @@ export function HouseholdScreen() {
         <GlassCard variant="solid" pad={14} style={{ marginTop: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <ShoppingCart size={15} color={colors.accentInk} />
-            <Text style={{ flex: 1, fontSize: 12.5, fontWeight: '800', color: colors.textPrimary }}>{openShop.length} {t('s.hhShoppingOpen')}</Text>
+            <Text style={{ flex: 1, fontSize: 12.5, fontWeight: '800', color: colors.textPrimary }}>{openShop.length} {tn('s.hhShoppingOpen', openShop.length)}</Text>
             <Pressable onPress={() => setTab('shop')} hitSlop={6}>
               <ArrowRight size={15} color={colors.textSecondary} />
             </Pressable>
@@ -984,7 +984,7 @@ export function HouseholdScreen() {
                   ))}
                 </View>
                 <Text style={{ flex: 1, fontSize: 12.5, color: mutedOn(colors.darkButton, colors.darkButtonText, 0.85) }} numberOfLines={1}>
-                  {members.length} {t('s.hhMembers')}
+                  {members.length} {tn('s.hhMembers', members.length)}
                 </Text>
                 <Pressable onPress={() => void shareCode()} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: colors.accent, opacity: pressed ? 0.8 : 1 }]}>
                   <Sparkles size={13} color={colors.accentText} />
@@ -993,8 +993,8 @@ export function HouseholdScreen() {
               </View>
 
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
-                <HeroStat value={openShop.length} label={t('s.hhShoppingOpen')} />
-                <HeroStat value={openTasks.length} label={t('s.hhTasksSection')} />
+                <HeroStat value={openShop.length} label={tn('s.hhShoppingOpen', openShop.length)} />
+                <HeroStat value={openTasks.length} label={tn('s.hhTasksSection', openTasks.length)} />
                 <HeroStat value={plan.length} label={t('s.hhPlanSection')} />
               </View>
             </>

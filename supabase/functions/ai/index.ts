@@ -30,8 +30,10 @@ const MODEL_CHAIN: string[] = [
 
 const PEAK_RESTRICTED = ['deepseek/deepseek-v4.1-flash'];
 
-const PAID_ALLOWED = !['0', 'false', 'no', 'off'].includes(
-  String(Deno.env.get('OPENROUTER_ALLOW_PAID') ?? '1').toLowerCase(),
+// Standard: nur kostenlose Modelle. Bezahlte Modelle nur, wenn ausdrücklich
+// mit OPENROUTER_ALLOW_PAID=1 aktiviert.
+const PAID_ALLOWED = !['0', 'false', 'no', 'off', ''].includes(
+  String(Deno.env.get('OPENROUTER_ALLOW_PAID') ?? '0').toLowerCase(),
 );
 
 const PAID_DAILY_LIMIT = Math.max(

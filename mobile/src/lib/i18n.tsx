@@ -566,9 +566,13 @@ function getTranslation(lang: Language, key: string, params?: Record<string, str
 
 import React, { useState, useEffect, useCallback, createContext, useContext } from "react";
 
+import { pluralForm } from './i18n-plural';
+
 type I18nContextType = {
   lang: Language;
   t: (key: string, params?: Record<string, string | number>) => string;
+  /** Zähltext: wählt bei 1 (und 2–4 in slawischen Sprachen) die richtige Form. */
+  tn: (key: string, count: number) => string;
   setLang: (lang: Language) => void;
   
   rtl: boolean;
@@ -577,6 +581,7 @@ type I18nContextType = {
 const I18nContext = createContext<I18nContextType>({
   lang: "en",
   t: (key) => key,
+  tn: (key) => key,
   setLang: () => {},
   rtl: false,
 });
@@ -606,10 +611,15 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     [lang],
   );
 
+  const tn = useCallback(
+    (key: string, count: number) => pluralForm(lang, count, key) ?? getTranslation(lang, key),
+    [lang],
+  );
+
   const rtl = isRtlLanguage(lang);
 
   return (
-    <I18nContext.Provider value={{ lang, t, setLang, rtl }}>
+    <I18nContext.Provider value={{ lang, t, tn, setLang, rtl }}>
       {children}
     </I18nContext.Provider>
   );

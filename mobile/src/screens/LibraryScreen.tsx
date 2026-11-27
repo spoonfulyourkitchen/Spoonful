@@ -71,7 +71,7 @@ const MEAL_LABEL_KEYS: Record<string, string> = {
 };
 
 export function LibraryScreen() {
-  const { t, lang } = useTranslation();
+  const { t, tn, lang } = useTranslation();
   const { width: windowWidth } = useWindowDimensions();
   
   const tileWidth = Math.floor((windowWidth - 36 - 12) / 2);
@@ -408,16 +408,10 @@ export function LibraryScreen() {
   const toggleDiet = (d: string) =>
     setDiets((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d]));
 
-  const orderedItems = useMemo(() => {
-    const list = [...items];
-    list.sort((a, b) => {
-      const ai = a.imageUrl ? 0 : 1;
-      const bi = b.imageUrl ? 0 : 1;
-      if (ai !== bi) return ai - bi;
-      return String(a.title ?? '').localeCompare(String(b.title ?? ''));
-    });
-    return list;
-  }, [items]);
+  // Die Reihenfolge kommt vom Server: Rezepte mit Bild zuerst, danach die
+  // gewählte Sortierung. Nicht clientseitig umsortieren, sonst springen die
+  // Einträge beim Nachladen.
+  const orderedItems = useMemo(() => items, [items]);
 
   const titleTexts = useTranslatedTexts(
     orderedItems.map((recipe) => String(recipe.title ?? '')),
@@ -549,7 +543,7 @@ export function LibraryScreen() {
 
   const listHeader = (
     <>
-      <PageHeader eyebrow={t('library.explore')} title={t('library.title')} subtitle={`${total || '…'} ${t('library.recipes')}`} />
+      <PageHeader eyebrow={t('library.explore')} title={t('library.title')} subtitle={`${total || '…'} ${tn('library.recipes', Number(total) || 0)}`} />
 
       {reportNote ? (
         <View style={{ marginTop: 10, borderRadius: 12, backgroundColor: colors.accentSoft, paddingHorizontal: 12, paddingVertical: 9 }}>
@@ -798,7 +792,7 @@ export function LibraryScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontFamily: fonts.display, fontSize: 21, fontWeight: '700', color: colors.textPrimary }}>{t('library.filters')}</Text>
                     <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 2 }}>
-                      {loadedOnce ? `${total} ${t('library.recipes')}` : t('common.loading')}
+                      {loadedOnce ? `${total} ${tn('library.recipes', total)}` : t('common.loading')}
                     </Text>
                   </View>
                   <Pressable onPress={() => setFiltersOpen(false)} hitSlop={8}>

@@ -387,4 +387,3 @@ export function glassShadow(level: 'sm' | 'md' | 'lg' | 'xl' = 'md') {
   } as const;
   return { shadowColor: colors.shadowStrong, ...map[level] };
 }
-
