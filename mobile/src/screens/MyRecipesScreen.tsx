@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native';
-import { Bookmark, ChefHat, FolderPlus, Heart, Pencil, Play, Plus, ShoppingCart, Trash2, X } from 'lucide-react-native';
+import { Bookmark, ChefHat, Copy, FolderPlus, Pencil, Play, Plus, Trash2, X } from 'lucide-react-native';
 
 import { Alert } from '../lib/alert';
 import { useMutation, useQuery } from '../lib/convex-auth';
@@ -26,7 +26,6 @@ export function MyRecipesScreen() {
   const collections = useQuery(api.collections.list);
   const removeRecipe = useMutation(api.recipes.remove);
   const removeSaved = useMutation(api.savedRecipes.remove);
-  const updateSaved = useMutation(api.savedRecipes.update);
   const createRecipe = useMutation(api.recipes.create);
   const { t, lang } = useTranslation();
 
@@ -52,10 +51,9 @@ export function MyRecipesScreen() {
     if (active === 'all' || active === 'mine') {
       result.push(...mineItems.filter(match).map((doc) => ({ kind: 'mine' as const, doc })));
     }
-    if (active === 'all' || active === 'saved' || active === 'favorites' || colls.some((c) => c._id === active)) {
+    if (active === 'all' || active === 'saved' || colls.some((c) => c._id === active)) {
       const list = savedItems.filter((doc) => {
         if (!match(doc)) return false;
-        if (active === 'favorites') return !!doc.favorite;
         if (active !== 'all' && active !== 'saved') return (doc.collectionIds ?? []).includes(active);
         return true;
       });
@@ -68,8 +66,7 @@ export function MyRecipesScreen() {
     group === 'all' ? mineItems.length + savedItems.length
       : group === 'mine' ? mineItems.length
         : group === 'saved' ? savedItems.length
-          : group === 'favorites' ? savedItems.filter((r) => r.favorite).length
-            : savedItems.filter((r) => (r.collectionIds ?? []).includes(group)).length;
+          : savedItems.filter((r) => (r.collectionIds ?? []).includes(group)).length;
 
   const openRecipe = (item: KitchenItem) =>
     navigate('RecipeDetail', {
@@ -106,23 +103,6 @@ export function MyRecipesScreen() {
         },
       },
     ]);
-  };
-
-  const toggleFavorite = (doc: any) => {
-    const next = !doc.favorite;
-    applySaved((prev: any[]) => prev.map((r: any) => (r._id === doc._id ? { ...r, favorite: next } : r)));
-    void (async () => {
-      const payload = { id: doc._id, favorite: next, notes: doc.notes ?? '', collectionIds: doc.collectionIds ?? [] };
-      if (getConnNow() === 'offline') {
-        await addPendingOp('saved.update', payload);
-        return;
-      }
-      try {
-        await updateSaved(payload);
-      } catch {
-        await addPendingOp('saved.update', payload);
-      }
-    })();
   };
 
   const removeSavedRecipe = (doc: any) => {
@@ -227,7 +207,6 @@ export function MyRecipesScreen() {
           <Chip label={`${t('saved.allSaved')} · ${countFor('all')}`} active={active === 'all'} onPress={() => setActive('all')} icon={<Bookmark size={13} color={colors.accent} />} />
           <Chip label={`${lang === 'de' ? 'Eigene' : 'Mine'} · ${countFor('mine')}`} active={active === 'mine'} onPress={() => setActive('mine')} icon={<ChefHat size={13} color={colors.accent} />} />
           <Chip label={`${lang === 'de' ? 'Gespeichert' : 'Saved'} · ${countFor('saved')}`} active={active === 'saved'} onPress={() => setActive('saved')} icon={<Bookmark size={13} color={colors.accent} />} />
-          <Chip label={`${t('saved.favorites')} · ${countFor('favorites')}`} active={active === 'favorites'} tone="rose" onPress={() => setActive('favorites')} icon={<Heart size={13} color={colors.rose} />} />
           {colls.map((c) => (
             <Chip key={c._id} label={`${c.name} · ${countFor(c._id)}`} active={active === c._id} onPress={() => setActive(c._id)} />
           ))}
@@ -264,7 +243,6 @@ export function MyRecipesScreen() {
               openRecipe={openRecipe}
               editItem={editItem}
               confirmDelete={confirmDelete}
-              toggleFavorite={toggleFavorite}
               removeSavedRecipe={removeSavedRecipe}
               copyToKitchen={copyToKitchen}
             />
@@ -318,7 +296,6 @@ function KitchenCard({
   openRecipe,
   editItem,
   confirmDelete,
-  toggleFavorite,
   removeSavedRecipe,
   copyToKitchen,
 }: {
@@ -327,7 +304,6 @@ function KitchenCard({
   openRecipe: (i: KitchenItem) => void;
   editItem: (i: KitchenItem) => void;
   confirmDelete: (d: any) => void;
-  toggleFavorite: (d: any) => void;
   removeSavedRecipe: (d: any) => void;
   copyToKitchen: (d: any) => void;
 }) {
@@ -349,37 +325,31 @@ function KitchenCard({
             <Text numberOfLines={1} style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 4 }}>{doc.notes}</Text>
           ) : null}
         </View>
-        {item.kind === 'saved' ? (
-          <Pressable
-            onPress={() => toggleFavorite(doc)}
-            style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', margin: 10, backgroundColor: doc.favorite ? colors.roseBg : colors.surfaceMuted }}
-          >
-            <Heart size={16} color={doc.favorite ? colors.rose : colors.textSecondary} fill={doc.favorite ? colors.rose : 'transparent'} />
-          </Pressable>
-        ) : null}
       </Pressable>
       <View style={{ flexDirection: 'row', gap: 8, padding: 10, borderTopWidth: 1, borderTopColor: colors.cardBorder }}>
-        <Pressable onPress={() => openRecipe(item)} style={rowBtn}>
-          <Play size={15} color={colors.accent} strokeWidth={2} />
-          <Text style={[rowText, { color: colors.accent }]}>{t('common.open')}</Text>
+        <Pressable onPress={() => openRecipe(item)} style={[rowBtn, { backgroundColor: colors.accentSoft, borderColor: 'transparent' }]}>
+          <Play size={14} color={colors.accent} strokeWidth={2.4} />
+          <Text numberOfLines={1} style={[rowText, { color: colors.accent }]}>{t('common.open')}</Text>
         </Pressable>
         <Pressable onPress={() => editItem(item)} style={rowBtn}>
-          <Pencil size={15} color={colors.textSecondary} strokeWidth={2} />
-          <Text style={rowText}>{t('recipe.edit')}</Text>
+          <Pencil size={14} color={colors.textSecondary} strokeWidth={2.2} />
+          <Text numberOfLines={1} style={rowText}>{t('recipe.edit')}</Text>
         </Pressable>
         {item.kind === 'saved' ? (
           <>
             <Pressable onPress={() => copyToKitchen(doc)} style={rowBtn} accessibilityLabel={lang === 'de' ? 'In eigene Rezepte kopieren' : 'Copy to my recipes'}>
-              <ShoppingCart size={15} color={colors.textSecondary} strokeWidth={2} />
+              <Copy size={14} color={colors.textSecondary} strokeWidth={2.2} />
+              <Text numberOfLines={1} style={rowText}>{lang === 'de' ? 'Kopieren' : 'Copy'}</Text>
             </Pressable>
-            <Pressable onPress={() => removeSavedRecipe(doc)} style={[rowBtn, { backgroundColor: colors.roseBg }]}>
-              <Trash2 size={15} color={colors.rose} strokeWidth={2} />
+            <Pressable onPress={() => removeSavedRecipe(doc)} style={[rowBtn, { backgroundColor: colors.roseBg, borderColor: 'transparent' }]}>
+              <Trash2 size={14} color={colors.rose} strokeWidth={2.2} />
+              <Text numberOfLines={1} style={[rowText, { color: colors.rose }]}>{t('common.delete')}</Text>
             </Pressable>
           </>
         ) : (
-          <Pressable onPress={() => confirmDelete(doc)} style={[rowBtn, { backgroundColor: colors.roseBg }]}>
-            <Trash2 size={15} color={colors.rose} strokeWidth={2} />
-            <Text style={[rowText, { color: colors.rose }]}>{t('common.delete')}</Text>
+          <Pressable onPress={() => confirmDelete(doc)} style={[rowBtn, { backgroundColor: colors.roseBg, borderColor: 'transparent' }]}>
+            <Trash2 size={14} color={colors.rose} strokeWidth={2.2} />
+            <Text numberOfLines={1} style={[rowText, { color: colors.rose }]}>{t('common.delete')}</Text>
           </Pressable>
         )}
       </View>
@@ -388,11 +358,11 @@ function KitchenCard({
 }
 
 const rowBtn = {
-  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
-  paddingHorizontal: 11, paddingVertical: 8, borderRadius: 10,
+  flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3,
+  paddingHorizontal: 3, paddingVertical: 9, borderRadius: 10,
   borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
 } as const;
-const rowText = { color: colors.textSecondary, fontWeight: '600', fontSize: 12.5 } as const;
+const rowText = { color: colors.textSecondary, fontWeight: '700', fontSize: 10 } as const;
 const addRow = {
   flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16,
   borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 14,

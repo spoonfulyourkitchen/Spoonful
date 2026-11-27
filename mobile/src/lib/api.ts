@@ -394,7 +394,6 @@ ops['savedRecipes.save'] = {
       tips: Array.isArray(args.tips) ? args.tips : [],
       ai_note: args.note ?? null,
       notes: args.notes ?? '',
-      favorite: args.favorite ?? false,
       collection_ids: args.collectionIds ?? [],
       updated_at: t,
     };
@@ -433,7 +432,6 @@ ops['savedRecipes.update'] = {
     if (args.fat !== undefined) patch.fat = args.fat;
     if (args.tips !== undefined) patch.tips = Array.isArray(args.tips) ? args.tips : [];
     if (args.note !== undefined) patch.ai_note = args.note ?? null;
-    if (args.favorite !== undefined) patch.favorite = args.favorite;
     if (args.notes !== undefined) patch.notes = args.notes;
     if (args.collectionIds !== undefined) patch.collection_ids = args.collectionIds;
     const { data, error } = await supabase
@@ -1259,7 +1257,12 @@ ops['ai.generateRecipe'] = {
       lighter: !!args.lighter,
       kidFriendly: !!args.kidFriendly,
       equipment: args.equipment ?? '',
+      targets: args.targets,
+      weight: Number(args.weight) > 0 ? Number(args.weight) : undefined,
+      targetWeight: Number(args.targetWeight) > 0 ? Number(args.targetWeight) : undefined,
+      favoriteCuisines: Array.isArray(args.favoriteCuisines) ? args.favoriteCuisines : [],
       avoidTitles: Array.isArray(args.avoidTitles) ? args.avoidTitles : [],
+      avoidRecipes: Array.isArray(args.avoidRecipes) ? args.avoidRecipes : [],
       explain: args.explain !== false,
       temperature: args.temperature,
     });

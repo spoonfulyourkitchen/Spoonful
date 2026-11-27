@@ -62,7 +62,7 @@ export const AR: Record<string, Record<string, string>> = {
 
   saved: {
     title: 'الوصفات المحفوظة', desc: 'احتفظ بالمفضلة واجعل كل وصفة خاصة بك.', allSaved: 'كل المحفوظات',
-    favorites: 'المفضلة', collections: 'المجموعات', newCollection: 'مجموعة جديدة', nothingSaved: 'لا شيء محفوظ هنا بعد',
+    collections: 'المجموعات', newCollection: 'مجموعة جديدة', nothingSaved: 'لا شيء محفوظ هنا بعد',
     bookmarkDesc: 'احفظ الوصفات من المكتبة لتظهر هنا.', cook: 'اطبخ', notes: 'ملاحظات',
     personalize: 'خصّص الوصفة المحفوظة', notesDesc: 'أضف ملاحظات وضع الوصفة في مجموعاتك.',
     collectionDesc: 'اجمع الوصفات المحفوظة حسب مزاج أو موسم أو مناسبة.', personalNotes: 'ملاحظاتي',

@@ -69,7 +69,6 @@ export function mapSaved(row: any): any {
     ...base,
     recipeKey: row.recipe_key ?? row.id,
     notes: row.notes ?? '',
-    favorite: row.favorite ?? true,
     collectionIds: row.collection_ids ?? [],
   };
 }

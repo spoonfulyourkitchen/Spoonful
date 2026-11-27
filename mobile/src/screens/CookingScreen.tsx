@@ -73,6 +73,15 @@ function scaleLine(ing: string, servings: number): string {
 }
 const mm = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
+/** Long steps get a slightly smaller size so the whole instruction fits. */
+function stepType(step: string) {
+  const length = step.length;
+  if (length > 220) return { fontSize: 17.5, lineHeight: 25 } as const;
+  if (length > 160) return { fontSize: 19, lineHeight: 27 } as const;
+  if (length > 110) return { fontSize: 21, lineHeight: 29 } as const;
+  return { fontSize: 24, lineHeight: 32 } as const;
+}
+
 function extractMinutes(step: string): number | null {
   return extractStepMinutes(step);
 }
@@ -765,8 +774,7 @@ export function CookingScreen({ route }: any) {
       </View>
 
       <ScrollView
-        scrollEnabled={phase !== 'cook'}
-        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 18, paddingTop: 14, paddingBottom: 24 }}
+        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 18, paddingTop: 8, paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
       >
         {phase === 'prep' ? (
@@ -837,7 +845,7 @@ export function CookingScreen({ route }: any) {
             <Text style={{ fontFamily: fonts.display, fontSize: 28, fontWeight: '800', color: colors.textPrimary, marginTop: 18, textAlign: 'center' }}>{t('s.xYouMadeIt')}</Text>
             <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: 'center', marginTop: 8, lineHeight: 22 }}>{t('s.xReadyToServe', { title })}</Text>
             {hasNutrition ? (
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 20 }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 20, alignSelf: 'stretch' }}>
                 {scaledNutrition.calories !== null ? <NutChip label="kcal" value={String(scaledNutrition.calories)} /> : null}
                 {scaledNutrition.protein !== null ? <NutChip label={t('common.protein')} value={`${scaledNutrition.protein}g`} /> : null}
                 {scaledNutrition.carbs !== null ? <NutChip label={t('common.carbs')} value={`${scaledNutrition.carbs}g`} /> : null}
@@ -857,10 +865,9 @@ export function CookingScreen({ route }: any) {
             </View>
           </View>
         ) : (
-          <View {...pan.panHandlers} style={{ flex: 1, paddingTop: 18, justifyContent: 'center' }}>
+          <View {...pan.panHandlers} style={{ flexGrow: 1, paddingTop: 4, justifyContent: currentStep.length > 130 ? 'flex-start' : 'center' }}>
             <Text
-              numberOfLines={6}
-              style={{ fontFamily: fonts.display, fontSize: 24, lineHeight: 32, color: colors.textPrimary, fontWeight: '700' }}
+              style={[{ fontFamily: fonts.display, color: colors.textPrimary, fontWeight: '700' }, stepType(currentStep)]}
             >
               {currentStep}
             </Text>
@@ -870,7 +877,7 @@ export function CookingScreen({ route }: any) {
                 <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', color: colors.accent }}>
                   {t('s.cookGuideCoach')}
                 </Text>
-                <Text numberOfLines={3} style={{ fontSize: 13, lineHeight: 18.5, color: colors.textPrimary, marginTop: 3 }}>
+                <Text style={{ fontSize: 13, lineHeight: 18.5, color: colors.textPrimary, marginTop: 3 }}>
                   {guideText.coach}
                 </Text>
               </View>
@@ -891,7 +898,7 @@ export function CookingScreen({ route }: any) {
                 <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', color: colors.amber }}>
                   {t('s.cookGuideLook')}
                 </Text>
-                <Text numberOfLines={2} style={{ fontSize: 13, lineHeight: 18.5, color: colors.amber, fontWeight: '600', marginTop: 3 }}>
+                <Text style={{ fontSize: 13, lineHeight: 18.5, color: colors.amber, fontWeight: '600', marginTop: 3 }}>
                   {guideText.look}
                 </Text>
               </View>
@@ -1127,9 +1134,9 @@ export function CookingScreen({ route }: any) {
 
 function NutChip({ label, value }: { label: string; value: string }) {
   return (
-    <View style={{ flex: 1, borderRadius: 14, backgroundColor: colors.surfaceMuted, paddingVertical: 8, alignItems: 'center' }}>
-      <Text style={{ fontSize: 14, fontWeight: '800', color: colors.textPrimary }}>{value}</Text>
-      <Text style={{ fontSize: 10, color: colors.textSecondary, textTransform: 'uppercase' }}>{label}</Text>
+    <View style={{ flexGrow: 1, flexBasis: '45%', borderRadius: 14, backgroundColor: colors.surfaceMuted, paddingVertical: 9, paddingHorizontal: 6, alignItems: 'center' }}>
+      <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textPrimary }}>{value}</Text>
+      <Text numberOfLines={1} style={{ fontSize: 9.5, letterSpacing: 0.3, color: colors.textSecondary, textTransform: 'uppercase' }}>{label}</Text>
     </View>
   );
 }

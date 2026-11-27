@@ -256,7 +256,6 @@ async function runPendingOp(op: PendingOp) {
     case 'saved.update':
       await convexClient.mutation(api.savedRecipes.update as any, {
         id: p.id,
-        favorite: p.favorite,
         notes: p.notes ?? '',
         collectionIds: p.collectionIds ?? [],
       });

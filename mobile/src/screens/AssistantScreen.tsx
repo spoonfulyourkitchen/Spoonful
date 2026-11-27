@@ -52,6 +52,8 @@ export function AssistantScreen() {
   const profile = useQuery(api.users.currentUser) as any;
   const localPrefs = useLocalPrefs();
   const collections = useQuery(api.collections.list) as any[] | undefined;
+  const myRecipes = useQuery(api.recipes.list) as any[] | undefined;
+  const savedRecipes = useQuery(api.savedRecipes.list) as any[] | undefined;
   const saveRecipe = useMutation(api.savedRecipes.save);
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [draft, setDraft] = useState('');
@@ -84,10 +86,28 @@ export function AssistantScreen() {
   const [videoFailed, setVideoFailed] = useState(false);
   
 
-  const [reroll, setReroll] = useState(false);
   const aiTarget = useTutorialTarget('tut-ai-generate');
   const nutrition = useNutritionProfile();
   const targets = useMemo(() => computeTargets(nutrition), [nutrition]);
+
+  const avoidRecipes = useMemo(() => {
+    const seen = new Set<string>();
+    const list: { title: string; ingredients?: string[]; cuisine?: string }[] = [];
+    const push = (recipe: any) => {
+      const title = String(recipe?.title ?? '').trim();
+      if (!title || seen.has(title.toLowerCase())) return;
+      seen.add(title.toLowerCase());
+      list.push({
+        title,
+        cuisine: recipe?.cuisine ? String(recipe.cuisine) : undefined,
+        ingredients: Array.isArray(recipe?.ingredients) ? recipe.ingredients.map(String).slice(0, 6) : undefined,
+      });
+    };
+    history.forEach(push);
+    (myRecipes ?? []).forEach(push);
+    (savedRecipes ?? []).forEach(push);
+    return list.slice(0, 12);
+  }, [history, myRecipes, savedRecipes]);
 
   useEffect(() => {
     void readIntroAnswers().then((stored) => {
@@ -302,9 +322,9 @@ export function AssistantScreen() {
           lighter,
           kidFriendly,
           equipment,
-          avoidTitles: history.map((h: any) => String(h?.title ?? '')).filter(Boolean),
+          avoidTitles: avoidRecipes.map((recipe) => recipe.title),
+          avoidRecipes,
           explain: true,
-          temperature: reroll ? 1.0 : 0.7,
         },
       );
       setResult(r);
@@ -589,20 +609,6 @@ export function AssistantScreen() {
         {error ? <Text style={{ color: colors.rose, fontSize: 13, marginTop: 10 }}>{error}</Text> : null}
         <AppButton label={busy ? t('assistant.generating') : t('assistant.generate')} variant="dark" style={{ marginTop: 14 }} busy={busy} icon={!busy ? <Sparkles size={18} color={colors.darkButtonText} /> : undefined} onPress={() => { aiTarget.onPress(); void run(); }} />
 
-        {result ? (
-          <Pressable
-            onPress={() => {
-              setReroll(true);
-              void run().finally(() => setReroll(false));
-            }}
-            style={({ pressed }) => [
-              { marginTop: 8, alignItems: 'center', borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingVertical: 11, opacity: pressed ? 0.8 : 1 },
-            ]}
-          >
-            <Text style={{ color: colors.accent, fontWeight: '700', fontSize: 13.5 }}>{t('s.chefReroll')} - something new</Text>
-          </Pressable>
-        ) : null}
-
         {history.length > (result ? 1 : 0) ? (
           <View style={{ marginTop: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -622,13 +628,17 @@ export function AssistantScreen() {
         ) : null}
       </ScrollView>
 
-      <CollectionModal
-        visible={collectionPickerOpen}
-        collections={collections ?? []}
-        mode="pick"
-        onChoose={(collectionId) => { void saveGeneratedRecipe(collectionId); }}
-        onClose={() => setCollectionPickerOpen(false)}
-      />
+      {/* Mounted only while open: the web modal portal must be appended after
+          the recipe preview portal so it renders on top of it. */}
+      {collectionPickerOpen ? (
+        <CollectionModal
+          visible
+          collections={collections ?? []}
+          mode="pick"
+          onChoose={(collectionId) => { void saveGeneratedRecipe(collectionId); }}
+          onClose={() => setCollectionPickerOpen(false)}
+        />
+      ) : null}
 
       {result && preview ? (
         <Modal visible transparent animationType="fade" onRequestClose={() => setPreview(false)}>

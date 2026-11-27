@@ -4,9 +4,9 @@ const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 const PAID_MODEL = Deno.env.get('OPENROUTER_PAID_MODEL') ?? 'openai/gpt-4o-mini';
 
 const BEST_FREE_MODELS: string[] = [
-  'inclusionai/ling-3.0-flash-vl:free',
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
+  'nvidia/nemotron-3.5-lightning:free',
   'google/gemma-4-31b-it:free',
-  'nvidia/nemotron-3-super-120b-a12b:free',
 ];
 
 function freeModelList(): string[] {
@@ -103,6 +103,7 @@ async function attempt(key: string, model: string, body: Record<string, unknown>
         'X-Title': 'Spoonful',
       },
       body: JSON.stringify(withJson ? { ...body, model, response_format: { type: 'json_object' } } : { ...body, model }),
+      signal: AbortSignal.timeout(25_000),
     });
     if (!res.ok) {
       const detail = (await res.text().catch(() => '')).slice(0, 300);

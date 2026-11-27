@@ -13,7 +13,7 @@ import { Alert } from '../lib/alert';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  ArrowLeft, ArrowUp, Bookmark, Check, Clock3, Flame, Play, Share2,
+  ArrowLeft, ArrowUp, Bookmark, Check, Clock3, Flame, Share2,
   ShoppingCart, Trash2, Pencil, Zap,
 } from 'lucide-react-native';
 import { useAction, useMutation, useQuery } from '../lib/convex-auth';
@@ -365,11 +365,6 @@ export function RecipeDetailScreen({ route }: any) {
           <View style={{ position: 'absolute', top: insets.top + 10, right: 12 }}>
             <MenuOrb tone="light" />
           </View>
-          <View style={{ position: 'absolute', right: 14, bottom: -20 }}>
-            <Pressable onPress={startCooking} style={{ width: 54, height: 54, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accent, borderWidth: 3, borderColor: colors.bg }}>
-              <Play size={24} color={colors.accentText} fill={colors.accentText} strokeWidth={2} />
-            </Pressable>
-          </View>
         </View>
 
         {stepPhotos.length ? (
@@ -495,7 +490,7 @@ export function RecipeDetailScreen({ route }: any) {
         <Pressable
           onPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}
           hitSlop={8}
-          style={({ pressed }) => [{ position: 'absolute', right: 18, bottom: 84 + insets.bottom, width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder, opacity: pressed ? 0.8 : 0.96 }]}
+          style={({ pressed }) => [{ position: 'absolute', right: 18, bottom: 158 + insets.bottom, width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder, opacity: pressed ? 0.8 : 0.96 }]}
           accessibilityLabel={t('s.backToTop')}
         >
           <ArrowUp size={20} color={colors.textPrimary} strokeWidth={2.2} />

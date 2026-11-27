@@ -19,7 +19,7 @@ const zh: LangDict = {
     open: '打开', send: '发送', create: '创建', servingsUnit: '份',
   },
   saved: {
-    title: '已保存食谱', desc: '把喜欢的放在手边，让每道食谱都成为你的。', allSaved: '全部已保存', favorites: '收藏',
+    title: '已保存食谱', desc: '把喜欢的放在手边，让每道食谱都成为你的。', allSaved: '全部已保存', 
     collections: '合集', newCollection: '新建合集', nothingSaved: '这里还没有保存内容',
     bookmarkDesc: '从食谱库收藏，即可在此查看。', cook: '开做', notes: '笔记', personalize: '个性化已保存食谱',
     notesDesc: '添加笔记，并把这道食谱放进你的合集。', collectionDesc: '按心情、季节或场合整理食谱。',
@@ -159,7 +159,7 @@ const ja: LangDict = {
   },
   saved: {
     title: '保存したレシピ', desc: 'お気に入りを手元に、すべてのレシピを自分好みに。', allSaved: 'すべて保存済み',
-    favorites: 'お気に入り', collections: 'コレクション', newCollection: '新しいコレクション',
+    collections: 'コレクション', newCollection: '新しいコレクション',
     nothingSaved: 'ここにはまだ保存がありません', bookmarkDesc: 'ライブラリで保存するとここに表示されます。',
     cook: '作る', notes: 'メモ', personalize: '保存したレシピを調整', notesDesc: 'メモを追加し、このレシピをコレクションに入れます。',
     collectionDesc: '気分・季節・シーンでレシピを整理。', personalNotes: '個人メモ',
@@ -299,7 +299,7 @@ const ko: LangDict = {
   },
   saved: {
     title: '저장한 레시피', desc: '즐겨찾기를 가까이 두고 모든 레시피를 내 것으로.', allSaved: '전체 저장됨',
-    favorites: '즐겨찾기', collections: '컬렉션', newCollection: '새 컬렉션', nothingSaved: '여기에 아직 저장된 것이 없습니다',
+    collections: '컬렉션', newCollection: '새 컬렉션', nothingSaved: '여기에 아직 저장된 것이 없습니다',
     bookmarkDesc: '라이브러리에서 저장하면 여기에 표시됩니다.', cook: '요리하기', notes: '메모',
     personalize: '저장한 레시피 맞춤 설정', notesDesc: '메모를 추가하고 이 레시피를 컬렉션에 넣으세요.',
     collectionDesc: '기분, 계절, 상황별로 레시피를 정리하세요.', personalNotes: '개인 메모',
@@ -439,7 +439,7 @@ const hi: LangDict = {
   },
   saved: {
     title: 'सहेजी गई रेसिपी', desc: 'पसंदीदा पास रखें और हर रेसिपी को अपना बनाएं।', allSaved: 'सभी सहेजे गए',
-    favorites: 'पसंदीदा', collections: 'संग्रह', newCollection: 'नया संग्रह', nothingSaved: 'यहां अभी कुछ सहेजा नहीं गया',
+    collections: 'संग्रह', newCollection: 'नया संग्रह', nothingSaved: 'यहां अभी कुछ सहेजा नहीं गया',
     bookmarkDesc: 'लाइब्रेरी से सहेजें ताकि वे यहां दिखें।', cook: 'पकाएं', notes: 'नोट्स',
     personalize: 'सहेजी रेसिपी को निजीकृत करें', notesDesc: 'नोट्स जोड़ें और इस रेसिपी को अपने संग्रह में रखें।',
     collectionDesc: 'रेसिपी को मूड, मौसम या अवसर के अनुसार समूहित करें।', personalNotes: 'व्यक्तिगत नोट्स',
@@ -579,7 +579,7 @@ const pl: LangDict = {
   },
   saved: {
     title: 'Zapisane przepisy', desc: 'Trzymaj ulubione pod ręką i dopasuj każdy przepis.', allSaved: 'Wszystkie zapisane',
-    favorites: 'Ulubione', collections: 'Kolekcje', newCollection: 'Nowa kolekcja', nothingSaved: 'Nic tu jeszcze nie zapisano',
+    collections: 'Kolekcje', newCollection: 'Nowa kolekcja', nothingSaved: 'Nic tu jeszcze nie zapisano',
     bookmarkDesc: 'Zapisz przepisy z biblioteki, aby zobaczyć je tutaj.', cook: 'Gotuj', notes: 'Notatki',
     personalize: 'Dostosuj zapisany przepis', notesDesc: 'Dodaj notatki i umieść przepis w kolekcjach.',
     collectionDesc: 'Grupuj przepisy według nastroju, pory roku lub okazji.', personalNotes: 'Notatki osobiste',
