@@ -1,8 +1,8 @@
 import React, { Component, useSyncExternalStore, useEffect, useState } from 'react';
-import { View, Text, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, Pressable, KeyboardAvoidingView, Platform, StatusBar } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ConvexAuthProvider, useConvexAuth, useQuery } from './src/lib/convex-auth';
 import { useLocalTestStage } from './src/lib/local-test';
@@ -265,17 +265,33 @@ function RootNavigator() {
 
 export default function App() {
   useThemeTick();
+  // React Navigation paints its own background between screens. Without this
+  // it stays light grey (#f2f2f2) even in a dark theme.
+  const baseNavTheme = colors.dark ? DarkTheme : DefaultTheme;
+  const navTheme = {
+    ...baseNavTheme,
+    colors: {
+      ...baseNavTheme.colors,
+      background: colors.bg,
+      card: colors.card,
+      text: colors.textPrimary,
+      border: colors.cardBorder,
+      primary: colors.accent,
+      notification: colors.accent,
+    },
+  };
   
 
   return (
     <SafeAreaProvider>
+      <StatusBar barStyle={colors.dark ? 'light-content' : 'dark-content'} backgroundColor={colors.header} />
       <I18nProvider>
         <ConvexAuthProvider>
           <KeyboardAvoidingView
             style={{ flex: 1 }}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           >
-            <NavigationContainer ref={navigationRef} linking={webLinking as any} documentTitle={{ enabled: false }}>
+            <NavigationContainer theme={navTheme as any} ref={navigationRef} linking={webLinking as any} documentTitle={{ enabled: false }}>
               <CrashBoundary>
                 <RootNavigator />
               </CrashBoundary>

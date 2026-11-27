@@ -1151,13 +1151,13 @@ export function HouseholdScreen() {
 
 const inputStyle = {
   borderRadius: 12,
-  backgroundColor: colors.card,
+  get backgroundColor() { return colors.card; },
   borderWidth: 1,
-  borderColor: colors.cardBorder,
+  get borderColor() { return colors.cardBorder; },
   paddingHorizontal: 12,
   paddingVertical: 11,
   fontSize: 14,
-  color: colors.textPrimary,
+  get color() { return colors.textPrimary; },
   marginBottom: 10,
 } as const;
 

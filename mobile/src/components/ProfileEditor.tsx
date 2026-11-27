@@ -333,7 +333,7 @@ function Field({
   );
 }
 
-const label = { fontSize: 11.5, fontWeight: '700' as const, color: colors.textSecondary, marginBottom: 6 };
+const label = { fontSize: 11.5, fontWeight: '700' as const, get color() { return colors.textSecondary; }, marginBottom: 6 };
 const chips = { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 8 };
 
 export default ProfileEditor;

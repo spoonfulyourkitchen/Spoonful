@@ -543,9 +543,9 @@ const heading = {
   lineHeight: 34,
   fontWeight: '800' as const,
   letterSpacing: -0.6,
-  color: colors.textPrimary,
+  get color() { return colors.textPrimary; },
 };
-const bodyText = { fontSize: 15, lineHeight: 22, color: colors.textSecondary, marginTop: 8, maxWidth: 340 };
+const bodyText = { fontSize: 15, lineHeight: 22, get color() { return colors.textSecondary; }, marginTop: 8, maxWidth: 340 };
 const primaryBtn = {
   flexDirection: 'row' as const,
   alignItems: 'center' as const,
@@ -559,7 +559,7 @@ const welcomeDot = {
   width: 24,
   height: 24,
   borderRadius: 12,
-  backgroundColor: colors.accentSoft,
+  get backgroundColor() { return colors.accentSoft; },
   alignItems: 'center' as const,
   justifyContent: 'center' as const,
   marginTop: 1,
@@ -571,22 +571,22 @@ const targetCard = {
   marginBottom: 16,
   borderRadius: 22,
   borderWidth: 1,
-  borderColor: colors.cardBorder,
-  backgroundColor: colors.card,
+  get borderColor() { return colors.cardBorder; },
+  get backgroundColor() { return colors.card; },
 };
 const reviewCard = {
   borderRadius: 20,
   borderWidth: 1,
-  borderColor: colors.cardBorder,
-  backgroundColor: colors.card,
+  get borderColor() { return colors.cardBorder; },
+  get backgroundColor() { return colors.card; },
   padding: 16,
   gap: 10,
 };
 const planCard = {
   borderRadius: 20,
   borderWidth: 1,
-  borderColor: colors.accentBorder,
-  backgroundColor: colors.accentSoft,
+  get borderColor() { return colors.accentBorder; },
+  get backgroundColor() { return colors.accentSoft; },
   padding: 16,
   marginTop: 12,
 };
@@ -749,11 +749,11 @@ const circleBtn = {
   height: 52,
   borderRadius: 26,
   borderWidth: 1,
-  borderColor: colors.cardBorder,
-  backgroundColor: colors.card,
+  get borderColor() { return colors.cardBorder; },
+  get backgroundColor() { return colors.card; },
   alignItems: 'center' as const,
   justifyContent: 'center' as const,
 };
-const minusPlus = { fontSize: 26, fontWeight: '700' as const, color: colors.textPrimary, lineHeight: 30 };
+const minusPlus = { fontSize: 26, fontWeight: '700' as const, get color() { return colors.textPrimary; }, lineHeight: 30 };
 
 export default LandingScreen;

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native';
-import { Bookmark, ChefHat, Copy, FolderPlus, Pencil, Play, Plus, Trash2, X } from 'lucide-react-native';
+import { Bookmark, ChefHat, FolderPlus, Pencil, Play, Plus, Trash2, X } from 'lucide-react-native';
 
 import { Alert } from '../lib/alert';
 import { useMutation, useQuery } from '../lib/convex-auth';
@@ -336,10 +336,6 @@ function KitchenCard({
         </Pressable>
         {item.kind === 'saved' ? (
           <>
-            <Pressable onPress={() => copyToKitchen(doc)} style={rowBtn} accessibilityLabel={tr2('In eigene Rezepte kopieren', 'Copy to my recipes', lang)}>
-              <Copy size={14} color={colors.textSecondary} strokeWidth={2.2} />
-              <Text numberOfLines={1} style={rowText}>{tr2('Kopieren', 'Copy', lang)}</Text>
-            </Pressable>
             <Pressable onPress={() => removeSavedRecipe(doc)} style={[rowBtn, { backgroundColor: colors.roseBg, borderColor: 'transparent' }]}>
               <Trash2 size={14} color={colors.rose} strokeWidth={2.2} />
               <Text numberOfLines={1} style={[rowText, { color: colors.rose }]}>{t('common.delete')}</Text>
@@ -359,16 +355,16 @@ function KitchenCard({
 const rowBtn = {
   flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3,
   paddingHorizontal: 3, paddingVertical: 9, borderRadius: 10,
-  borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)',
+  borderWidth: 1, borderColor: colors.cardBorder,
 } as const;
-const rowText = { color: colors.textSecondary, fontWeight: '700', fontSize: 10 } as const;
+const rowText = { get color() { return colors.textSecondary; }, fontWeight: '700', fontSize: 10 } as const;
 const addRow = {
   flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16,
-  borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 14,
+  borderWidth: 1, get borderColor() { return colors.cardBorder; }, get backgroundColor() { return colors.card; }, padding: 14,
 } as const;
 const addIcon = {
   width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
-  backgroundColor: colors.accentSoft,
+  get backgroundColor() { return colors.accentSoft; },
 } as const;
-const addTitle = { fontSize: 15, fontWeight: '700', color: colors.textPrimary } as const;
-const addSub = { fontSize: 12.5, color: colors.textSecondary, marginTop: 2 } as const;
+const addTitle = { fontSize: 15, fontWeight: '700', get color() { return colors.textPrimary; } } as const;
+const addSub = { fontSize: 12.5, get color() { return colors.textSecondary; }, marginTop: 2 } as const;

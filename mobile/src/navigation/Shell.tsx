@@ -115,7 +115,7 @@ export function MainHeader() {
     <View
       style={{
         paddingTop: insets.top,
-        backgroundColor: colors.dark ? colors.header : 'rgba(248,245,240,0.82)',
+        backgroundColor: colors.header,
         borderBottomWidth: 1,
         borderBottomColor: colors.cardBorder,
       }}
@@ -285,7 +285,7 @@ function DrawerSheet({ visible, onClose }: { visible: boolean; onClose: () => vo
             {
               position: 'absolute', top: 0, right: 0, bottom: 0,
               width: '86%', maxWidth: 384,
-              backgroundColor: colors.dark ? colors.card : '#fdfbf7',
+              backgroundColor: colors.card,
               paddingTop: insets.top,
               transform: [{
                 translateX: translateX.interpolate({ inputRange: [0, 1], outputRange: [0, 900] }),
