@@ -56,6 +56,89 @@ export function modelAllowedNow(model: string, now: Date = new Date()): boolean 
   return true;
 }
 
+const VIDEO_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
+function readJsonStringField(text: string, quoteAt: number): string {
+  let i = quoteAt + 1;
+  let escaped = false;
+  for (; i < text.length; i += 1) {
+    const ch = text[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') break;
+  }
+  if (i >= text.length) return '';
+  try {
+    return String(JSON.parse(text.slice(quoteAt, i + 1)));
+  } catch {
+    return '';
+  }
+}
+
+function decodeHtml(text: string): string {
+  return String(text ?? '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#(\d+);/g, (_m, d) => String.fromCharCode(Number(d)));
+}
+
+function metaContent(html: string, name: string): string {
+  const a = new RegExp(`<meta[^>]+(?:property|name)="${name}"[^>]+content="([^"]*)"`, 'i').exec(html);
+  if (a?.[1]) return decodeHtml(a[1]);
+  const b = new RegExp(`<meta[^>]+content="([^"]*)"[^>]+(?:property|name)="${name}"`, 'i').exec(html);
+  return b?.[1] ? decodeHtml(b[1]) : '';
+}
+
+/**
+ * A video page keeps its caption in different places: TikTok in the embedded
+ * JSON as "desc", YouTube as "shortDescription", everything else in the meta
+ * tags. All of them are collected, longest first.
+ */
+export function pageRecipeText(html: string): { title: string; text: string } {
+  const parts: string[] = [];
+  const descAt = html.indexOf('"desc":"');
+  if (descAt >= 0) {
+    const value = readJsonStringField(html, descAt + '"desc":'.length);
+    if (value.trim()) parts.push(decodeHtml(value));
+  }
+  const shortAt = html.indexOf('"shortDescription":"');
+  if (shortAt >= 0) {
+    const value = readJsonStringField(html, shortAt + '"shortDescription":'.length);
+    if (value.trim()) parts.push(decodeHtml(value));
+  }
+  const og = metaContent(html, 'og:description') || metaContent(html, 'description');
+  if (og.trim()) parts.push(og);
+  const caption =
+    /"edge_media_to_caption":\{"edges":\[\{"node":\{"text":"((?:[^"\\]|\\.)*)"/i.exec(html)?.[1] ?? '';
+  if (caption) {
+    try {
+      parts.push(decodeHtml(JSON.parse(`"${caption}"`)));
+    } catch {}
+  }
+  const seen = new Set<string>();
+  const text = parts
+    .map((part) => part.replace(/\r/g, '\n').trim())
+    .filter((part) => part.length > 0 && !seen.has(part) && (seen.add(part), true))
+    .sort((a, b) => b.length - a.length)
+    .join('\n\n');
+  const title =
+    metaContent(html, 'og:title') ||
+    metaContent(html, 'title') ||
+    decodeHtml(/<title>([^<]{2,200})<\/title>/i.exec(html)?.[1] ?? '');
+  return { title, text };
+}
+
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -238,6 +321,40 @@ Deno.serve(async (req: Request) => {
     payload = await req.json();
   } catch {
     return json({ error: 'invalid JSON body' }, 400);
+  }
+
+  // Video import: the page is fetched here because TikTok and YouTube send no
+  // CORS headers, so the browser cannot read their captions at all.
+  if (typeof payload?.video === 'string' && payload.video.trim()) {
+    const link = payload.video.trim().slice(0, 500);
+    if (!/^https?:\/\//i.test(link)) return json({ error: 'invalid video url' }, 400);
+    try {
+      const res = await fetch(link, {
+        headers: { 'User-Agent': VIDEO_UA, 'Accept-Language': 'de-DE,de;q=0.9' },
+        redirect: 'follow',
+        signal: AbortSignal.timeout(15_000),
+      });
+      const html = (await res.text()).slice(0, 900_000);
+      const meta = pageRecipeText(html);
+      const firstLine = meta.text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)[0] ?? '';
+      const genericTitle = !meta.title || /tiktok - make your day|^https?:\/\//i.test(meta.title);
+      const host = (() => {
+        try {
+          return new URL(res.url || link).hostname;
+        } catch {
+          return '';
+        }
+      })();
+      return json({
+        platform: /tiktok/.test(host) ? 'tiktok' : /youtube|youtu\.be/.test(host) ? 'youtube' : /instagram/.test(host) ? 'instagram' : 'other',
+        url: res.url || link,
+        status: res.status,
+        title: (genericTitle ? firstLine : meta.title).replace(/[⬇️]+/g, "").replace(/\s+/g, " ").trim().slice(0, 90),
+        text: meta.text.slice(0, 12_000),
+      });
+    } catch (e) {
+      return json({ error: 'video fetch failed', detail: String(e instanceof Error ? e.message : e).slice(0, 200) }, 502);
+    }
   }
 
   // Diagnostics: reachability and allowance of the APInex free tier, no quota used.

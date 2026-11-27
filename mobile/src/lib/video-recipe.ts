@@ -2,6 +2,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { aiRecipeFromText } from './ai';
+import { supabase } from './supabase';
 
 export type VideoRecipe = {
   title: string;
@@ -67,6 +68,56 @@ function unescapeJson(raw: string): string {
     .replace(/\\\\/g, '\\');
   out = out.replace(/\\u([0-9a-fA-F]{4})/g, (_m, hex) => String.fromCharCode(parseInt(hex, 16)));
   return out;
+}
+
+function readJsonStringField(text: string, quoteAt: number): string {
+  let i = quoteAt + 1;
+  let escaped = false;
+  for (; i < text.length; i += 1) {
+    const ch = text[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') break;
+  }
+  if (i >= text.length) return '';
+  try {
+    return String(JSON.parse(text.slice(quoteAt, i + 1)));
+  } catch {
+    return '';
+  }
+}
+
+/** TikTok keeps the whole caption in its page JSON as "desc". */
+export function tiktokCaption(html: string): string {
+  const at = html.indexOf('"desc":"');
+  if (at < 0) return '';
+  return decodeEntities(readJsonStringField(html, at + '"desc":'.length)).trim();
+}
+
+/**
+ * The page is fetched on the server: TikTok and YouTube send no CORS headers,
+ * so in the browser the app cannot read their captions at all.
+ */
+async function videoMetaFromServer(link: string): Promise<{ text: string; title: string; url: string } | null> {
+  try {
+    const call = supabase.functions.invoke('ai', { body: { video: link } });
+    const timeout = new Promise<{ data: any; error: any }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: new Error('timeout') }), 20_000),
+    );
+    const { data, error } = await Promise.race([call as any, timeout]);
+    if (error) return null;
+    const text = String((data as any)?.text ?? '').trim();
+    if (!text) return null;
+    return { text, title: String((data as any)?.title ?? ''), url: String((data as any)?.url ?? link) };
+  } catch {
+    return null;
+  }
 }
 
 function sliceBalanced(text: string, fromIndex: number, open: string, close: string): string | null {
@@ -237,8 +288,23 @@ export async function fetchYouTube(id: string, langs: string[] = ['de', 'en']): 
 async function tiktokText(url: string): Promise<{ text: string; title: string }> {
   let title = '';
   let text = '';
+  let canonical = url;
+
+  // oEmbed often returns no title at all, so the caption is read from the
+  // video page itself, where TikTok stores it as "desc".
   try {
-    const res = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`, { headers: BROWSER_HEADERS });
+    const res = await fetch(url, { headers: BROWSER_HEADERS });
+    canonical = String((res as any)?.url || url);
+    const caption = tiktokCaption(await res.text());
+    if (caption) {
+      const firstLine = caption.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)[0] ?? '';
+      return { text: caption, title: firstLine.slice(0, 120) };
+    }
+  } catch {
+  }
+
+  try {
+    const res = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(canonical)}`, { headers: BROWSER_HEADERS });
     const json: any = await res.json();
     title = String(json?.title ?? '');
     text = [title, String(json?.author_name ?? '')].filter(Boolean).join('\n');
@@ -506,7 +572,8 @@ export type VideoFailure = 'no-link' | 'no-text' | 'no-recipe';
 
 export type VideoResult = { recipe: VideoRecipe | null; reason?: VideoFailure; cached?: boolean };
 
-const CACHE_PREFIX = 'spoonful:video-recipe:';
+// v2: v1 entries were built from empty metadata (TikTok without CORS).
+const CACHE_PREFIX = 'spoonful:video-recipe:v2:';
 
 export const VIDEO_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
 
@@ -639,7 +706,17 @@ export async function recipeFromVideo(
   let source = link;
 
   try {
-    if (platform === 'youtube') {
+    // Server first for everything but YouTube: reliable in the browser, where
+    // the platforms' pages cannot be read because they send no CORS headers.
+    if (platform !== 'youtube') {
+      const meta = await videoMetaFromServer(link);
+      if (meta) {
+        text = meta.text;
+        title = meta.title;
+        source = meta.url || link;
+      }
+    }
+    if (!text.trim() && platform === 'youtube') {
       const id = youtubeId(link);
       if (!id) return fail('no-link');
       source = `https://www.youtube.com/watch?v=${id}`;
@@ -651,21 +728,31 @@ export async function recipeFromVideo(
       const hasCaptions = !!data.captions.trim();
       text = [data.description, data.captions].filter((part) => part.trim()).join('\n\n');
       origin = hasDescription && hasCaptions ? 'mixed' : hasCaptions ? 'captions' : 'description';
-    } else if (platform === 'tiktok') {
+    } else if (!text.trim() && platform === 'tiktok') {
       const tt = await tiktokText(link);
       text = tt.text;
       title = tt.title;
-    } else if (platform === 'instagram') {
+    } else if (!text.trim() && platform === 'instagram') {
       const ig = await instagramText(link);
       text = ig.text;
       title = ig.title;
-    } else {
+    } else if (!text.trim()) {
       const og = await openGraphText(link);
       text = og.text;
       title = og.title;
     }
   } catch {
-    return fail('no-text');
+    text = '';
+  }
+
+  if (!text.trim()) {
+    const meta = await videoMetaFromServer(link);
+    if (meta) {
+      text = meta.text;
+      title = meta.title || title;
+      source = meta.url || link;
+      origin = 'description';
+    }
   }
 
   if (!text.trim()) return fail('no-text');

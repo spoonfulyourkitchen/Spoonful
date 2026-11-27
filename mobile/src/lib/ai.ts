@@ -425,6 +425,12 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
     ? 'Also add a field "note": one short sentence (max 20 words) explaining why this recipe fits the constraints.'
     : '';
 
+  const titleRule =
+    'TITLE: 2 to 6 words, specific and appetising, naming the main ingredient plus the technique, texture ' +
+    'or the one detail that makes this version different (for example "Cremige Kartoffelsuppe mit geröstetem ' +
+    'Speck" or "Zitronen-Hähnchen vom Blech"). Sentence case, no emojis, no hashtags, no quotes, no ALL CAPS, ' +
+    'no clickbait and no empty superlatives like "best", "ultimate" or "perfect". It must describe exactly ' +
+    'what the recipe delivers, never a different dish. ';
   const system =
     'You are the Spoonful AI Chef, a calm, precise professional recipe developer. ' +
     'Always answer with valid JSON only (no markdown, no commentary). Fields exactly: ' +
@@ -435,6 +441,7 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
     'calories, protein, carbs, fat (numbers, per serving), tips (array of up to 3 short strings)' +
     (args.explain ? ', note' : '') +
     '. ' +
+    titleRule +
     'Rules: realistic amounts, correct cooking technique, no invented exotic equipment, no brand names, ' +
     
 
@@ -559,6 +566,7 @@ export async function aiImproveRecipe(args: {
     'Every guide must match its own step and only name ingredients from that step; simple steps stay null. ' +
     'Never repeat the same tip on two steps. ' +
     'Keep the character of the dish, keep it realistic and metric. ' +
+    'If the title is bland, make it specific and appetising without promising anything the recipe does not do. ' +
     (allergyTags.length ? `Never use: ${allergyTags.join(', ')}. ` : '') +
     (args.experience ? `Write the steps for a ${args.experience} cook. ` : '') +
     languageRule([args.title, args.ingredients.join(' ')]);
@@ -638,9 +646,11 @@ export async function aiRecipeFromText(args: {
     'Answer with valid JSON only: {"title": string, "ingredients": string[], "steps": string[]}. ' +
     
 
-    'PICK the title out of the description: use the dish name the description actually names ' +
-    '(max 6 words, no emojis, no hashtags, no channel or creator name, no "recipe", no clickbait, ' +
-    'no ALL CAPS). Only when the description names no dish at all, clean up the video title instead. ' +
+    'TITLE: build it from the dish the description really makes, keep that dish recognisable and add the ' +
+    'one detail that makes this version special (technique, texture or a defining ingredient the description ' +
+    'actually uses), 2 to 6 words, sentence case, no emojis, no hashtags, no channel or creator name, no ' +
+    '"recipe", no ALL CAPS, no clickbait. Only when the description names no dish at all, clean up the video ' +
+    'title instead. ' +
     
 
     'PULL OUT every ingredient the description mentions, with the exact amount written there ' +
