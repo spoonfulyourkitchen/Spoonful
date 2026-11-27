@@ -2,6 +2,7 @@
 
 import { supabase } from './supabase';
 import { getStoredLanguage } from './i18n';
+import { analyzeRecipeNutrition, consistent } from './nutrition';
 import { withTimeout } from './safe';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -546,6 +547,7 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
   const ingredients = strList(raw.ingredients);
   const rawGuides: any[] = Array.isArray(raw.guides) ? raw.guides : [];
   const { steps, guides } = finalizeStepsAndGuides(strList(raw.steps), rawGuides, ingredients);
+  const grounded = groundedMacros(ingredients, servings);
   return {
     title: str(raw.title, 'AI recipe'),
     description: str(raw.description),
@@ -558,10 +560,10 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
     difficulty: ['easy', 'medium', 'hard'].includes(raw.difficulty) ? raw.difficulty : 'medium',
     dietaryRestrictions: strList(raw.dietaryRestrictions),
     mealType: raw.mealType ? String(raw.mealType) : undefined,
-    calories: numberOr(raw.calories),
-    protein: numberOr(raw.protein),
-    carbs: numberOr(raw.carbs),
-    fat: numberOr(raw.fat),
+    calories: grounded?.calories ?? numberOr(raw.calories),
+    protein: grounded?.protein ?? numberOr(raw.protein),
+    carbs: grounded?.carbs ?? numberOr(raw.carbs),
+    fat: grounded?.fat ?? numberOr(raw.fat),
     servings: servings,
     tips: strList(raw.tips).slice(0, 3),
     note: raw.note ? String(raw.note).slice(0, 200) : undefined,
@@ -709,138 +711,29 @@ export async function aiRecipeFromText(args: {
   return { title: str(parsed?.title, args.title ?? ''), ingredients, steps };
 }
 
-const NUTRITION_CACHE_KEY = 'spoonful:nutrition-cache:v2';
-
-const FOOD_TABLE: [RegExp, [number, number, number, number]][] = [
-  [/oil|olive oil|öl|olivenöl|butter|margarine|ghee|schmalz/, [890, 0, 0, 100]],
-  [/sugar|zucker|honey|honig|syrup|sirup|jam|marmelade/, [330, 0, 82, 0]],
-  [/flour|mehl|semolina|grieß|starch|stärke|breadcrumbs|paniermehl/, [350, 10, 74, 1]],
-  [/rice|reis|pasta|nudel|spaghetti|penne|macaroni|couscous|bulgur/, [350, 11, 73, 1.5]],
-  [/bread|brot|baguette|pita|toast/, [265, 9, 49, 3]],
-  [/chicken|hähnchen|huhn|poultry|pute|turkey/, [165, 31, 0, 3.6]],
-  [/beef|rind|steak|lamb|lamm|pork|schwein|veal|kalb|meat|hack|mince/, [250, 26, 0, 17]],
-  [/salmon|lachs|tuna|thunfisch|fish|fisch|shrimp|garnele|prawn|sardine/, [200, 22, 0, 12]],
-  [/egg|eier|\bei\b/, [155, 13, 1, 11]],
-  [/cheese|käse|feta|mozzarella|parmesan|halloumi|quark|labneh/, [330, 22, 2, 26]],
-  [/yogurt|joghurt|milk|milch|cream|sahne|buttermilk/, [110, 4, 5, 8]],
-  [/lentil|linse|chickpea|kichererbse|bean|bohne|peas|erbs/, [120, 8, 20, 1]],
-  [/potato|kartoffel|sweet potato|süßkartoffel/, [85, 2, 19, 0.2]],
-  [/onion|zwiebel|garlic|knoblauch|tomato|tomate|pepper|paprika|cucumber|gurke|carrot|karotte|zucchini|aubergine|cabbage|kohl|spinach|spinat|lettuce|salat|lemon|zitrone|herb|kräuter|parsley|petersilie|mint|minze/, [45, 2, 8, 0.5]],
-  [/nut|nuss|nüsse|almond|mandel|walnut|walnuss|pistachio|cashew|sesame|sesam|tahini/, [600, 20, 15, 55]],
-  [/olive|oliven/, [150, 1, 6, 14]],
-  [/chocolate|schokolade|cocoa|kakao/, [540, 6, 58, 31]],
-  [/water|wasser|stock|brühe|broth|vinegar|essig|spice|salz|salt/, [15, 0.5, 2, 0]],
-];
-
-const DEFAULT_FOOD: [number, number, number, number] = [110, 4, 12, 4];
-
-const UNICODE_FRACTIONS: Record<string, number> = {
-  '½': 0.5, '¼': 0.25, '¾': 0.75, '⅓': 1 / 3, '⅔': 2 / 3, '⅛': 0.125, '⅜': 0.375, '⅝': 0.625, '⅞': 0.875,
-};
-
-/** Grams, millilitres or a sensible piece weight for one ingredient line. */
-function gramsFromIngredient(line: string): number | null {
-  let text = String(line ?? '').toLowerCase().replace(',', '.');
-  text = text.replace(/(\d)\s*([½¼¾⅓⅔⅛⅜⅝⅞])/g, (_m, whole: string, frac: string) =>
-    ` ${Number(whole) + UNICODE_FRACTIONS[frac]} `,
-  );
-  text = text.replace(/[½¼¾⅓⅔⅛⅜⅝⅞]/g, (f) => ` ${UNICODE_FRACTIONS[f]} `);
-  text = text.replace(/(\d+)\s+(\d+)\/(\d+)/g, (_m, whole: string, num: string, den: string) =>
-    ` ${Number(whole) + Number(num) / Number(den)} `,
-  );
-  text = text.replace(/(\d+)\/(\d+)/g, (_m, num: string, den: string) => ` ${Number(num) / Number(den)} `);
-  const pattern =
-    /(\d+(?:\.\d+)?)\s*(kg|g|gramm|ml|l|liter|cl|dl|tbsp|tablespoons?|el|esslöffel|tsp|teaspoons?|tl|teelöffel|cups?|tasse[n]?|oz|ounces?|lb|lbs|pounds?|pint|quart|stück|stk|piece|pcs|scheiben?|slices?|zehen?|cloves?|dose[n]?|can[s]?|packung|päckchen|package|pack)?/g;
-  let match: RegExpExecArray | null;
-  while ((match = pattern.exec(text))) {
-    const end = text
-      .slice(pattern.lastIndex)
-      .match(/^\s*(?:%|percent(?:age)?|prozent|pour cent|por ciento|per cento|procent|процент(?:ів|а|ов)?|відсот(?:ка|ків)?)/i);
-    if (end) continue;
-    const value = Number(match[1]);
-    if (!Number.isFinite(value) || value <= 0) continue;
-    const unit = match[2] ?? '';
-    if (unit === 'kg') return value * 1000;
-    if (unit === 'l' || unit === 'liter') return value * 1000;
-    if (unit === 'ml') return value;
-    if (unit === 'cl') return value * 10;
-    if (unit === 'dl') return value * 100;
-    if (unit === 'g' || unit === 'gramm') return value;
-    if (['tbsp', 'tablespoon', 'tablespoons', 'el', 'esslöffel'].includes(unit)) return value * 15;
-    if (['tsp', 'teaspoon', 'teaspoons', 'tl', 'teelöffel'].includes(unit)) return value * 5;
-    if (['cup', 'cups', 'tasse', 'tassen'].includes(unit)) return value * 200;
-    if (['oz', 'ounce', 'ounces'].includes(unit)) return value * 28.35;
-    if (['lb', 'lbs', 'pound', 'pounds'].includes(unit)) return value * 453.6;
-    if (unit === 'pint') return value * 473;
-    if (unit === 'quart') return value * 946;
-    if (['stück', 'stk', 'piece', 'pcs'].includes(unit)) return value * 90;
-    if (['scheibe', 'scheiben', 'slice', 'slices'].includes(unit)) return value * 30;
-    if (['zehe', 'zehen', 'clove', 'cloves'].includes(unit)) return value * 5;
-    if (['dose', 'dosen', 'can', 'cans', 'packung', 'päckchen', 'package', 'pack'].includes(unit)) return value * 400;
-    if (!unit) return value > 25 ? value : value * 90;
-  }
-  return null;
-}
-
-function foodRow(ingredient: string): [number, number, number, number] {
-  const text = String(ingredient ?? '').toLowerCase();
-  const fatMatch = /(\d+(?:[.,]\d+)?)\s*(?:%|percent(?:age)?|prozent|pour cent|por ciento|per cento|procent|процент(?:ів|а|ов)?|відсот(?:ка|ків)?)/i.exec(text);
-  const fatPercent = fatMatch ? Number(fatMatch[1].replace(',', '.')) : null;
-  const greekWord = 'greek|griech|grec|griego|greca|greco|yunan|грецьк|грец|يوناني';
-  const yogurtWord = 'yogurt|yoghurt|joghurt|йогурт|زبادي';
-  const milkWord = 'milk|milch|lait|leche|latte|süt|leite|melk|молок|молочк|حليب';
-  const creamWord = 'cream|sahne|crème|crema|panna|kaymak|сливк|вершк|قشطة|كريمة|natas';
-  const cheeseWord = 'cheese|käse|fromage|queso|formaggio|peynir|queijo|kaas|сыр|сир|جبن';
-  const isGreekYogurt = new RegExp(`(${greekWord}).*(${yogurtWord})|(${yogurtWord}).*(${greekWord})`, 'i').test(text);
-  const isYogurt = new RegExp(yogurtWord, 'i').test(text);
-  const isMilk = new RegExp(milkWord, 'i').test(text);
-  const isCream = new RegExp(creamWord, 'i').test(text);
-  const isCheese = new RegExp(cheeseWord, 'i').test(text);
-  if (isGreekYogurt || isYogurt || isMilk || isCream || isCheese) {
-    const fat = fatPercent ?? (isGreekYogurt ? 10 : isYogurt ? 3.5 : isMilk ? 3.5 : isCream ? 30 : 27);
-    if (isGreekYogurt) return [Math.round((3.5 * 4 + 4 * 4 + fat * 9) * 10) / 10, 3.5, 4, fat];
-    if (isYogurt) return [Math.round((3.5 * 4 + 4.7 * 4 + fat * 9) * 10) / 10, 3.5, 4.7, fat];
-    if (isMilk) return [Math.round((3.3 * 4 + 4.8 * 4 + fat * 9) * 10) / 10, 3.3, 4.8, fat];
-    if (isCream) return [Math.round((2 * 4 + 3 * 4 + fat * 9) * 10) / 10, 2, 3, fat];
-    return [Math.round((25 * 4 + 2 * 4 + fat * 9) * 10) / 10, 25, 2, fat];
-  }
-  for (const [re, values] of FOOD_TABLE) {
-    if (re.test(text)) return values;
-  }
-  return DEFAULT_FOOD;
-}
+const NUTRITION_CACHE_KEY = 'spoonful:nutrition-cache:v3';
 
 export function estimateNutritionLocally(
   ingredients: string[] | undefined,
   servings = 4,
 ): { calories: number; protein: number; carbs: number; fat: number } | null {
-  const list = (ingredients ?? []).map((i) => String(i ?? '').trim()).filter(Boolean);
-  if (list.length < 2) return null;
-  let kcal = 0;
-  let protein = 0;
-  let carbs = 0;
-  let fat = 0;
-  let counted = 0;
-  for (const line of list) {
-    const grams = gramsFromIngredient(line);
-    if (!grams) continue;
-    const [k, p, c, f] = foodRow(line);
-    const factor = grams / 100;
-    kcal += k * factor;
-    protein += p * factor;
-    carbs += c * factor;
-    fat += f * factor;
-    counted += 1;
-  }
-  if (counted < 2 || kcal <= 0) return null;
-  const perServing = Math.max(1, servings || 4);
-  const round1 = (v: number) => Math.round(v * 10) / 10;
-  return {
-    calories: Math.max(30, Math.round(kcal / perServing / 10) * 10),
-    protein: round1(protein / perServing),
-    carbs: round1(carbs / perServing),
-    fat: round1(fat / perServing),
-  };
+  const analyzed = analyzeRecipeNutrition(ingredients, servings);
+  return analyzed ? analyzed.perServing : null;
+}
+
+/**
+ * Per-serving macros computed from the ingredient amounts the recipe actually
+ * lists. Used to keep AI-written recipes honest: when most of the weight is
+ * recognised, the calculated values replace the model's guess.
+ */
+export function groundedMacros(
+  ingredients: string[] | undefined,
+  servings = 4,
+  minCoverage = 0.6,
+): { calories: number; protein: number; carbs: number; fat: number } | null {
+  const analyzed = analyzeRecipeNutrition(ingredients, servings);
+  if (!analyzed || analyzed.coverage < minCoverage) return null;
+  return analyzed.perServing;
 }
 
 function nutritionKey(args: { title?: string; ingredients?: string[]; steps?: string[] }): string {
@@ -909,20 +802,37 @@ export async function aiEstimateNutrition(args: {
   const cached = await readNutritionCache(key);
   if (cached && typeof cached.calories === 'number') return cached;
 
-  const local = estimateNutritionLocally(args.ingredients, servings);
+  const analyzed = analyzeRecipeNutrition(args.ingredients, servings);
+  const local = analyzed?.perServing ?? null;
+  const coverage = analyzed?.coverage ?? 0;
+
+  // Fully recognised recipe: the calculation from USDA amounts is exact and
+  // deterministic, so no AI call (and no quota) is spent on guessing it.
+  if (local && coverage >= 0.9) {
+    await writeNutritionCache(key, local);
+    return local;
+  }
+
   const system =
-    'You are a precise nutritionist. Estimate the nutrition PER SERVING from the amounts in the ' +
-    'ingredient list. Answer with valid JSON only: ' +
+    'You are a nutritionist with a food-composition database. Estimate the nutrition PER SERVING from the ' +
+    'exact amounts in the ingredient list. Answer with valid JSON only: ' +
     '{"calories": number, "protein": number, "carbs": number, "fat": number}. ' +
-    'Rules: use realistic values for the given amounts, count oil, butter, sugar and nuts fully, ' +
-    'and keep the numbers consistent (calories is about 4x protein + 4x carbs + 9x fat). ' +
+    'Rules: convert every amount to grams first (1 cup flour is 120 g, 1 cup sugar 200 g, 1 tbsp oil 14 g), ' +
+    'use the raw or dry weight the recipe states, count oil, butter, sugar and nuts fully, and keep ' +
+    'calories equal to 4x protein + 4x carbs + 9x fat. Never invent ingredients. ' +
     'When dairy fat percentages are missing, assume regular yogurt and milk at 3.5%, Greek yogurt at 10%, cream at 30%, and semi-hard cheese at about 27 g fat per 100 g. ' +
     'Use an explicit fat percentage when present. The app will disclose any standard assumptions to the user.';
   const user =
     `Recipe: ${args.title || 'Untitled'}\n\nIngredients:\n${(args.ingredients ?? []).join('\n')}\n\n` +
     `Steps:\n${(args.steps ?? []).join('\n')}\n\n` +
     `Give the values for exactly ${servings} servings.` +
-    (local ? `\nFor orientation, a simple calculation gives about ${local.calories} kcal per serving.` : '');
+    (local
+      ? `\nCalculated from the amounts above: about ${local.calories} kcal, ${local.protein} g protein, ` +
+        `${local.carbs} g carbs, ${local.fat} g fat per serving (${Math.round(coverage * 100)}% of the weight recognised).`
+      : '') +
+    ((analyzed?.unknown.length ?? 0)
+      ? `\nThese ingredients are not in the database, judge them carefully: ${analyzed!.unknown.join(', ')}.`
+      : '');
 
   let ai: { calories?: number; protein?: number; carbs?: number; fat?: number } | null = null;
   try {
@@ -941,18 +851,22 @@ export async function aiEstimateNutrition(args: {
   const round1 = (v?: number) => (v == null ? undefined : Math.round(v * 10) / 10);
   let result: { calories?: number; protein?: number; carbs?: number; fat?: number } | null = null;
 
-  if (local && ai?.calories) {
-    
-    const diff = Math.abs(ai.calories - local.calories) / Math.max(1, local.calories);
-    const calories = diff > 0.45 ? Math.round((ai.calories + local.calories) / 2 / 10) * 10 : local.calories;
-    result = {
-      calories,
-      protein: round1(((ai.protein ?? local.protein) + local.protein) / 2),
-      carbs: round1(((ai.carbs ?? local.carbs) + local.carbs) / 2),
-      fat: round1(((ai.fat ?? local.fat) + local.fat) / 2),
-    };
-  } else if (ai?.calories) {
-    result = { calories: ai.calories, protein: round1(ai.protein), carbs: round1(ai.carbs), fat: round1(ai.fat) };
+  const aiMacros = ai?.calories
+    ? consistent({ calories: ai.calories, protein: ai.protein ?? 0, carbs: ai.carbs ?? 0, fat: ai.fat ?? 0 })
+    : null;
+
+  if (local && aiMacros) {
+    // The database result is trusted for the weight it covers; the model only
+    // fills the part it could not recognise. No blind averaging.
+    const aiWeight = Math.min(0.6, Math.max(0.15, 1 - coverage));
+    result = consistent({
+      calories: local.calories * (1 - aiWeight) + aiMacros.calories * aiWeight,
+      protein: local.protein * (1 - aiWeight) + aiMacros.protein * aiWeight,
+      carbs: local.carbs * (1 - aiWeight) + aiMacros.carbs * aiWeight,
+      fat: local.fat * (1 - aiWeight) + aiMacros.fat * aiWeight,
+    });
+  } else if (aiMacros) {
+    result = { ...aiMacros, protein: round1(aiMacros.protein), carbs: round1(aiMacros.carbs), fat: round1(aiMacros.fat) };
   } else if (local) {
     result = local;
   }
