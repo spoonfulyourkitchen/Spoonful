@@ -1,3 +1,4 @@
+import { tr2, localeFor } from '../lib/hardcoded-l10n';
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import {
   KeyboardAvoidingView,
@@ -57,7 +58,7 @@ export function SettingsScreen() {
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState('');
   const [importBusy, setImportBusy] = useState(false);
-  const L = (de: string, en: string) => (lang === 'de' ? de : en);
+  const L = (de: string, en: string) => tr2(de, en, lang);
 
   useEffect(() => {
     let alive = true;

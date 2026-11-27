@@ -17,6 +17,7 @@ import { Check, X } from 'lucide-react-native';
 
 import { colors, fonts } from '../theme';
 import { useTranslation } from '../lib/i18n';
+import { tr2, localeFor } from '../lib/hardcoded-l10n';
 import { useMutation, useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';
 import { AppButton, Chip } from './ui';
@@ -161,7 +162,7 @@ export function ProfileEditor({ visible, onClose }: { visible: boolean; onClose:
   const toggle = (list: string[], value: string, set: (next: string[]) => void) =>
     set(list.includes(value) ? list.filter((item) => item !== value) : [...list, value]);
 
-  const L = (de: string, en: string) => (lang === 'de' ? de : en);
+  const L = (de: string, en: string) => tr2(de, en, lang);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>

@@ -16,6 +16,7 @@ import { pickFromGallery, takePhoto, uploadPhotoToServer } from '../lib/photo';
 import { copyCrop, editPhotoCrop } from '../lib/photo-crop';
 import { addPendingOp, applyCachedList } from '../lib/offline';
 import { useTranslation } from '../lib/i18n';
+import { tr2, localeFor } from '../lib/hardcoded-l10n';
 import { clearDraft, loadDraft, saveDraft } from '../lib/draft';
 
 type Difficulty = 'easy' | 'medium' | 'hard';
@@ -247,7 +248,7 @@ export function RecipeFormScreen({ route }: any) {
         );
         Alert.alert(
           t('s.saveFailed'),
-          e instanceof Error ? e.message : lang === 'de' ? 'Bitte versuch es noch einmal.' : 'Please try again.',
+          e instanceof Error ? e.message : tr2('Bitte versuch es noch einmal.', 'Please try again.', lang),
         );
       }
     })();
@@ -316,7 +317,7 @@ export function RecipeFormScreen({ route }: any) {
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
             <Pressable onPress={() => void attachPhoto('camera')} disabled={photoBusy} style={({ pressed }) => [{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingVertical: 10, opacity: pressed || photoBusy ? 0.7 : 1 }]}>
               <Camera size={16} color={colors.accent} />
-              <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 13 }}>{lang === 'de' ? 'Foto machen' : 'Take photo'}</Text>
+              <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 13 }}>{tr2('Foto machen', 'Take photo', lang)}</Text>
             </Pressable>
             <Pressable onPress={() => void attachPhoto('gallery')} disabled={photoBusy} style={({ pressed }) => [{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingVertical: 10, opacity: pressed || photoBusy ? 0.7 : 1 }]}>
               <ImagePlus size={16} color={colors.accent} />
@@ -365,7 +366,7 @@ export function RecipeFormScreen({ route }: any) {
               }
               setIngredientsText(value);
             }}
-            placeholder={lang === 'de' ? '200 g Pasta\n2 EL Olivenöl' : '200 g pasta\n2 tbsp olive oil'}
+            placeholder={tr2('200 g Pasta\n2 EL Olivenöl', '200 g pasta\n2 tbsp olive oil', lang)}
             multiline
             inputStyle={{ minHeight: 110, textAlignVertical: 'top' }}
           />
@@ -374,7 +375,7 @@ export function RecipeFormScreen({ route }: any) {
             label={t('recipe.steps')}
             value={stepsText}
             onChangeText={setStepsText}
-            placeholder={lang === 'de' ? 'Pasta in Salzwasser kochen.\n…' : 'Boil the pasta in salted water.\n…'}
+            placeholder={tr2('Pasta in Salzwasser kochen.\n…', 'Boil the pasta in salted water.\n…', lang)}
             multiline
             inputStyle={{ minHeight: 130, textAlignVertical: 'top' }}
           />
@@ -385,7 +386,7 @@ export function RecipeFormScreen({ route }: any) {
             style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 12, paddingVertical: 11, opacity: pressed ? 0.8 : 1 }]}
           >
             <Text style={{ flex: 1, fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>
-              {lang === 'de' ? 'Details: Zeit, Kalorien, Küche' : 'Details: time, calories, cuisine'}
+              {tr2('Details: Zeit, Kalorien, Küche', 'Details: time, calories, cuisine', lang)}
             </Text>
             <Text style={{ fontSize: 16, fontWeight: '800', color: colors.accent }}>{detailsOpen ? '−' : '+'}</Text>
           </Pressable>
@@ -474,7 +475,7 @@ export function RecipeFormScreen({ route }: any) {
         </GlassCard>
 
         {error ? <Text style={{ color: colors.rose, fontSize: 14, marginTop: 8 }}>{error}</Text> : null}
-        <AppButton label={busy ? (lang === 'de' ? 'Wird gespeichert…' : 'Saving…') : editing ? t('recipe.saveChanges') : t('recipe.createRecipe')} variant="dark" style={{ marginTop: 14 }} busy={busy} onPress={save} />
+        <AppButton label={busy ? (tr2('Wird gespeichert…', 'Saving…', lang)) : editing ? t('recipe.saveChanges') : t('recipe.createRecipe')} variant="dark" style={{ marginTop: 14 }} busy={busy} onPress={save} />
       </ScrollView>
     </KeyboardAvoidingView>
   );

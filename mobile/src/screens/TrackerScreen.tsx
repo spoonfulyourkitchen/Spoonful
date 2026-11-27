@@ -1,3 +1,4 @@
+import { tr2, localeFor } from '../lib/hardcoded-l10n';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Modal, Pressable, ScrollView, Text, View, KeyboardAvoidingView, Platform } from 'react-native';
 
@@ -197,7 +198,7 @@ export function TrackerScreen() {
   const logRecipe = async (recipe: any, count: number) => {
     const scale = (value: any) => Math.round((Number(value) || 0) * count);
     const payload = {
-      title: `${recipe.title} · ${count} ${lang === 'de' ? (count === 1 ? 'Portion' : 'Portionen') : count === 1 ? 'portion' : 'portions'}`,
+      title: `${recipe.title} · ${count} ${tr2(count === 1 ? 'Portion' : 'Portionen', count === 1 ? 'portion' : 'portions', lang)}`,
       calories: scale(recipe.calories),
       protein: scale(recipe.protein),
       carbs: scale(recipe.carbs),
@@ -314,10 +315,10 @@ export function TrackerScreen() {
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 14 }}>
           {([
-            { key: 'meals' as const, label: lang === 'de' ? 'Mahlzeiten' : 'Meals', Icon: Flame },
+            { key: 'meals' as const, label: tr2('Mahlzeiten', 'Meals', lang), Icon: Flame },
             { key: 'water' as const, label: t('x.water'), Icon: Droplets },
             { key: 'barcode' as const, label: 'Barcode', Icon: ScanLine },
-            { key: 'weight' as const, label: lang === 'de' ? 'Gewicht' : 'Weight', Icon: Scale },
+            { key: 'weight' as const, label: tr2('Gewicht', 'Weight', lang), Icon: Scale },
           ]).map((entry) => {
             const active = tab === entry.key;
             return (
@@ -467,9 +468,9 @@ export function TrackerScreen() {
 
                 <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
                   {[
-                    { key: 'recipes' as const, label: lang === 'de' ? 'Aus Rezepten' : 'From recipes' },
-                    { key: 'recent' as const, label: lang === 'de' ? 'Zuletzt' : 'Recent' },
-                    { key: 'manual' as const, label: lang === 'de' ? 'Manuell' : 'Manual' },
+                    { key: 'recipes' as const, label: tr2('Aus Rezepten', 'From recipes', lang) },
+                    { key: 'recent' as const, label: tr2('Zuletzt', 'Recent', lang) },
+                    { key: 'manual' as const, label: tr2('Manuell', 'Manual', lang) },
                   ].map((tab) => {
                     const active = formTab === tab.key;
                     return (
@@ -493,14 +494,14 @@ export function TrackerScreen() {
                     <View>
                       <Text style={{ fontSize: 16, fontWeight: '800', color: colors.textPrimary }}>{pickedRecipe.title}</Text>
                       <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 3 }}>
-                        {Math.round(Number(pickedRecipe.calories) || 0)} kcal {lang === 'de' ? 'pro Portion' : 'per portion'}
+                        {Math.round(Number(pickedRecipe.calories) || 0)} kcal {tr2('pro Portion', 'per portion', lang)}
                       </Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14 }}>
                         <Pressable onPress={() => setPortions((v) => Math.max(1, v - 1))} style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted }}>
                           <Text style={{ fontSize: 20, fontWeight: '800', color: colors.textPrimary }}>-</Text>
                         </Pressable>
                         <Text style={{ minWidth: 90, textAlign: 'center', fontSize: 15, fontWeight: '800', color: colors.textPrimary }}>
-                          {portions} {lang === 'de' ? (portions === 1 ? 'Portion' : 'Portionen') : portions === 1 ? 'portion' : 'portions'}
+                          {portions} {tr2(portions === 1 ? 'Portion' : 'Portionen', portions === 1 ? 'portion' : 'portions', lang)}
                         </Text>
                         <Pressable onPress={() => setPortions((v) => Math.min(12, v + 1))} style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted }}>
                           <Text style={{ fontSize: 20, fontWeight: '800', color: colors.textPrimary }}>+</Text>
@@ -509,7 +510,7 @@ export function TrackerScreen() {
                           {Math.round((Number(pickedRecipe.calories) || 0) * portions)} kcal
                         </Text>
                       </View>
-                      <AppButton label={lang === 'de' ? 'Eintragen' : 'Add to tracker'} variant="dark" onPress={() => void logRecipe(pickedRecipe, portions)} style={{ marginTop: 16 }} />
+                      <AppButton label={tr2('Eintragen', 'Add to tracker', lang)} variant="dark" onPress={() => void logRecipe(pickedRecipe, portions)} style={{ marginTop: 16 }} />
                     </View>
                   ) : (
                     <View>
@@ -522,14 +523,14 @@ export function TrackerScreen() {
                           <View style={{ flex: 1 }}>
                             <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '700', color: colors.textPrimary }}>{recipe.title}</Text>
                             <Text style={{ fontSize: 11.5, color: colors.textSecondary, marginTop: 2 }}>
-                              {Math.round(Number(recipe.calories) || 0)} kcal {lang === 'de' ? 'pro Portion' : 'per portion'}
+                              {Math.round(Number(recipe.calories) || 0)} kcal {tr2('pro Portion', 'per portion', lang)}
                             </Text>
                           </View>
                           <Plus size={16} color={colors.accent} />
                         </Pressable>
                       )) : (
                         <Text style={{ fontSize: 13, color: colors.textSecondary, paddingVertical: 8 }}>
-                          {lang === 'de' ? 'Noch keine gespeicherten Rezepte. Nutze Manuell.' : 'No saved recipes yet. Use Manual.'}
+                          {tr2('Noch keine gespeicherten Rezepte. Nutze Manuell.', 'No saved recipes yet. Use Manual.', lang)}
                         </Text>
                       )}
                     </View>
@@ -555,7 +556,7 @@ export function TrackerScreen() {
                       </Pressable>
                     )) : (
                       <Text style={{ fontSize: 13, color: colors.textSecondary, paddingVertical: 8 }}>
-                        {lang === 'de' ? 'Noch nichts eingetragen. Nutze Rezepte oder Manuell.' : 'Nothing logged yet. Use Recipes or Manual.'}
+                        {tr2('Noch nichts eingetragen. Nutze Rezepte oder Manuell.', 'Nothing logged yet. Use Recipes or Manual.', lang)}
                       </Text>
                     )}
                   </View>

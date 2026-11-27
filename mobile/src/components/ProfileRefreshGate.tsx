@@ -3,6 +3,7 @@ import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { Check, Sparkles, X } from 'lucide-react-native';
 import { colors, fonts } from '../theme';
 import { useTranslation } from '../lib/i18n';
+import { tr2, localeFor } from '../lib/hardcoded-l10n';
 import { convexClient, useConvexAuth, useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';
 import { addPendingOp } from '../lib/offline';
@@ -199,13 +200,11 @@ export function ProfileRefreshGate() {
                 <Sparkles size={18} color={colors.accent} />
               </View>
               <Text style={{ flex: 1, fontFamily: fonts.display, fontSize: 19, fontWeight: '800', color: colors.textPrimary }}>
-                {lang === 'de' ? 'Deine Küche, neu auf dich abgestimmt' : 'Your kitchen, tuned to you'}
+                {tr2('Deine Küche, neu auf dich abgestimmt', 'Your kitchen, tuned to you', lang)}
               </Text>
             </View>
             <Text style={{ fontSize: 14, lineHeight: 21, color: colors.textSecondary, marginTop: 12 }}>
-              {lang === 'de'
-                ? 'Seit deinem Start sind neue Angaben dazugekommen: Ziel, Körperdaten, Aktivität, Allergien, Ernährung, Kocherfahrung, Haushaltsgröße, Kochzeit und Küchen. Damit Tagesplan, Rezepte, Bibliothek und KI-Koch wirklich zu dir passen, fragen wir sie einmal komplett ab. Dein Name bleibt, deine bisherigen Antworten sind vorausgefüllt. Dauert etwa zwei Minuten.'
-                : 'Since you started, new details were added: goal, body data, activity, allergies, diet, cooking experience, household size, cooking time and cuisines. So your daily plan, recipes, library and AI Chef really fit you, we ask for them once, complete. Your name stays, your existing answers are filled in. Takes about two minutes.'}
+              {tr2('', 'Since you started, new details were added.', lang)}
             </Text>
             <Pressable
               onPress={() => { setStep('goal'); }}
@@ -213,7 +212,7 @@ export function ProfileRefreshGate() {
               style={({ pressed }) => [{ marginTop: 18, borderRadius: 14, paddingVertical: 13, alignItems: 'center', backgroundColor: colors.darkButton, opacity: pressed ? 0.85 : 1 }]}
             >
               <Text style={{ color: colors.darkButtonText, fontWeight: '800', fontSize: 14 }}>
-                {lang === 'de' ? 'Annehmen und ergänzen' : 'Accept and complete'}
+                {tr2('Annehmen und ergänzen', 'Accept and complete', lang)}
               </Text>
             </Pressable>
           </View>
@@ -291,7 +290,7 @@ export function ProfileRefreshGate() {
             {t('ob.progress', { n: index + 1, total })}
           </Text>
           <Pressable onPress={dismiss} hitSlop={10} accessibilityRole="button">
-            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.accent }}>{lang === 'de' ? 'Später' : 'Later'}</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.accent }}>{tr2('Später', 'Later', lang)}</Text>
           </Pressable>
         </View>
         <View style={{ height: 3, borderRadius: 2, backgroundColor: colors.surfaceMuted, marginHorizontal: 20, marginTop: 10, overflow: 'hidden' }}>
@@ -441,7 +440,7 @@ export function ProfileRefreshGate() {
             style={{ flex: 2, borderRadius: 14, paddingVertical: 13, alignItems: 'center', backgroundColor: colors.darkButton }}
           >
             <Text style={{ fontWeight: '800', color: colors.darkButtonText }}>
-              {step === 'done' ? (lang === 'de' ? 'Fertig' : 'Done') : t('onb.next')}
+              {step === 'done' ? (tr2('Fertig', 'Done', lang)) : t('onb.next')}
             </Text>
           </Pressable>
         </View>

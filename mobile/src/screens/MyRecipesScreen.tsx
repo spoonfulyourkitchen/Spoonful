@@ -14,6 +14,7 @@ import { CollectionModal } from '../components/CollectionModal';
 import { asRecipeFromDoc, formatCuisine } from '../lib/recipe';
 import { useCachedList, addPendingOp, getConnNow } from '../lib/offline';
 import { useTranslation } from '../lib/i18n';
+import { tr2, localeFor } from '../lib/hardcoded-l10n';
 import { useTranslatedTexts } from '../lib/recipe-translation-cache';
 
 type KitchenItem = { kind: 'mine' | 'saved'; doc: any };
@@ -150,14 +151,12 @@ export function MyRecipesScreen() {
         }
         if (created) applyMine((prev: any[]) => [created, ...prev]);
         Alert.alert(
-          lang === 'de' ? 'In deiner Küche' : 'In your kitchen',
-          lang === 'de'
-            ? 'Das Rezept liegt jetzt in deinen eigenen Rezepten und ist mit deinem Konto gespeichert.'
-            : 'The recipe is now in your own recipes and saved to your account.',
+          tr2('In deiner Küche', 'In your kitchen', lang),
+          tr2('', 'The recipe is now in your own recipes and saved to your account.', lang),
         );
       } catch (e) {
         Alert.alert(
-          lang === 'de' ? 'Hat nicht geklappt' : 'Could not add recipe',
+          tr2('Hat nicht geklappt', 'Could not add recipe', lang),
           e instanceof Error ? e.message : String(e),
         );
       }
@@ -186,7 +185,7 @@ export function MyRecipesScreen() {
             <Pressable
               onPress={() => setAddOpen(true)}
               accessibilityRole="button"
-              accessibilityLabel={lang === 'de' ? 'Neu' : 'New'}
+              accessibilityLabel={tr2('Neu', 'New', lang)}
               style={({ pressed }) => [
                 { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, backgroundColor: colors.darkButtonText, paddingHorizontal: 14, paddingVertical: 10 },
                 pressed && { opacity: 0.85 },
@@ -200,13 +199,13 @@ export function MyRecipesScreen() {
         <SearchField
           value={search}
           onChangeText={setSearch}
-          placeholder={lang === 'de' ? 'In deiner Küche suchen' : 'Search your kitchen'}
+          placeholder={tr2('In deiner Küche suchen', 'Search your kitchen', lang)}
           style={{ marginBottom: 10 }}
         />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 8 }}>
           <Chip label={`${t('saved.allSaved')} · ${countFor('all')}`} active={active === 'all'} onPress={() => setActive('all')} icon={<Bookmark size={13} color={colors.accent} />} />
-          <Chip label={`${lang === 'de' ? 'Eigene' : 'Mine'} · ${countFor('mine')}`} active={active === 'mine'} onPress={() => setActive('mine')} icon={<ChefHat size={13} color={colors.accent} />} />
-          <Chip label={`${lang === 'de' ? 'Gespeichert' : 'Saved'} · ${countFor('saved')}`} active={active === 'saved'} onPress={() => setActive('saved')} icon={<Bookmark size={13} color={colors.accent} />} />
+          <Chip label={`${tr2('Eigene', 'Mine', lang)} · ${countFor('mine')}`} active={active === 'mine'} onPress={() => setActive('mine')} icon={<ChefHat size={13} color={colors.accent} />} />
+          <Chip label={`${tr2('Gespeichert', 'Saved', lang)} · ${countFor('saved')}`} active={active === 'saved'} onPress={() => setActive('saved')} icon={<Bookmark size={13} color={colors.accent} />} />
           {colls.map((c) => (
             <Chip key={c._id} label={`${c.name} · ${countFor(c._id)}`} active={active === c._id} onPress={() => setActive(c._id)} />
           ))}
@@ -256,7 +255,7 @@ export function MyRecipesScreen() {
           <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 30 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
               <Text style={{ flex: 1, fontSize: 18, fontWeight: '800', color: colors.textPrimary }}>
-                {lang === 'de' ? 'Etwas Neues' : 'Something new'}
+                {tr2('Etwas Neues', 'Something new', lang)}
               </Text>
               <Pressable onPress={() => setAddOpen(false)} hitSlop={10}>
                 <X size={20} color={colors.textSecondary} />
@@ -265,15 +264,15 @@ export function MyRecipesScreen() {
             <Pressable onPress={openEditor} style={addRow}>
               <View style={addIcon}><ChefHat size={19} color={colors.accent} /></View>
               <View style={{ flex: 1 }}>
-                <Text style={addTitle}>{lang === 'de' ? 'Neues Rezept' : 'New recipe'}</Text>
-                <Text style={addSub}>{lang === 'de' ? 'Selbst eintragen und in deiner Küche speichern' : 'Write it yourself and keep it in your kitchen'}</Text>
+                <Text style={addTitle}>{tr2('Neues Rezept', 'New recipe', lang)}</Text>
+                <Text style={addSub}>{tr2('Selbst eintragen und in deiner Küche speichern', 'Write it yourself and keep it in your kitchen', lang)}</Text>
               </View>
             </Pressable>
             <Pressable onPress={openCollections} style={[addRow, { marginTop: 8 }]}>
               <View style={addIcon}><FolderPlus size={19} color={colors.accent} /></View>
               <View style={{ flex: 1 }}>
-                <Text style={addTitle}>{lang === 'de' ? 'Neue Sammlung' : 'New collection'}</Text>
-                <Text style={addSub}>{lang === 'de' ? 'Gespeicherte Rezepte gruppieren' : 'Group your saved recipes'}</Text>
+                <Text style={addTitle}>{tr2('Neue Sammlung', 'New collection', lang)}</Text>
+                <Text style={addSub}>{tr2('Gespeicherte Rezepte gruppieren', 'Group your saved recipes', lang)}</Text>
               </View>
             </Pressable>
           </View>
@@ -337,9 +336,9 @@ function KitchenCard({
         </Pressable>
         {item.kind === 'saved' ? (
           <>
-            <Pressable onPress={() => copyToKitchen(doc)} style={rowBtn} accessibilityLabel={lang === 'de' ? 'In eigene Rezepte kopieren' : 'Copy to my recipes'}>
+            <Pressable onPress={() => copyToKitchen(doc)} style={rowBtn} accessibilityLabel={tr2('In eigene Rezepte kopieren', 'Copy to my recipes', lang)}>
               <Copy size={14} color={colors.textSecondary} strokeWidth={2.2} />
-              <Text numberOfLines={1} style={rowText}>{lang === 'de' ? 'Kopieren' : 'Copy'}</Text>
+              <Text numberOfLines={1} style={rowText}>{tr2('Kopieren', 'Copy', lang)}</Text>
             </Pressable>
             <Pressable onPress={() => removeSavedRecipe(doc)} style={[rowBtn, { backgroundColor: colors.roseBg, borderColor: 'transparent' }]}>
               <Trash2 size={14} color={colors.rose} strokeWidth={2.2} />

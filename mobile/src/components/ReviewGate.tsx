@@ -1,3 +1,4 @@
+import { tr2 } from '../lib/hardcoded-l10n';
 import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { Star, X } from 'lucide-react-native';
@@ -14,7 +15,6 @@ export function ReviewGate() {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [canClose, setCanClose] = useState(false);
-  const de = lang === 'de';
 
   useEffect(() => {
     void hydrateReview();
@@ -52,10 +52,10 @@ export function ReviewGate() {
           ) : null}
 
           <Text style={{ fontFamily: fonts.display, fontSize: 22, fontWeight: '800', color: colors.textPrimary, letterSpacing: -0.3 }}>
-            {de ? 'Wie gefällt dir Spoonful?' : 'How do you like Spoonful?'}
+            {tr2('Wie gefällt dir Spoonful?', 'How do you like Spoonful?', lang)}
           </Text>
           <Text style={{ fontSize: 13.5, lineHeight: 20, color: colors.textSecondary, marginTop: 6 }}>
-            {de ? 'Sag uns kurz, wie es läuft.' : 'Tell us how it is going.'}
+            {tr2('Sag uns kurz, wie es läuft.', 'Tell us how it is going.', lang)}
           </Text>
 
           <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 2, marginTop: 16 }}>
@@ -81,7 +81,7 @@ export function ReviewGate() {
           <TextInput
             value={text}
             onChangeText={setText}
-            placeholder={de ? 'Was würdest du ändern?' : 'What would you change?'}
+            placeholder={tr2('Was würdest du ändern?', 'What would you change?', lang)}
             placeholderTextColor={colors.textSecondary}
             multiline
             maxLength={400}
@@ -103,7 +103,7 @@ export function ReviewGate() {
             }]}
           >
             <Text style={{ color: colors.darkButtonText, fontWeight: '800', fontSize: 15 }}>
-              {de ? 'Senden' : 'Send'}
+              {tr2('Senden', 'Send', lang)}
             </Text>
           </Pressable>
         </View>

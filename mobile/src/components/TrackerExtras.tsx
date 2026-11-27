@@ -9,6 +9,7 @@ import { colors } from '../theme';
 import { GlassCard } from './ui';
 import { Collapsible } from './Collapsible';
 import { useTranslation } from '../lib/i18n';
+import { tr2, localeFor } from '../lib/hardcoded-l10n';
 import { searchFoods, productByBarcode, scaleToPortion, type FoodHit } from '../lib/foodFacts';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 import { subscribePendingBarcode, takePendingBarcode } from '../lib/scan-bus';
@@ -511,7 +512,7 @@ export function TrackerExtras({ onLocalLog, mode }: { onLocalLog?: (payload: any
             {weightLocal.slice(-4).reverse().map((w: any, i: number) => (
               <View key={String(w.at) + '-' + i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderTopWidth: 1, borderTopColor: colors.cardBorder }}>
                 <Text style={{ flex: 1, fontSize: 12.5, color: colors.textSecondary }}>
-                  {new Date(Number(w.at || Date.now())).toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-US', { day: '2-digit', month: 'short' })}
+                  {new Date(Number(w.at || Date.now())).toLocaleDateString(localeFor(lang), { day: '2-digit', month: 'short' })}
                 </Text>
                 <Text style={{ fontSize: 13.5, fontWeight: '800', color: colors.textPrimary }}>{w.kg} kg</Text>
               </View>

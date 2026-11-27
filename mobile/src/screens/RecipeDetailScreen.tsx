@@ -27,6 +27,7 @@ import { StepPhotoSlideshow, StepPhotoStrip, useStepPhotos } from '../components
 import { ReportPhotoButton } from '../components/ReportPhotoButton';
 import { CollectionModal } from '../components/CollectionModal';
 import { useTranslation } from '../lib/i18n';
+import { tr2, localeFor } from '../lib/hardcoded-l10n';
 import { addPendingOp, applyCachedList, getConnNow } from '../lib/offline';
 import { LibraryRecipe, difficultyLabel, formatCuisine, recipeLines, totalMinutes } from '../lib/recipe';
 import { getRecipeTranslation, rememberRecipeTranslation } from '../lib/recipe-translation-cache';
@@ -299,7 +300,7 @@ export function RecipeDetailScreen({ route }: any) {
         eatenAt: Date.now(),
       });
       setLogOpen(false);
-      flash(lang === 'de' ? 'Im Tracker eingetragen' : 'Logged to your tracker');
+      flash(tr2('Im Tracker eingetragen', 'Logged to your tracker', lang));
     } catch (e) {
       Alert.alert(t('s.xCouldNotLog'), e instanceof Error ? e.message : 'Please try again.');
     } finally {
@@ -488,13 +489,13 @@ export function RecipeDetailScreen({ route }: any) {
                     <View style={{ marginTop: 7, borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.surfaceMuted, padding: 10, gap: 4 }}>
                       {guide?.coach ? (
                         <Text style={{ fontSize: 13, lineHeight: 19, color: colors.textPrimary }}>
-                          <Text style={{ fontWeight: '800', color: colors.accent }}>{lang === 'de' ? 'Kochtipp: ' : 'Coach tip: '}</Text>
+                          <Text style={{ fontWeight: '800', color: colors.accent }}>{tr2('Kochtipp: ', 'Coach tip: ', lang)}</Text>
                           {guide.coach}
                         </Text>
                       ) : null}
                       {guide?.look ? (
                         <Text style={{ fontSize: 13, lineHeight: 19, color: colors.textSecondary }}>
-                          <Text style={{ fontWeight: '800' }}>{lang === 'de' ? 'Achte auf: ' : 'Look for: '}</Text>
+                          <Text style={{ fontWeight: '800' }}>{tr2('Achte auf: ', 'Look for: ', lang)}</Text>
                           {guide.look}
                         </Text>
                       ) : null}
@@ -583,10 +584,10 @@ export function RecipeDetailScreen({ route }: any) {
         <View style={{ flex: 1, backgroundColor: colors.overlayStrong, alignItems: 'center', justifyContent: 'center', padding: 22 }}>
           <View style={{ width: '100%', maxWidth: 380, borderRadius: 24, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder, padding: 20 }}>
             <Text style={{ fontSize: 19, fontWeight: '800', color: colors.textPrimary }}>
-              {lang === 'de' ? 'Wie viele Portionen?' : 'How many servings?'}
+              {tr2('Wie viele Portionen?', 'How many servings?', lang)}
             </Text>
             <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 4 }}>
-              {recipe?.calories ?? 0} {t('common.kcal')} {lang === 'de' ? 'pro Portion' : 'per serving'}
+              {recipe?.calories ?? 0} {t('common.kcal')} {tr2('pro Portion', 'per serving', lang)}
             </Text>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 18, marginTop: 18 }}>
@@ -603,7 +604,7 @@ export function RecipeDetailScreen({ route }: any) {
               {Math.round((recipe?.calories ?? 0) * logPortions)} {t('common.kcal')}
             </Text>
 
-            <AppButton label={logBusy ? '…' : lang === 'de' ? 'Eintragen' : 'Log meal'} variant="dark" style={{ marginTop: 14 }} onPress={() => void confirmLog()} />
+            <AppButton label={logBusy ? '…' : tr2('Eintragen', 'Log meal', lang)} variant="dark" style={{ marginTop: 14 }} onPress={() => void confirmLog()} />
             <Pressable onPress={() => setLogOpen(false)} style={{ marginTop: 10, alignItems: 'center' }} accessibilityRole="button">
               <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textSecondary }}>{t('common.cancel')}</Text>
             </Pressable>
