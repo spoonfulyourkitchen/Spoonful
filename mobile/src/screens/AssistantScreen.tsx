@@ -500,6 +500,8 @@ export function AssistantScreen() {
         </Animated.View>
         </View>
 
+        {mode === 'video' ? null : (
+        <>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 10, paddingVertical: 6 }}>
             <Pressable onPress={() => { const next = Math.max(1, servings - 1); setServings(next); void saveLocalPrefs({ householdSize: next }); }} hitSlop={8} accessibilityRole="button" accessibilityLabel="minus">
@@ -535,6 +537,8 @@ export function AssistantScreen() {
           </Pressable>
 
         </View>
+        </>
+        )}
 
         <Modal visible={filtersOpen} transparent animationType="slide" onRequestClose={() => setFiltersOpen(false)}>
           <View style={{ flex: 1, backgroundColor: colors.overlayStrong, justifyContent: 'flex-end' }}>

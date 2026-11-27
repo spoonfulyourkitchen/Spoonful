@@ -628,7 +628,8 @@ async function composeRecipe(input: ComposeInput, allowAi: boolean): Promise<Vid
   if (allowAi && text.trim().length >= 60) {
     const structured = await aiRecipeFromText({ title: input.title, text }).catch(() => null);
     if (structured && structured.steps.length >= 2) {
-      const ingredients = mergeIngredients(cleaned.ingredients, structured.ingredients);
+      // AI ingredients first: the local heuristic truncates names like "1 cup heavy".
+      const ingredients = mergeIngredients(structured.ingredients, cleaned.ingredients);
       return {
         title:
           structured.title ||
