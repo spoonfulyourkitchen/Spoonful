@@ -28,6 +28,30 @@ const MODEL_CHAIN: string[] = [
   'openai/gpt-4o-mini',
 ];
 
+// APInex free tier: every request is charged against a daily allowance with a
+// model weight (1 to 5), so the cheapest model is asked first.
+const APINEX_FREE_MODELS: string[] = [
+  'free/drex-v2.0',
+  'free/gpt-6-luna',
+  'free/glm-5.3-flash',
+  'free/deepseek-v4.1-flash',
+  'free/minimax-m3.1-flash',
+  'free/qwen-3.8-max',
+  'free/deepseek-v4-flash-0731',
+  'free/glm-5.3-flashx',
+  'free/deepseek-v4-pro-0813',
+  'free/glm-5.3',
+  'free/gemini-4-hydrogen',
+];
+
+function apinexModelList(): string[] {
+  const custom = (Deno.env.get('APINEX_FREE_MODELS') ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return custom.length ? custom : APINEX_FREE_MODELS;
+}
+
 const PEAK_RESTRICTED = ['deepseek/deepseek-v4.1-flash'];
 
 const PAID_ALLOWED = !['0', 'false', 'no', 'off'].includes(
@@ -96,14 +120,29 @@ function freeModels(): string[] {
 
 type Attempt = { ok: boolean; status: number; content?: string; detail?: string };
 
-async function attempt(key: string, model: string, body: Record<string, unknown>, withJson: boolean): Promise<Attempt> {
+type Provider = { name: 'openrouter' | 'apinex'; endpoint: string };
+
+const OPENROUTER: Provider = { name: 'openrouter', endpoint: ENDPOINT };
+const APINEX: Provider = { name: 'apinex', endpoint: 'https://api.apinex.bond/v1/chat/completions' };
+
+function reasoningExtra(provider: Provider): Record<string, unknown> {
+  return provider.name === 'apinex' ? { reasoning_effort: 'low' } : { reasoning: { effort: 'low' } };
+}
+
+async function attempt(
+  provider: Provider,
+  key: string,
+  model: string,
+  body: Record<string, unknown>,
+  withJson: boolean,
+): Promise<Attempt> {
   // The free models are reasoning models. With a low reasoning budget they answer
   // in seconds; without it they spend every token on thinking and return no content.
-  const variants: Record<string, unknown>[] = [{ reasoning: { effort: 'low' } }, {}];
+  const variants: Record<string, unknown>[] = [reasoningExtra(provider), {}];
   let last: Attempt = { ok: false, status: 0, detail: 'not attempted' };
   for (const extra of variants) {
     try {
-      const res = await fetch(ENDPOINT, {
+      const res = await fetch(provider.endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -198,6 +237,88 @@ Deno.serve(async (req: Request) => {
     return json({ error: 'invalid JSON body' }, 400);
   }
 
+  // Diagnostics: reachability and allowance of the APInex free tier, no quota used.
+  if (payload?.diagnose === 'apinex') {
+    const key = (Deno.env.get('APINEX_API_KEY') ?? '').trim();
+    if (!key.startsWith('sk-ap')) return json({ error: 'APINEX_API_KEY missing' }, 500);
+    const info: Record<string, unknown> = {};
+    for (const path of ['/api/public/models', '/subscription']) {
+      try {
+        const r = await fetch(`https://api.apinex.bond${path}`, { headers: { Authorization: `Bearer ${key}` } });
+        const text = await r.text();
+        if (path === '/subscription') {
+          info.subscription = { status: r.status, body: text.slice(0, 400) };
+        } else {
+          let free: unknown = 'parse failed';
+          try {
+            const data = JSON.parse(text);
+            free = (data.models ?? [])
+              .filter((m: any) => String(m.id ?? '').startsWith('free/') && m.allowFree !== false)
+              .map((m: any) => `${m.id}:w${m.weight}`);
+          } catch {}
+          info.catalog = { status: r.status, free };
+        }
+      } catch (e) {
+        info[path] = String(e);
+      }
+    }
+    const variants: { name: string; headers: Record<string, string> }[] = [
+      { name: 'bearer', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' } },
+      {
+        name: 'bearer+ua',
+        headers: {
+          Authorization: `Bearer ${key}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        },
+      },
+      {
+        name: 'bearer+origin',
+        headers: {
+          Authorization: `Bearer ${key}`,
+          'Content-Type': 'application/json',
+          Origin: 'https://apinex.bond',
+          Referer: 'https://apinex.bond/',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        },
+      },
+      { name: 'x-api-key', headers: { 'x-api-key': key, 'Content-Type': 'application/json' } },
+      { name: 'no-auth', headers: { 'Content-Type': 'application/json' } },
+    ];
+    const variantProbe: unknown[] = [];
+    for (const variant of variants) {
+      try {
+        const r = await fetch('https://api.apinex.bond/v1/models', {
+          headers: variant.headers,
+          signal: AbortSignal.timeout(15000),
+        });
+        const body = (await r.text()).slice(0, 80).replace(/\s+/g, ' ');
+        variantProbe.push({ variant: variant.name, status: r.status, body });
+      } catch (e) {
+        variantProbe.push({ variant: variant.name, error: String(e) });
+      }
+    }
+    info.variants = variantProbe;
+
+    const probe: unknown[] = [];
+    for (const model of apinexModelList().slice(0, 3)) {
+      const t0 = Date.now();
+      const r = await attempt(APINEX, key, model, {
+        temperature: 0,
+        max_tokens: 600,
+        messages: [{ role: 'user', content: 'Antworte nur mit JSON: {"ok":true}' }],
+      }, true);
+      probe.push({
+        model,
+        ok: r.ok,
+        status: r.status,
+        ms: Date.now() - t0,
+        detail: r.ok ? String(r.content ?? '').slice(0, 40) : String(r.detail ?? '').slice(0, 120),
+      });
+    }
+    return json({ apinex: { info, probe } });
+  }
+
   
 
   const requestId = typeof payload?.requestId === 'string' ? payload.requestId.slice(0, 80) : undefined;
@@ -232,7 +353,14 @@ Deno.serve(async (req: Request) => {
 
   
 
-  const pool = liveKeys(keys);
+  const openRouterPool = liveKeys(keys);
+  const apinexKey = (Deno.env.get('APINEX_API_KEY') ?? '').trim();
+  // APInex answers /api/* normally but returns a Cloudflare 403 for every /v1 request
+  // from our networks (local machine and Supabase), so it stays off until access works.
+  const apinexEnabled = ['1', 'true', 'yes', 'on'].includes(
+    String(Deno.env.get('APINEX_ENABLED') ?? '').toLowerCase(),
+  );
+  const apinexAvailable = apinexEnabled && apinexKey.startsWith('sk-ap');
   const models = freeModels();
   const errors: string[] = [];
   const freeErrors: string[] = [];
@@ -245,7 +373,8 @@ Deno.serve(async (req: Request) => {
     if (!paid) freeErrors.push(message);
   };
 
-  const tryModel = async (model: string, paid: boolean): Promise<Response | null> => {
+  const tryModel = async (model: string, paid: boolean, provider: Provider = OPENROUTER): Promise<Response | null> => {
+    const pool = provider.name === 'apinex' ? (apinexAvailable ? [apinexKey] : []) : openRouterPool;
     let tried = 0;
     for (const key of pool) {
       if (tried >= KEYS_PER_MODEL) break;
@@ -254,7 +383,7 @@ Deno.serve(async (req: Request) => {
         break;
       }
       tried += 1;
-      const first = await attempt(key, model, body, true);
+      const first = await attempt(provider, key, model, body, true);
       if (first.ok) {
         if (paid) notePaidCall();
         
@@ -270,7 +399,7 @@ Deno.serve(async (req: Request) => {
         });
       }
       if (first.status === 400 && /response_format|json/i.test(String(first.detail ?? ''))) {
-        const second = await attempt(key, model, body, false);
+        const second = await attempt(provider, key, model, body, false);
         if (second.ok) {
           if (paid) notePaidCall();
           return json({
@@ -288,7 +417,7 @@ Deno.serve(async (req: Request) => {
       }
       if (/empty AI answer/i.test(String(first.detail ?? ''))) {
         // Some free providers return 200 with no content when JSON mode is requested.
-        const plain = await attempt(key, model, body, false);
+        const plain = await attempt(provider, key, model, body, false);
         if (plain.ok) {
           if (paid) notePaidCall();
           return json({
@@ -311,6 +440,16 @@ Deno.serve(async (req: Request) => {
     return null;
   };
 
+  // 1) APInex free tier, cheapest weight first.
+  if (apinexAvailable) {
+    for (const model of apinexModelList()) {
+      const done = await tryModel(model, false, APINEX);
+      if (done) return done;
+    }
+  }
+
+  // 2) OpenRouter free models.
+  deadline = Date.now() + 60_000;
   for (const model of models) {
     const done = await tryModel(model, false);
     if (done) return done;

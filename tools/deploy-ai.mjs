@@ -41,6 +41,8 @@ function collectSecrets() {
     for (const line of text.split(/\r?\n/)) {
       const match = /^(OPENROUTER_API_KEY(_\d+)?)=(sk-or-v1-[^\s#]+)/.exec(line.trim());
       if (match) out.set(match[1], match[3]);
+      const apinex = /^(APINEX_API_KEY)=(sk-ap[^\s#]+)/.exec(line.trim());
+      if (apinex) out.set(apinex[1], apinex[2]);
     }
   }
   out.set('OPENROUTER_PAID_MODEL', process.env.OPENROUTER_PAID_MODEL ?? 'openai/gpt-4o-mini');
