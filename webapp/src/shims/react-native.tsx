@@ -174,10 +174,15 @@ function WebModal(props: any) {
     return () => {
       const index = modalStack.indexOf(entry);
       if (index >= 0) modalStack.splice(index, 1);
-      if (!entry.consumed) {
-        suppressModalPops += 1;
-        window.history.back();
-      }
+      if (entry.consumed) return;
+      // While the modal was open the app may have navigated (for example from
+      // "open recipe"). Then this entry is no longer the top of the history
+      // stack, and history.back() would undo that navigation and close the new
+      // screen right after it opened.
+      const state: any = typeof window === 'undefined' ? null : window.history.state;
+      if (!state || typeof state !== 'object' || state.spoonfulModal !== entry.id) return;
+      suppressModalPops += 1;
+      window.history.back();
     };
   }, [visible]);
 

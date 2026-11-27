@@ -403,11 +403,15 @@ export function AssistantScreen() {
 
   const openResult = () => {
     if (!result) return;
-    navigate('RecipeDetail', {
+    const target = {
       recipeId: 'assistant', title: result.title ?? 'AI recipe', source: 'assistant',
       recipe: asRecipeFromDoc(result, 'assistant'),
       guides: result.guides ?? [],
-    });
+    };
+    // Navigate first: on web the preview is a modal that owns a history entry.
+    // Closing it in the same commit would run history.back() and undo this jump.
+    navigate('RecipeDetail', target);
+    setTimeout(() => setPreview(false), 0);
   };
 
   return (
@@ -609,7 +613,7 @@ export function AssistantScreen() {
         {error ? <Text style={{ color: colors.rose, fontSize: 13, marginTop: 10 }}>{error}</Text> : null}
         <AppButton label={busy ? t('assistant.generating') : t('assistant.generate')} variant="dark" style={{ marginTop: 14 }} busy={busy} icon={!busy ? <Sparkles size={18} color={colors.darkButtonText} /> : undefined} onPress={() => { aiTarget.onPress(); void run(); }} />
 
-        {history.length > (result ? 1 : 0) ? (
+        {history.length ? (
           <View style={{ marginTop: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Text style={fieldLabel}>{t('s.chefRecents')}</Text>
@@ -618,7 +622,7 @@ export function AssistantScreen() {
                 <Text style={{ fontSize: 12, color: colors.textSecondary }}>{t('s.chefClearHistory')}</Text>
               </Pressable>
             </View>
-            {history.slice(result ? 1 : 0, (result ? 1 : 0) + 6).map((h: any, i: number) => (
+            {history.slice(0, 8).map((h: any, i: number) => (
               <Pressable key={i} onPress={() => { setResult(h); setPreview(true); }} style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.cardBorder }}>
                 <Text style={{ fontSize: 14.5, color: colors.textPrimary, fontWeight: '600' }}>{h.title}</Text>
                 <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>{h.cuisine} · {h.calories ?? '?'} kcal</Text>
@@ -655,7 +659,7 @@ export function AssistantScreen() {
                     {result.cuisine || 'Home cooking'} · {result.calories ?? '?'} kcal · {result.prepTime ?? 0} min prep
                   </Text>
                   <View style={{ marginTop: 16, gap: 10 }}>
-                    <AppButton label={t('s.chefViewRecipe')} variant="dark" icon={<Sparkles size={17} color={colors.darkButtonText} />} onPress={() => { setPreview(false); openResult(); }} />
+                    <AppButton label={t('s.chefViewRecipe')} variant="dark" icon={<Sparkles size={17} color={colors.darkButtonText} />} onPress={openResult} />
                     <Pressable onPress={() => void saveToMine()} disabled={saved} style={({ pressed }) => [{ borderRadius: 14, paddingVertical: 12, alignItems: 'center', backgroundColor: saved ? colors.success : colors.darkButton, opacity: pressed ? 0.85 : 1 }]}>
                       <Text style={{ color: saved ? readableText(colors.success) : colors.darkButtonText, fontWeight: '700', fontSize: 14 }}>{saved ? `${t('assistant.saved')} ✓` : t('assistant.saveToRecipes')}</Text>
                     </Pressable>

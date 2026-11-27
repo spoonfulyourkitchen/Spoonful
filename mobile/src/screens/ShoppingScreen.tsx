@@ -15,9 +15,9 @@ import {
   resetShoppingLocal,
   type LocalShoppingItem,
 } from '../lib/shopping-local';
+import { showNotice } from '../components/AppNotice';
 
 const INPUT_DRAFT = 'shopping-input';
-const UNDO_MS = 5000;
 
 type Item = LocalShoppingItem & { shared?: boolean };
 
@@ -33,10 +33,7 @@ export function ShoppingScreen() {
   const [items, setItems] = useState<Item[]>([]);
   const [synced, setSynced] = useState(false);
   const [name, setName] = useState('');
-  const [removed, setRemoved] = useState<Item | null>(null);
   const [doneOpen, setDoneOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const undoTimer = useRef<any>(null);
   const draftReady = useRef(false);
   const migrated = useRef(false);
 
@@ -67,7 +64,6 @@ export function ShoppingScreen() {
     });
     return () => {
       alive = false;
-      if (undoTimer.current) clearTimeout(undoTimer.current);
     };
   }, [synced]);
 
@@ -125,7 +121,7 @@ export function ShoppingScreen() {
       .then(() => clearQueryCacheAndRefresh())
       .catch((e) => {
         setItems((all) => all.filter((i) => i.id !== temp.id));
-        setError(e instanceof Error ? e.message : t('s.hhError'));
+        showNotice({ title: e instanceof Error ? e.message : t('s.hhError'), tone: 'error' });
       });
   };
 
@@ -136,28 +132,26 @@ export function ShoppingScreen() {
       .then(() => clearQueryCacheAndRefresh())
       .catch((e) => {
         setItems((all) => all.map((i) => (i.id === item.id ? { ...i, checked: item.checked } : i)));
-        setError(e instanceof Error ? e.message : t('s.hhError'));
+        showNotice({ title: e instanceof Error ? e.message : t('s.hhError'), tone: 'error' });
       });
   };
 
   const onRemove = (item: Item) => {
     setItems((all) => all.filter((i) => i.id !== item.id));
-    setRemoved(item);
-    if (undoTimer.current) clearTimeout(undoTimer.current);
-    undoTimer.current = setTimeout(() => setRemoved(null), UNDO_MS);
+    showNotice({
+      title: t('s.shopRemoved', { name: item.name }),
+      tone: 'info',
+      actions: [{ label: t('s.undo'), onPress: () => undoRemove(item) }],
+    });
     void removeItem({ id: item.id })
       .then(() => clearQueryCacheAndRefresh())
-      .catch((e) => {
+      .catch(() => {
         setItems((all) => (all.some((i) => i.id === item.id) ? all : [...all, item]));
-        setError(e instanceof Error ? e.message : t('s.hhError'));
+        showNotice({ title: t('s.hhError'), tone: 'error' });
       });
   };
 
-  const undoRemove = () => {
-    if (!removed) return;
-    const back = removed;
-    setRemoved(null);
-    if (undoTimer.current) clearTimeout(undoTimer.current);
+  const undoRemove = (back: Item) => {
     setItems((all) => (all.some((i) => i.id === back.id) ? all : [...all, back]));
     void addItem({ name: back.name, recipeTitle: back.recipeTitle ?? null })
       .then(() => clearQueryCacheAndRefresh())
@@ -169,9 +163,9 @@ export function ShoppingScreen() {
     setItems((all) => all.filter((i) => !i.checked));
     void clearChecked({})
       .then(() => clearQueryCacheAndRefresh())
-      .catch((e) => {
+      .catch(() => {
         setItems((all) => [...all, ...done]);
-        setError(e instanceof Error ? e.message : t('s.hhError'));
+        showNotice({ title: t('s.hhError'), tone: 'error' });
       });
   };
 
@@ -184,15 +178,6 @@ export function ShoppingScreen() {
           <View style={{ paddingVertical: 18, alignItems: 'center' }}>
             <ActivityIndicator color={colors.accent} />
           </View>
-        ) : null}
-
-        {error ? (
-          <Pressable
-            onPress={() => setError(null)}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, borderRadius: 12, borderWidth: 1, borderColor: rgbaHelper(colors.rose, 0.35), backgroundColor: rgbaHelper(colors.rose, 0.1), paddingHorizontal: 12, paddingVertical: 10 }}
-          >
-            <Text style={{ flex: 1, fontSize: 12.5, color: colors.textPrimary }}>{error}</Text>
-          </Pressable>
         ) : null}
 
         {total ? (
@@ -252,17 +237,6 @@ export function ShoppingScreen() {
             <Plus size={22} color={colors.accentText} strokeWidth={2.6} />
           </Pressable>
         </View>
-
-        {removed ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12, borderRadius: 12, backgroundColor: colors.surfaceMuted, paddingHorizontal: 12, paddingVertical: 9 }}>
-            <Text numberOfLines={1} style={{ flex: 1, fontSize: 12.5, fontWeight: '600', color: colors.textSecondary }}>
-              {t('s.shopRemoved', { name: removed.name })}
-            </Text>
-            <Pressable onPress={undoRemove} hitSlop={8}>
-              <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.accent }}>{t('s.undo')}</Text>
-            </Pressable>
-          </View>
-        ) : null}
 
         {synced && !items.length ? (
           <EmptyState icon={<ShoppingCart size={22} color={colors.accent} />} title={t('shopping.emptyList')} body={t('s.shopEmptyBody')} />

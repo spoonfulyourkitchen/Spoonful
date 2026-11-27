@@ -176,8 +176,8 @@ export function RecipeFormScreen({ route }: any) {
     const steps = linesOf(stepsText);
     if (!ingredients.length) { setError(t('s.formErrIng')); return; }
     if (!steps.length) { setError(t('s.formErrStep')); return; }
-    const prep = toInt(prepTime) ?? 0;
-    if (prep < 1) { setError(t('s.formErrPrep')); return; }
+    // A recipe can legitimately need no prep time (leftovers, a drink, a no-chop dish).
+    const prep = Math.max(0, toInt(prepTime) ?? 0);
     const payload = {
       title: title.trim(), ingredients, steps, prepTime: prep,
       cookTime: toInt(cookTime), cuisine: cuisine.trim() || undefined,

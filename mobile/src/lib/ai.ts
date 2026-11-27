@@ -183,7 +183,7 @@ export function finalizeStepsAndGuides(
   ingredients: string[],
   options: { maxSteps?: number; trimAfterServe?: 'always' | 'smart' | 'never' } = {},
 ) {
-  const maxSteps = options.maxSteps ?? 10;
+  const maxSteps = options.maxSteps ?? 14;
   const trimMode = options.trimAfterServe ?? 'always';
   const pairs: { step: string; guide: any }[] = [];
   rawSteps.forEach((raw, i) => {
@@ -429,7 +429,7 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
     'You are the Spoonful AI Chef, a calm, precise professional recipe developer. ' +
     'Always answer with valid JSON only (no markdown, no commentary). Fields exactly: ' +
     'title, description (2-3 sentences), cuisine, mealType, ingredients (array of strings WITH amounts, e.g. "200 g pasta"), ' +
-    'steps (array of 5 to 9 complete imperative strings, ordered, each one real cooking action), ' +
+    'steps (array of complete imperative strings, ordered, each one real cooking action, as many as the dish really needs), ' +
     'guides (array with exactly one object per step, same order and same length, each {"coach": string or null, "look": string or null}; null for steps that are not difficult), prepTime (minutes, number), ' +
     'cookTime (minutes, number), difficulty ("easy"|"medium"|"hard"), dietaryRestrictions (array of lowercase tags), ' +
     'calories, protein, carbs, fat (numbers, per serving), tips (array of up to 3 short strings)' +
@@ -438,7 +438,7 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
     'Rules: realistic amounts, correct cooking technique, no invented exotic equipment, no brand names, ' +
     
 
-    'max 12 ingredients, 5 to 9 steps (never fewer than 4, never more than 9), metric units. ' +
+    'max 12 ingredients, as many steps as the dish needs (usually 3 to 7, never padded), metric units. ' +
     'For dairy ingredients, specify the exact type and fat percentage in the ingredient name. ' +
     'Use lactose-free dairy when requested. Do not replace a user-specified type or fat content. ' +
     'Every step must be a real physical action the cook performs, written as one or two complete sentences ' +
@@ -454,7 +454,7 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
     'Never write a step that explains a rule, a temperature range, a consistency, a timing range, ' +
     'a serving suggestion or a summary instead of telling the cook what to do next. ' +
     'Do not repeat the same instruction twice and do not pad the list to reach a step count. ' +
-    'Only a genuinely long preparation may reach 9 steps; simple dishes use 5 or 6. ' +
+    'A quick dish may need only 3 steps, a long preparation more: follow the cooking, never a target count. ' +
     guideRule +
     ' ' + guideOrderRule +
     ' A coach tip names only ingredients that appear in THIS recipe and never mentions another dish. ' +
@@ -555,7 +555,7 @@ export async function aiImproveRecipe(args: {
     'guides (one object per step, same order and same length, each {"coach": string or null, "look": string or null}; only difficult steps get a tip), ' +
     'prepTime, cookTime, difficulty, dietaryRestrictions, calories, protein, carbs, fat, tips (max 3) and ' +
     '"changes" (array of max 4 short strings describing what you changed). ' +
-    'Keep 5 to 9 steps, every step a complete real action ending properly, never padded and never cut with "...". ' +
+    'Keep every step the recipe really needs (usually 3 to 7), each a complete real action ending properly, never padded and never cut with "...". ' +
     'Every guide must match its own step and only name ingredients from that step; simple steps stay null. ' +
     'Never repeat the same tip on two steps. ' +
     'Keep the character of the dish, keep it realistic and metric. ' +
@@ -650,7 +650,7 @@ export async function aiRecipeFromText(args: {
     '"watch the full video", timestamps and any sentence that is only talking to the audience. ' +
     'Split the description into individual short imperative steps, in the correct cooking order, ' +
     'and write them the way the cook performs them (informal du-form in German). ' +
-    'Write 4 to 9 complete steps, each one real action, and never pad the list to reach a count. ' +
+    'Write as many complete steps as the description needs (usually 3 to 7), each one real action, and never pad the list to reach a count. ' +
     'Name the amount of each ingredient inside the step where it is used (e.g. "200 g Spaghetti"). ' +
     'Never add a step that only explains a rule, a temperature, a consistency or a timing range, ' +
     'never cut a step with "...", and only add a step when the description clearly says that action. ' +

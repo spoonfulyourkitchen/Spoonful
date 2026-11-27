@@ -39,7 +39,10 @@ export function RecipeDetailScreen({ route }: any) {
   const { t, lang } = useTranslation();
   const { recipeId, source = 'library', recipe: inlineRecipe, guides: routeGuides } = route.params ?? {};
   const detailSource = source as string;
-  if (inlineRecipe) rememberRecipe(inlineRecipe);
+  // Writing to the recipe store during render is a side effect; keep it in an effect.
+  useEffect(() => {
+    if (inlineRecipe) rememberRecipe(inlineRecipe);
+  }, [inlineRecipe]);
   const recipe: LibraryRecipe | undefined = inlineRecipe ?? getRememberedRecipe(recipeId);
   const recipeKey = inlineRecipe?.id ?? recipeId ?? inlineRecipe?.recipeKey ?? '';
 
