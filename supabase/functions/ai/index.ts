@@ -28,54 +28,6 @@ const MODEL_CHAIN: string[] = [
   'openai/gpt-4o-mini',
 ];
 
-// APInex free tier: every request is charged against a daily allowance with a
-// model weight (1 to 5), so the cheapest model is asked first.
-// Only models with allowFree come without a subscription. free/drex-v2.0 is a
-// decision model and rejects /v1/chat/completions, so it is not listed here.
-const APINEX_FREE_MODELS: string[] = [
-  // weight 3 = cheapest billable tier
-  'free/deepseek-v4.1-flash',
-  'free/glm-5.3-flash',
-  'free/gpt-6-luna',
-  'free/qwen-3.8-max',
-  'free/minimax-m3.1-flash',
-  'free/deepseek-v4-flash-0731',
-  'free/deepseek-v4-pro-0813',
-  'free/glm-5.3-flashx',
-  // weight 4
-  'free/glm-5.3',
-  // weight 5
-  'free/gemini-4-hydrogen',
-];
-
-function apinexModelList(): string[] {
-  const custom = (Deno.env.get('APINEX_FREE_MODELS') ?? '')
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean);
-  return custom.length ? custom : APINEX_FREE_MODELS;
-}
-
-// Hugging Face Inference Providers no longer has free models: a free account gets
-// no monthly credits, so every call answers 402 until credits are bought (or PRO
-// is active with its 2 $ a month). The router stays wired as the second stage,
-// cheapest model first, and is switched off for a while after a billing error.
-const HUGGINGFACE_ENDPOINT = 'https://router.huggingface.co/v1/chat/completions';
-const HF_MODELS: string[] = [
-  'zai-org/GLM-5.3-Flash', // 0.0356 / 0.0815 $ per M tokens
-  'openai/gpt-oss-20b', // 0.018 / 0.09
-  'google/gemma-4-31B-it', // 0.1 / 0.1
-  'deepseek-ai/DeepSeek-V4-Flash', // 0.0426 / 0.14
-];
-
-function hfModelList(): string[] {
-  const custom = (Deno.env.get('HUGGINGFACE_FREE_MODELS') ?? '')
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean);
-  return custom.length ? custom : HF_MODELS;
-}
-
 const PEAK_RESTRICTED = ['deepseek/deepseek-v4.1-flash'];
 
 const PAID_ALLOWED = !['0', 'false', 'no', 'off'].includes(
@@ -144,22 +96,12 @@ function freeModels(): string[] {
 
 type Attempt = { ok: boolean; status: number; content?: string; detail?: string };
 
-type Provider = { name: 'openrouter' | 'apinex' | 'huggingface'; endpoint: string };
+type Provider = { name: 'openrouter'; endpoint: string };
 
 const OPENROUTER: Provider = { name: 'openrouter', endpoint: ENDPOINT };
-const APINEX: Provider = { name: 'apinex', endpoint: 'https://api.apinex.bond/v1/chat/completions' };
-const HUGGINGFACE: Provider = { name: 'huggingface', endpoint: HUGGINGFACE_ENDPOINT };
 
-// A provider that answers 402 (no credits) or 401 (bad key) is paused, so a
-// missing top-up costs one fast request instead of one per model.
-const providerDown = new Map<string, number>();
-function providerReady(name: string): boolean {
-  return (providerDown.get(name) ?? 0) < Date.now();
-}
-
-function reasoningExtra(provider: Provider): Record<string, unknown> {
-  if (provider.name === 'huggingface') return {};
-  return provider.name === 'apinex' ? { reasoning_effort: 'low' } : { reasoning: { effort: 'low' } };
+function reasoningExtra(): Record<string, unknown> {
+  return { reasoning: { effort: 'low' } };
 }
 
 async function attempt(
@@ -171,7 +113,7 @@ async function attempt(
 ): Promise<Attempt> {
   // The free models are reasoning models. With a low reasoning budget they answer
   // in seconds; without it they spend every token on thinking and return no content.
-  const variants: Record<string, unknown>[] = [reasoningExtra(provider), {}];
+  const variants: Record<string, unknown>[] = [reasoningExtra(), {}];
   let last: Attempt = { ok: false, status: 0, detail: 'not attempted' };
   for (const extra of variants) {
     try {
@@ -194,9 +136,6 @@ async function attempt(
       if (!res.ok) {
         const detail = (await res.text().catch(() => '')).slice(0, 300);
         if (res.status === 429 || res.status === 402) blockedUntil.set(key, Date.now() + 10 * 60 * 1000);
-        if (res.status === 402 || res.status === 401 || res.status === 403) {
-          providerDown.set(provider.name, Date.now() + 30 * 60 * 1000);
-        }
         last = { ok: false, status: res.status, detail };
         if (res.status === 400 && /reasoning/i.test(detail) && Object.keys(extra).length) continue;
         return last;
@@ -273,117 +212,7 @@ Deno.serve(async (req: Request) => {
     return json({ error: 'invalid JSON body' }, 400);
   }
 
-  // Diagnostics: is the Hugging Face router reachable, and does the key have credits?
-  if (payload?.diagnose === 'huggingface') {
-    const key = (Deno.env.get('HUGGINGFACE_API_KEY') ?? '').trim();
-    if (!key.startsWith('hf_')) return json({ error: 'HUGGINGFACE_API_KEY missing' }, 500);
-    const models = hfModelList();
-    const probe: unknown[] = [];
-    for (const model of models.slice(0, 3)) {
-      const t0 = Date.now();
-      const r = await attempt(
-        HUGGINGFACE,
-        key,
-        model,
-        {
-          temperature: 0,
-          max_tokens: 200,
-          messages: [{ role: 'user', content: 'Antworte nur mit JSON: {"ok":true}' }],
-        },
-        true,
-      );
-      probe.push({
-        model,
-        ok: r.ok,
-        status: r.status,
-        ms: Date.now() - t0,
-        detail: r.ok ? String(r.content ?? '').slice(0, 40) : String(r.detail ?? '').slice(0, 120),
-      });
-    }
-    return json({ huggingface: { models, probe, paused: !providerReady('huggingface') } });
-  }
-
   // Diagnostics: reachability and allowance of the APInex free tier, no quota used.
-  if (payload?.diagnose === 'apinex') {
-    const key = (Deno.env.get('APINEX_API_KEY') ?? '').trim();
-    if (!key.startsWith('sk-ap')) return json({ error: 'APINEX_API_KEY missing' }, 500);
-    const info: Record<string, unknown> = {};
-    for (const path of ['/api/public/models', '/subscription']) {
-      try {
-        const r = await fetch(`https://api.apinex.bond${path}`, { headers: { Authorization: `Bearer ${key}` } });
-        const text = await r.text();
-        if (path === '/subscription') {
-          info.subscription = { status: r.status, body: text.slice(0, 400) };
-        } else {
-          let free: unknown = 'parse failed';
-          try {
-            const data = JSON.parse(text);
-            free = (data.models ?? [])
-              .filter((m: any) => String(m.id ?? '').startsWith('free/') && m.allowFree !== false)
-              .map((m: any) => `${m.id}:w${m.weight}`);
-          } catch {}
-          info.catalog = { status: r.status, free };
-        }
-      } catch (e) {
-        info[path] = String(e);
-      }
-    }
-    const variants: { name: string; headers: Record<string, string> }[] = [
-      { name: 'bearer', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' } },
-      {
-        name: 'bearer+ua',
-        headers: {
-          Authorization: `Bearer ${key}`,
-          'Content-Type': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-        },
-      },
-      {
-        name: 'bearer+origin',
-        headers: {
-          Authorization: `Bearer ${key}`,
-          'Content-Type': 'application/json',
-          Origin: 'https://apinex.bond',
-          Referer: 'https://apinex.bond/',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-        },
-      },
-      { name: 'x-api-key', headers: { 'x-api-key': key, 'Content-Type': 'application/json' } },
-      { name: 'no-auth', headers: { 'Content-Type': 'application/json' } },
-    ];
-    const variantProbe: unknown[] = [];
-    for (const variant of variants) {
-      try {
-        const r = await fetch('https://api.apinex.bond/v1/models', {
-          headers: variant.headers,
-          signal: AbortSignal.timeout(15000),
-        });
-        const body = (await r.text()).slice(0, 80).replace(/\s+/g, ' ');
-        variantProbe.push({ variant: variant.name, status: r.status, body });
-      } catch (e) {
-        variantProbe.push({ variant: variant.name, error: String(e) });
-      }
-    }
-    info.variants = variantProbe;
-
-    const probe: unknown[] = [];
-    for (const model of apinexModelList().slice(0, 3)) {
-      const t0 = Date.now();
-      const r = await attempt(APINEX, key, model, {
-        temperature: 0,
-        max_tokens: 600,
-        messages: [{ role: 'user', content: 'Antworte nur mit JSON: {"ok":true}' }],
-      }, true);
-      probe.push({
-        model,
-        ok: r.ok,
-        status: r.status,
-        ms: Date.now() - t0,
-        detail: r.ok ? String(r.content ?? '').slice(0, 40) : String(r.detail ?? '').slice(0, 120),
-      });
-    }
-    return json({ apinex: { info, probe } });
-  }
 
   
 
@@ -420,15 +249,6 @@ Deno.serve(async (req: Request) => {
   
 
   const openRouterPool = liveKeys(keys);
-  const apinexKey = (Deno.env.get('APINEX_API_KEY') ?? '').trim();
-  // APInex /v1 works again (the Cloudflare block is gone), but the free models need a
-  // one-time 5 $ top-up; without it every model answers 402 and the stage pauses.
-  const apinexEnabled = ['1', 'true', 'yes', 'on'].includes(
-    String(Deno.env.get('APINEX_ENABLED') ?? '').toLowerCase(),
-  );
-  const apinexAvailable = apinexEnabled && apinexKey.startsWith('sk-ap');
-  const hfKey = (Deno.env.get('HUGGINGFACE_API_KEY') ?? '').trim();
-  const hfAvailable = hfKey.startsWith('hf_');
   const models = freeModels();
   const errors: string[] = [];
   const freeErrors: string[] = [];
@@ -442,16 +262,7 @@ Deno.serve(async (req: Request) => {
   };
 
   const tryModel = async (model: string, paid: boolean, provider: Provider = OPENROUTER): Promise<Response | null> => {
-    const pool =
-      provider.name === 'apinex'
-        ? apinexAvailable
-          ? [apinexKey]
-          : []
-        : provider.name === 'huggingface'
-          ? hfAvailable
-            ? [hfKey]
-            : []
-          : openRouterPool;
+    const pool = openRouterPool;
     let tried = 0;
     for (const key of pool) {
       if (tried >= KEYS_PER_MODEL) break;
@@ -517,25 +328,7 @@ Deno.serve(async (req: Request) => {
     return null;
   };
 
-  // 1) APInex free tier, cheapest weight first.
-  if (apinexAvailable && providerReady('apinex')) {
-    deadline = Date.now() + 45_000;
-    for (const model of apinexModelList()) {
-      const done = await tryModel(model, false, APINEX);
-      if (done) return done;
-    }
-  }
-
-  // 2) Hugging Face router, cheapest model first.
-  if (hfAvailable && providerReady('huggingface')) {
-    deadline = Date.now() + 25_000;
-    for (const model of hfModelList()) {
-      const done = await tryModel(model, false, HUGGINGFACE);
-      if (done) return done;
-    }
-  }
-
-  // 3) OpenRouter free models.
+  // OpenRouter free models.
   deadline = Date.now() + 60_000;
   for (const model of models) {
     const done = await tryModel(model, false);
