@@ -30,7 +30,8 @@ import { notifyAiReady } from '../lib/notifications';
 import { useConnectivity, retryConnectivity, addPendingOp, getConnNow } from '../lib/offline';
 import { useTranslation } from '../lib/i18n';
 import { OfflineTv } from '../components/OfflineTv';
-import { recipeFromVideo, type VideoRecipe } from '../lib/video-recipe';
+import { recipeFromVideo } from '../lib/video-recipe';
+import { estimateNutritionLocally } from '../lib/ai';
 import { takePendingVideoUrl, usePendingVideoUrl } from '../lib/share-target';
 import { useTutorialTarget } from '../lib/tutorial';
 import { markReviewAction } from '../lib/review';
@@ -144,6 +145,7 @@ export function AssistantScreen() {
         setAiError();
         return;
       }
+      const macros = estimateNutritionLocally(found.ingredients, servings);
       const fromVideo = {
         title: found.title,
         description: found.source,
@@ -156,6 +158,10 @@ export function AssistantScreen() {
         difficulty: 'medium',
         dietaryRestrictions: [],
         tips: [],
+        calories: macros?.calories,
+        protein: macros?.protein,
+        carbs: macros?.carbs,
+        fat: macros?.fat,
         fromVideo: true,
       };
       setResult(fromVideo);
@@ -425,7 +431,7 @@ export function AssistantScreen() {
   const openResult = () => {
     if (!result) return;
     const target = {
-      recipeId: 'assistant', title: result.title ?? 'AI recipe', source: 'assistant',
+      recipeId: draftKey || 'assistant', title: result.title ?? 'AI recipe', source: 'assistant',
       recipe: asRecipeFromDoc(result, 'assistant'),
       guides: result.guides ?? [],
     };

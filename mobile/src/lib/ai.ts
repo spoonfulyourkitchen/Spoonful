@@ -677,10 +677,12 @@ export async function aiRecipeFromText(args: {
 
     'PULL OUT every ingredient the description mentions, with the exact amount written there ' +
     '(e.g. "500 g Mehl", "2 EL Olivenöl", "1 Prise Salz"). Keep the wording of the amounts as written. ' +
+    'NEVER add an ingredient the description does not name, never drop one it does name, never rename or ' +
+    'substitute an ingredient, never change an amount, and keep the order the description uses. ' +
     'REMOVE everything that is not part of the recipe: subscribe/follow/like/share requests, ' +
     'channel or social media names, links and URLs, hashtags, emojis, giveaways, sponsor mentions, ' +
     '"watch the full video", timestamps and any sentence that is only talking to the audience. ' +
-    'Split the description into individual short imperative steps, in the correct cooking order, ' +
+    'Split the description into individual short imperative steps and keep the order the description uses, ' +
     'and write them the way the cook performs them (informal du-form in German). ' +
     'Write as many complete steps as the description needs (usually 3 to 7), each one real action, and never pad the list to reach a count. ' +
     'Name the amount of each ingredient inside the step where it is used (e.g. "200 g Spaghetti"). ' +
@@ -732,12 +734,28 @@ const FOOD_TABLE: [RegExp, [number, number, number, number]][] = [
 
 const DEFAULT_FOOD: [number, number, number, number] = [110, 4, 12, 4];
 
+const UNICODE_FRACTIONS: Record<string, number> = {
+  '½': 0.5, '¼': 0.25, '¾': 0.75, '⅓': 1 / 3, '⅔': 2 / 3, '⅛': 0.125, '⅜': 0.375, '⅝': 0.625, '⅞': 0.875,
+};
+
+/** Grams, millilitres or a sensible piece weight for one ingredient line. */
 function gramsFromIngredient(line: string): number | null {
-  const text = String(line ?? '').toLowerCase().replace(',', '.');
-  const pattern = /(\d+(?:\.\d+)?)\s*(kg|g|gramm|ml|l|liter|cl|dl|tbsp|el|esslöffel|tsp|tl|teelöffel|cup|tasse|stück|stk|piece|pcs|zehe|clove)?/g;
+  let text = String(line ?? '').toLowerCase().replace(',', '.');
+  text = text.replace(/(\d)\s*([½¼¾⅓⅔⅛⅜⅝⅞])/g, (_m, whole: string, frac: string) =>
+    ` ${Number(whole) + UNICODE_FRACTIONS[frac]} `,
+  );
+  text = text.replace(/[½¼¾⅓⅔⅛⅜⅝⅞]/g, (f) => ` ${UNICODE_FRACTIONS[f]} `);
+  text = text.replace(/(\d+)\s+(\d+)\/(\d+)/g, (_m, whole: string, num: string, den: string) =>
+    ` ${Number(whole) + Number(num) / Number(den)} `,
+  );
+  text = text.replace(/(\d+)\/(\d+)/g, (_m, num: string, den: string) => ` ${Number(num) / Number(den)} `);
+  const pattern =
+    /(\d+(?:\.\d+)?)\s*(kg|g|gramm|ml|l|liter|cl|dl|tbsp|tablespoons?|el|esslöffel|tsp|teaspoons?|tl|teelöffel|cups?|tasse[n]?|oz|ounces?|lb|lbs|pounds?|pint|quart|stück|stk|piece|pcs|scheiben?|slices?|zehen?|cloves?|dose[n]?|can[s]?|packung|päckchen|package|pack)?/g;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(text))) {
-    const end = text.slice(pattern.lastIndex).match(/^\s*(?:%|percent(?:age)?|prozent|pour cent|por ciento|per cento|procent|процент(?:ів|а|ов)?|відсот(?:ка|ків)?)/i);
+    const end = text
+      .slice(pattern.lastIndex)
+      .match(/^\s*(?:%|percent(?:age)?|prozent|pour cent|por ciento|per cento|procent|процент(?:ів|а|ов)?|відсот(?:ка|ків)?)/i);
     if (end) continue;
     const value = Number(match[1]);
     if (!Number.isFinite(value) || value <= 0) continue;
@@ -748,11 +766,17 @@ function gramsFromIngredient(line: string): number | null {
     if (unit === 'cl') return value * 10;
     if (unit === 'dl') return value * 100;
     if (unit === 'g' || unit === 'gramm') return value;
-    if (['tbsp', 'el', 'esslöffel'].includes(unit)) return value * 15;
-    if (['tsp', 'tl', 'teelöffel'].includes(unit)) return value * 5;
-    if (['cup', 'tasse'].includes(unit)) return value * 200;
+    if (['tbsp', 'tablespoon', 'tablespoons', 'el', 'esslöffel'].includes(unit)) return value * 15;
+    if (['tsp', 'teaspoon', 'teaspoons', 'tl', 'teelöffel'].includes(unit)) return value * 5;
+    if (['cup', 'cups', 'tasse', 'tassen'].includes(unit)) return value * 200;
+    if (['oz', 'ounce', 'ounces'].includes(unit)) return value * 28.35;
+    if (['lb', 'lbs', 'pound', 'pounds'].includes(unit)) return value * 453.6;
+    if (unit === 'pint') return value * 473;
+    if (unit === 'quart') return value * 946;
     if (['stück', 'stk', 'piece', 'pcs'].includes(unit)) return value * 90;
-    if (['zehe', 'clove'].includes(unit)) return value * 4;
+    if (['scheibe', 'scheiben', 'slice', 'slices'].includes(unit)) return value * 30;
+    if (['zehe', 'zehen', 'clove', 'cloves'].includes(unit)) return value * 5;
+    if (['dose', 'dosen', 'can', 'cans', 'packung', 'päckchen', 'package', 'pack'].includes(unit)) return value * 400;
     if (!unit) return value > 25 ? value : value * 90;
   }
   return null;

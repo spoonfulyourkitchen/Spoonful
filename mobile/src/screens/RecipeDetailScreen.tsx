@@ -65,7 +65,10 @@ export function RecipeDetailScreen({ route }: any) {
 
   useEffect(() => {
     let alive = true;
-    if (!recipe || !lang || lang === 'en') {
+    // AI recipes are already written in the app language; running them through
+    // the translator again is what produced foreign titles and dishes.
+    const generated = detailSource === 'assistant' || detailSource === 'video';
+    if (!recipe || !lang || lang === 'en' || generated) {
       setTranslated(null);
       return () => {
         alive = false;
@@ -96,7 +99,7 @@ export function RecipeDetailScreen({ route }: any) {
     return () => {
       alive = false;
     };
-  }, [recipeKey, lang, translateRecipe, recipe]);
+  }, [recipeKey, lang, translateRecipe, recipe, detailSource]);
   const [logOpen, setLogOpen] = useState(false);
   const [logPortions, setLogPortions] = useState(1);
 
