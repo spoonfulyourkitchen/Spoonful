@@ -547,7 +547,14 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
   const ingredients = strList(raw.ingredients);
   const rawGuides: any[] = Array.isArray(raw.guides) ? raw.guides : [];
   const { steps, guides } = finalizeStepsAndGuides(strList(raw.steps), rawGuides, ingredients);
-  const grounded = groundedMacros(ingredients, servings);
+  let grounded = groundedMacros(ingredients, servings);
+  const localCheck = analyzeRecipeNutrition(ingredients, servings);
+  if (localCheck?.unknown.length) {
+    const products = await catalogueNutrition(localCheck.unknown);
+    if (Object.keys(products).length) {
+      grounded = analyzeRecipeNutrition(ingredients, servings, products)?.perServing ?? grounded;
+    }
+  }
   return {
     title: str(raw.title, 'AI recipe'),
     description: str(raw.description),
@@ -789,6 +796,55 @@ export function dairyAssumptions(ingredients: string[] | undefined): DairyAssump
   });
 }
 
+
+/** Ingredient name without amounts and prep words, for the catalogue query. */
+function catalogueQuery(line: string): string {
+  return String(line ?? '')
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/\d+(?:[.,]\d+)?/g, ' ')
+    .replace(/(?:g|kg|ml|l|cl|dl|tbsp|tsp|cup|cups|oz|lb|lbs|el|tl|stk|stück|packung|dose|can|cans|tin|tins|clove|cloves|zehe|zehen|slice|slices|scheibe|scheiben|pinch|prise|bunch|bund|handful)/g, ' ')
+    .replace(/(?:fresh|freshly|chopped|minced|diced|sliced|grated|ground|large|small|medium|ripe|optional|to taste|for serving|plus extra|cooked|raw|frozen|canned|tinned|boneless|skinless|finely|thinly|roughly|of|the|a)/g, ' ')
+    .replace(/[,.;:()]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Real per-100 g values for ingredients our own table does not know, taken from
+ * the product catalogue behind the tracker (scanned and searched products).
+ * This keeps estimates tied to actual products instead of a generic guess.
+ */
+async function catalogueNutrition(
+  lines: string[],
+): Promise<Record<string, [number, number, number, number]>> {
+  const out: Record<string, [number, number, number, number]> = {};
+  await Promise.all(
+    lines.slice(0, 8).map(async (line) => {
+      const query = catalogueQuery(line);
+      if (query.length < 3) return;
+      try {
+        const result: any = await Promise.race([
+          supabase.rpc('product_search' as any, { p_q: query, p_limit: 3 } as any),
+          new Promise((resolve) => setTimeout(() => resolve(null), 2500)),
+        ]);
+        const rows = result && !result.error && Array.isArray(result.data) ? result.data : [];
+        const hit = rows.find((row: any) => Number(row?.kcal) > 0);
+        if (!hit) return;
+        out[line] = [
+          Number(hit.kcal) || 0,
+          Number(hit.protein) || 0,
+          Number(hit.carbs) || 0,
+          Number(hit.fat) || 0,
+        ];
+      } catch {
+        // catalogue is optional, the AI path still works without it
+      }
+    }),
+  );
+  return out;
+}
+
 export async function aiEstimateNutrition(args: {
   title?: string;
   ingredients?: string[];
@@ -802,7 +858,13 @@ export async function aiEstimateNutrition(args: {
   const cached = await readNutritionCache(key);
   if (cached && typeof cached.calories === 'number') return cached;
 
-  const analyzed = analyzeRecipeNutrition(args.ingredients, servings);
+  let analyzed = analyzeRecipeNutrition(args.ingredients, servings);
+  if (analyzed && analyzed.unknown.length) {
+    const products = await catalogueNutrition(analyzed.unknown);
+    if (Object.keys(products).length) {
+      analyzed = analyzeRecipeNutrition(args.ingredients, servings, products) ?? analyzed;
+    }
+  }
   const local = analyzed?.perServing ?? null;
   const coverage = analyzed?.coverage ?? 0;
 

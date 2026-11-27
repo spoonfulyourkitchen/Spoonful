@@ -282,13 +282,15 @@ export function RecipeDetailScreen({ route }: any) {
   const confirmLog = async () => {
     if (!recipe || logBusy) return;
     const portions = Math.max(1, Math.min(12, logPortions));
+    // Keep the real value in the tracker; only the view rounds it.
+    const r1 = (v: number) => Math.round(v * 10) / 10;
     const tempEntry = {
       _id: `tmp-log-${Date.now()}`,
       title: portions > 1 ? `${recipe.title} x${portions}` : recipe.title,
-      calories: Math.round((recipe.calories ?? 0) * portions),
-      protein: Math.round((recipe.protein ?? 0) * portions),
-      carbs: Math.round((recipe.carbs ?? 0) * portions),
-      fat: Math.round((recipe.fat ?? 0) * portions),
+      calories: r1((recipe.calories ?? 0) * portions),
+      protein: r1((recipe.protein ?? 0) * portions),
+      carbs: r1((recipe.carbs ?? 0) * portions),
+      fat: r1((recipe.fat ?? 0) * portions),
       eatenAt: Date.now(),
     };
     applyCachedList<any>('tracker', (prev) => [tempEntry, ...prev]);
@@ -296,10 +298,10 @@ export function RecipeDetailScreen({ route }: any) {
     try {
       await logMeal({
         title: portions > 1 ? `${recipe.title} x${portions}` : recipe.title,
-        calories: Math.round((recipe.calories ?? 0) * portions),
-        protein: Math.round((recipe.protein ?? 0) * portions),
-        carbs: Math.round((recipe.carbs ?? 0) * portions),
-        fat: Math.round((recipe.fat ?? 0) * portions),
+        calories: r1((recipe.calories ?? 0) * portions),
+        protein: r1((recipe.protein ?? 0) * portions),
+        carbs: r1((recipe.carbs ?? 0) * portions),
+        fat: r1((recipe.fat ?? 0) * portions),
         eatenAt: Date.now(),
       });
       setLogOpen(false);

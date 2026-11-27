@@ -31,7 +31,8 @@ function startOfDay(ts: number) {
 }
 function parseNum(v: string): number | undefined {
   const n = Number(String(v ?? '').replace(',', '.'));
-  return Number.isFinite(n) && n >= 0 ? Math.round(n) : undefined;
+  // one decimal stays: the sum in the header is only rounded for display
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * 10) / 10 : undefined;
 }
 function roundN(v: number) {
   return Math.round(v * 10) / 10;
@@ -339,7 +340,7 @@ export function TrackerScreen() {
             <GlassCard pad={20} radius={26} style={{ minHeight: 440 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Text style={{ flex: 1, fontSize: 11, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase', color: colors.textSecondary }}>{t('tracker.today')}</Text>
-                <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.textPrimary }}>{todayCal} / {kcalGoal} kcal</Text>
+                <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.textPrimary }}>{Math.round(todayCal)} / {kcalGoal} kcal</Text>
               </View>
               <View style={{ height: 8, borderRadius: 4, backgroundColor: colors.surfaceMuted, marginTop: 10, overflow: 'hidden' }}>
                 <View style={{ height: 8, width: `${pctOf(todayCal, kcalGoal)}%`, borderRadius: 4, backgroundColor: colors.accent }} />
@@ -363,7 +364,7 @@ export function TrackerScreen() {
                           {item.fat != null ? ` · F ${roundN(item.fat)}g` : ''}
                         </Text>
                       </View>
-                      <Text style={{ fontSize: 15, color: colors.accent, fontWeight: '800', marginRight: 10 }}>{item.calories ?? 0} kcal</Text>
+                      <Text style={{ fontSize: 15, color: colors.accent, fontWeight: '800', marginRight: 10 }}>{Math.round(Number(item.calories) || 0)} kcal</Text>
                       <Pressable onPress={() => del(item._id)} hitSlop={8}>
                         <Trash2 size={16} color={colors.rose} strokeWidth={2} />
                       </Pressable>

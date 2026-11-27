@@ -282,6 +282,112 @@ const FOODS: Food[] = [
 
   F('ice cream', ['ice cream', 'eiscreme', 'vanilla ice'], 207, 3.5, 24, 11, { cup: 132 }),
   F('whipped cream', ['whipped cream', 'schlagobers'], 257, 2.8, 3.4, 26, { cup: 120 }),
+
+  // --- more dairy ---
+  F('cottage cheese', ['cottage cheese', 'hüttenkäse', 'huettenkaese'], 98, 11.1, 3.4, 4.3, { cup: 226 }),
+  F('brie', ['brie'], 334, 20.8, 0.5, 27.7, { slice: 30 }),
+  F('camembert', ['camembert'], 300, 19.8, 0.5, 24.3, { piece: 250 }),
+  F('goat cheese', ['goat cheese', 'ziegenkäse', 'chèvre', 'chevre'], 364, 21.6, 0.1, 29.8, { slice: 28 }),
+  F('provolone', ['provolone'], 351, 25.6, 2.1, 26.6, { slice: 28 }),
+  F('paneer', ['paneer'], 296, 18.3, 3.6, 22, { cup: 150 }),
+  F('skyr', ['skyr'], 63, 11, 4, 0.2, { cup: 245 }),
+  F('kefir', ['kefir'], 61, 3.3, 4.7, 3.3, { cup: 243 }),
+  F('oat milk', ['oat milk', 'hafermilch', 'oatly'], 46, 1, 6.7, 1.5, { cup: 240 }),
+  F('soy milk', ['soy milk', 'soymilk', 'sojamilch'], 54, 3.3, 3.3, 1.8, { cup: 243 }),
+  F('almond milk', ['almond milk', 'mandelmilch'], 17, 0.6, 0.6, 1.1, { cup: 240 }),
+  F('coconut drink', ['coconut drink', 'kokosdrink'], 31, 0.2, 3.2, 2, { cup: 240 }),
+
+  // --- more meat, fish, protein ---
+  F('pork mince', ['pork mince', 'minced pork', 'schweinehack'], 263, 18.9, 0, 20.8, { cup: 220 }),
+  F('lamb mince', ['lamb mince', 'minced lamb', 'lammhack'], 282, 16.6, 0, 23.4, { cup: 220 }),
+  F('chorizo', ['chorizo'], 455, 24.1, 1.9, 38.3, { slice: 15 }),
+  F('salami', ['salami'], 407, 22.6, 2.4, 33.7, { slice: 10 }),
+  F('sausage', ['sausage', 'wurst', 'bratwurst', 'hot dog'], 301, 14.7, 1.6, 26.4, { piece: 70 }),
+  F('duck', ['duck', 'ente', 'entenfleisch'], 337, 19, 0, 28.4, { piece: 200 }),
+  F('anchovy', ['anchovy', 'anchovies', 'sardelle', 'sardellen'], 210, 20.4, 0, 14.1, { piece: 4, can: 50 }),
+  F('smoked salmon', ['smoked salmon', 'räucherlachs', 'rauchlachs'], 117, 18.3, 0, 4.3, { slice: 20 }),
+  F('trout', ['trout', 'forelle'], 141, 19.9, 0, 6.2, { piece: 170 }),
+  F('crab', ['crab', 'krabbe', 'hummer'], 97, 19.4, 0, 1.5, { can: 120 }),
+  F('mussels', ['mussel', 'mussels', 'muschel', 'muscheln'], 86, 11.9, 3.7, 2.2, { piece: 8 }),
+  F('scallop', ['scallop', 'scallops', 'jakobsmuschel'], 111, 20.5, 5.4, 0.8, { piece: 15 }),
+  F('seitan', ['seitan'], 370, 75, 14, 1.9, { cup: 150 }),
+  F('edamame', ['edamame'], 121, 11.9, 8.9, 5.2, { cup: 155 }),
+  F('jackfruit', ['jackfruit', 'jackfrucht'], 95, 1.7, 23, 0.6, { can: 565 }),
+
+  // --- more grains and bakery ---
+  F('puff pastry', ['puff pastry', 'blätterteig', 'blaetterteig'], 558, 7.4, 45, 38, { piece: 250 }),
+  F('phyllo', ['phyllo', 'filo', 'yufka'], 317, 8.5, 56, 6, { piece: 20 }),
+  F('shortcrust', ['shortcrust', 'mürbeteig', 'pie crust', 'tart shell'], 480, 5.7, 56, 25, { piece: 200 }),
+  F('croissant', ['croissant'], 406, 8.2, 45, 21, { piece: 60 }),
+  F('bagel', ['bagel'], 250, 10, 49, 1.5, { piece: 100 }),
+  F('naan', ['naan'], 310, 8.7, 50, 7.6, { piece: 100 }),
+  F('focaccia', ['focaccia'], 249, 8.8, 37, 7.9, { piece: 90 }),
+  F('brioche', ['brioche'], 346, 8.5, 50, 12, { piece: 50 }),
+  F('rice noodles', ['rice noodle', 'reisnudeln'], 364, 6, 82, 0.6, { cup: 100 }),
+  F('soba', ['soba'], 336, 14, 67, 1.7, { cup: 114 }),
+  F('ramen', ['ramen', 'instant noodles'], 380, 10, 52, 14, { piece: 85 }),
+  F('polenta', ['polenta', 'maisgriess'], 360, 8.1, 76, 1.2, { cup: 160 }),
+  F('barley', ['barley', 'gerste', 'graupen'], 354, 12.5, 73, 2.3, { cup: 184 }),
+  F('farro', ['farro', 'dinkel', 'spelt'], 340, 15, 70, 2.5, { cup: 170 }),
+  F('buckwheat', ['buckwheat', 'buchweizen'], 343, 13.3, 71.5, 3.4, { cup: 170 }),
+  F('granola', ['granola', 'knuspermüsli'], 471, 10, 64, 20, { cup: 110 }),
+  F('muesli', ['muesli', 'müsli', 'cereal', 'cornflakes', 'getreideflocken'], 360, 9, 66, 6, { cup: 85 }),
+
+  // --- dips, sauces, condiments ---
+  F('hummus', ['hummus', 'houmous'], 166, 7.9, 14.3, 9.6, { tbsp: 15 }),
+  F('guacamole', ['guacamole'], 155, 2, 8.6, 13.5, { tbsp: 15 }),
+  F('salsa', ['salsa'], 36, 1.5, 7, 0.2, { tbsp: 16 }),
+  F('sauerkraut', ['sauerkraut', 'kimchi juice'], 19, 0.9, 4.3, 0.1, { cup: 142 }),
+  F('miso', ['miso'], 199, 12.8, 26, 6, { tbsp: 17 }),
+  F('worcestershire', ['worcestershire'], 78, 0, 19.5, 0, { tbsp: 17 }),
+  F('barbecue sauce', ['barbecue sauce', 'bbq sauce'], 172, 0.8, 41, 0.6, { tbsp: 17 }),
+  F('sweet chili sauce', ['sweet chili sauce', 'sweet chilli sauce', 'sweet chili', 'sweet chilli'], 200, 0.5, 49, 0.2, { tbsp: 17 }),
+  F('nduja', ['nduja'], 400, 20, 2, 35, { slice: 10 }),
+  F('labneh', ['labneh'], 150, 8, 5, 11, { tbsp: 15 }),
+  F('teriyaki', ['teriyaki'], 89, 5.9, 15.6, 0.2, { tbsp: 18 }),
+  F('sambal', ['sambal', 'chili crisp', 'chilli oil'], 400, 4, 20, 34, { tbsp: 15 }),
+  F('ranch dressing', ['ranch', 'caesar dressing'], 430, 1.5, 6, 45, { tbsp: 15 }),
+  F('gravy', ['gravy', 'soße', 'sauce mix'], 50, 1.5, 6, 2, { cup: 240 }),
+  F('mayonnaise light', ['light mayonnaise', 'light mayo'], 240, 0.9, 9, 22, { tbsp: 15 }),
+
+  // --- vegetables, fruit, extras ---
+  F('bok choy', ['bok choy', 'pak choi', 'paksoi'], 13, 1.5, 2.2, 0.2, { piece: 150 }),
+  F('beetroot', ['beetroot', 'beet', 'rote bete'], 43, 1.6, 9.6, 0.2, { piece: 120 }),
+  F('radish', ['radish', 'radieschen', 'rettich'], 16, 0.7, 3.4, 0.1, { piece: 12 }),
+  F('parsnip', ['parsnip', 'pastinake'], 75, 1.2, 18, 0.3, { piece: 130 }),
+  F('celeriac', ['celeriac', 'knollensellerie'], 42, 1.5, 9.2, 0.3, { piece: 300 }),
+  F('fennel', ['fennel', 'fenchel'], 31, 1.2, 7.3, 0.2, { piece: 230 }),
+  F('okra', ['okra'], 33, 1.9, 7.5, 0.2, { cup: 100 }),
+  F('plantain', ['plantain', 'kochbanane'], 122, 1.3, 32, 0.4, { piece: 180 }),
+  F('artichoke', ['artichoke', 'artischocke'], 47, 3.3, 11, 0.2, { piece: 120 }),
+  F('bamboo shoots', ['bamboo shoots', 'bambussprossen'], 19, 2.6, 1.9, 0.3, { can: 225 }),
+  F('water chestnuts', ['water chestnut', 'wasserkastanie'], 49, 1.4, 12, 0.1, { can: 225 }),
+  F('watercress', ['watercress', 'brunnenkresse'], 11, 2.3, 1.3, 0.1, { cup: 34 }),
+  F('dried apricots', ['dried apricot', 'aprikose', 'aprikosen'], 241, 3.4, 63, 0.5, { piece: 8 }),
+  F('prunes', ['prune', 'prunes', 'backpflaume'], 240, 2.2, 64, 0.4, { piece: 10 }),
+  F('figs', ['fig', 'figs', 'feige', 'feigen'], 249, 3.3, 64, 0.9, { piece: 20 }),
+  F('cranberries', ['cranberry', 'cranberries', 'cranberries getrocknet', 'preiselbeere'], 308, 0.1, 82, 0.1, { cup: 120 }),
+  F('lemon curd', ['lemon curd', 'zitronencreme'], 283, 3.5, 61, 4.5, { tbsp: 20 }),
+  F('almond butter', ['almond butter', 'mandelmus'], 614, 21, 18.8, 55.5, { tbsp: 16 }),
+  F('white chocolate', ['white chocolate', 'weisse schokolade'], 539, 5.9, 59, 32, { piece: 10 }),
+  F('marshmallow', ['marshmallow'], 318, 1.8, 81, 0.2, { piece: 7 }),
+  F('marzipan', ['marzipan'], 458, 6.8, 50, 27, { piece: 15 }),
+
+  // --- drinks and misc ---
+  F('coffee', ['coffee', 'espresso', 'kaffee'], 2, 0.1, 0, 0, { cup: 240 }),
+  F('tea', ['tea', 'tee'], 1, 0, 0.2, 0, { cup: 240 }),
+  F('sparkling water', ['sparkling water', 'sprudelwasser', 'mineral water'], 0, 0, 0, 0, { cup: 240 }),
+  F('apple juice', ['apple juice', 'apfelsaft'], 46, 0.1, 11.3, 0.1, { cup: 248 }),
+  F('orange juice', ['orange juice', 'orangensaft'], 45, 0.7, 10.4, 0.2, { cup: 248 }),
+  F('cola', ['cola', 'coca cola', 'soft drink', 'lemonade', 'limonade'], 42, 0, 10.6, 0, { cup: 240 }),
+  F('nutritional yeast', ['nutritional yeast', 'hefeflocken'], 380, 50, 35, 5, { tbsp: 5 }),
+  F('gelatin', ['gelatine', 'gelatin'], 335, 85.6, 0, 0.1, { tsp: 4 }),
+  F('bay leaf', ['bay leaf', 'bay leaves', 'lorbeer'], 313, 7.6, 75, 8.4, { piece: 0.2 }),
+  F('saffron', ['saffron', 'safran'], 310, 11.4, 65, 5.9, { tsp: 0.7 }),
+  F('cardamom', ['cardamom', 'kardamom'], 311, 10.8, 68, 6.7, { tsp: 2 }),
+  F('star anise', ['star anise', 'sternanis'], 337, 17.6, 50, 15.9, { piece: 1 }),
+  F('fennel seeds', ['fennel seeds', 'fenchelsamen'], 345, 15.8, 52, 14.9, { tsp: 2 }),
+  F('mustard seeds', ['mustard seeds', 'senfsaat', 'senfkörner'], 508, 26, 28, 36, { tsp: 3 }),
 ];
 
 const CATEGORY_FALLBACK: { keys: string[]; values: [number, number, number, number] }[] = [
@@ -502,8 +608,16 @@ const NEGLIGIBLE = /^(?:salt|pepper|water|ice|salz|pfeffer|wasser|eis)\b/i;
 /**
  * Analyses a whole ingredient list. `coverage` is the share of the recipes
  * weight that was matched to a known food with a confidently parsed amount.
+ *
+ * `known` carries real per-100 g values from the product catalogue (scanned or
+ * searched products in the tracker), keyed by the exact ingredient line. Those
+ * beat the generic table because they describe the actual product.
  */
-export function analyzeRecipeNutrition(ingredients: string[] | undefined, servings = 4): RecipeNutrition | null {
+export function analyzeRecipeNutrition(
+  ingredients: string[] | undefined,
+  servings = 4,
+  known?: Record<string, [number, number, number, number]>,
+): RecipeNutrition | null {
   const list = (ingredients ?? []).map((i) => String(i ?? '').trim()).filter(Boolean);
   if (!list.length) return null;
 
@@ -531,17 +645,20 @@ export function analyzeRecipeNutrition(ingredients: string[] | undefined, servin
       }
       continue;
     }
-    const [k, p, c, f] = macrosFor(food, line, parsed.grams);
+    const product = !food ? known?.[line] : undefined;
+    const [k, p, c, f] = product
+      ? [(product[0] * parsed.grams) / 100, (product[1] * parsed.grams) / 100, (product[2] * parsed.grams) / 100, (product[3] * parsed.grams) / 100]
+      : macrosFor(food, line, parsed.grams);
     items.push({
       line,
-      food: food?.name ?? null,
+      food: food?.name ?? (product ? 'product' : null),
       grams: parsed.grams,
       macros: { calories: k, protein: p, carbs: c, fat: f },
       confidence: parsed.confidence,
     });
     totalGrams += parsed.grams;
-    knownGrams += parsed.grams * parsed.confidence * (food ? 1 : 0.35);
-    if (!food) unknown.push(line);
+    knownGrams += parsed.grams * parsed.confidence * (food || product ? 1 : 0.35);
+    if (!food && !product) unknown.push(line);
   }
 
   const counted = items.filter((item) => item.grams > 0).length;
