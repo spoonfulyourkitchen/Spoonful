@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { Check, ChevronDown, ChevronUp, Plus, ShoppingCart, Trash2, UsersRound } from 'lucide-react-native';
 
@@ -16,6 +16,12 @@ import {
   type LocalShoppingItem,
 } from '../lib/shopping-local';
 import { showNotice } from '../components/AppNotice';
+import {
+  addPendingOp,
+  pendingOpsCount,
+  pendingSettleDelay,
+  subscribePendingOps,
+} from '../lib/offline';
 
 const INPUT_DRAFT = 'shopping-input';
 
@@ -67,11 +73,24 @@ export function ShoppingScreen() {
     };
   }, [synced]);
 
+  const pending = useSyncExternalStore(subscribePendingOps, pendingOpsCount, pendingOpsCount);
+
   useEffect(() => {
     if (!rows) return;
     setSynced(true);
-    setItems(mapRows(rows));
-    if (migrated.current || rows.length) return;
+    // A queued change is ahead of this answer: never overwrite what the user did.
+    if (pending > 0) return;
+    const delay = pendingSettleDelay();
+    if (!delay) {
+      setItems(mapRows(rows));
+      return;
+    }
+    const timer = setTimeout(() => setItems(mapRows(rows)), delay);
+    return () => clearTimeout(timer);
+  }, [rows, mapRows, pending]);
+
+  useEffect(() => {
+    if (!rows || migrated.current || rows.length) return;
     migrated.current = true;
     const local = getShoppingLocal();
     if (!local.length) return;
@@ -81,7 +100,7 @@ export function ShoppingScreen() {
         clearQueryCacheAndRefresh();
       })
       .catch(() => undefined);
-  }, [rows, mapRows, addMany]);
+  }, [rows, addMany]);
 
   useEffect(() => {
     if (!draftReady.current) return;
@@ -130,9 +149,9 @@ export function ShoppingScreen() {
     setItems((all) => all.map((i) => (i.id === item.id ? { ...i, checked: next } : i)));
     void toggleItem({ id: item.id })
       .then(() => clearQueryCacheAndRefresh())
-      .catch((e) => {
-        setItems((all) => all.map((i) => (i.id === item.id ? { ...i, checked: item.checked } : i)));
-        showNotice({ title: e instanceof Error ? e.message : t('s.hhError'), tone: 'error' });
+      .catch(() => {
+        // The server gets more time in the queue; the checkbox stays as tapped.
+        void addPendingOp('shopping.toggle', { id: item.id });
       });
   };
 
@@ -146,8 +165,7 @@ export function ShoppingScreen() {
     void removeItem({ id: item.id })
       .then(() => clearQueryCacheAndRefresh())
       .catch(() => {
-        setItems((all) => (all.some((i) => i.id === item.id) ? all : [...all, item]));
-        showNotice({ title: t('s.hhError'), tone: 'error' });
+        void addPendingOp('shopping.remove', { id: item.id });
       });
   };
 
@@ -159,13 +177,11 @@ export function ShoppingScreen() {
   };
 
   const clearDone = () => {
-    const done = items.filter((i) => i.checked);
     setItems((all) => all.filter((i) => !i.checked));
     void clearChecked({})
       .then(() => clearQueryCacheAndRefresh())
       .catch(() => {
-        setItems((all) => [...all, ...done]);
-        showNotice({ title: t('s.hhError'), tone: 'error' });
+        void addPendingOp('shopping.clearChecked', {});
       });
   };
 

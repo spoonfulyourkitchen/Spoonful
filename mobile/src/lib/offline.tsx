@@ -139,6 +139,21 @@ export function pendingOpsCount(): number {
   return pendingOps.length;
 }
 
+let settleUntil = 0;
+
+/**
+ * How long the screens keep their optimistic state after the last queued
+ * request. Stacked actions buy more time, so a slow server echo cannot flip
+ * the UI back for a moment.
+ */
+export function pendingSettleDelay(): number {
+  return Math.max(0, settleUntil - Date.now());
+}
+
+function noteQueueFlushed(count: number) {
+  settleUntil = Date.now() + 1500 + 800 * Math.min(20, count);
+}
+
 const pendingListeners = new Set<() => void>();
 
 export function subscribePendingOps(listener: () => void): () => void {
@@ -194,6 +209,9 @@ export async function addPendingOp(kind: string, payload: any) {
 
   emitPending();
   await persistPendingOps();
+  // A queued change should reach the server soon, but not before the direct
+  // request above had its chance to fail.
+  if (conn !== 'offline') setTimeout(() => { void flushPendingOps(); }, 1200);
 }
 
 export async function removePendingOps(ids: string[]) {
@@ -204,6 +222,16 @@ export async function removePendingOps(ids: string[]) {
 }
 
 let flushingGlobal = false;
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleRetry(tries: number) {
+  if (retryTimer) return;
+  const delay = Math.min(30_000, 1500 * 1.7 ** Math.min(6, tries));
+  retryTimer = setTimeout(() => {
+    retryTimer = null;
+    void flushPendingOps();
+  }, delay);
+}
 
 async function runPendingOp(op: PendingOp) {
   const p: any = op.payload ?? {};
@@ -326,26 +354,32 @@ async function runPendingOp(op: PendingOp) {
 export async function flushPendingOps() {
   if (flushingGlobal) return;
   flushingGlobal = true;
+  let done = 0;
   try {
     const ops = listPendingOps().sort((a, b) => a.at - b.at);
     for (const op of ops) {
+      if (!pendingOps.some((o) => o.id === op.id)) continue;
       try {
         await runPendingOp(op);
         await removePendingOps([op.id]);
+        done += 1;
       } catch {
         const tries = (op.tries ?? 0) + 1;
-        if (tries >= 5) {
-          await removePendingOps([op.id]);
-          continue;
-        }
         const stored = pendingOps.find((o) => o.id === op.id);
         if (stored) stored.tries = tries;
         await persistPendingOps();
+        // Give the server many chances instead of dropping the change.
+        if (tries >= 12) {
+          await removePendingOps([op.id]);
+          continue;
+        }
+        scheduleRetry(tries);
         break;
       }
     }
   } finally {
     flushingGlobal = false;
+    if (!pendingOps.length) noteQueueFlushed(done);
   }
 }
 
@@ -410,6 +444,7 @@ export function applyCachedList<T>(key: string, updater: (prev: T[]) => T[]) {
 
 export function useCachedList<T>(key: string, live: T[] | undefined) {
   const conn = useConnectivity();
+  const pending = useSyncExternalStore(subscribePendingOps, pendingOpsCount, pendingOpsCount);
   const entry = listEntry(key);
   const cached = useSyncExternalStore(
     (notify) => {
@@ -422,8 +457,16 @@ export function useCachedList<T>(key: string, live: T[] | undefined) {
 
   useEffect(() => {
     if (conn === 'offline' || !Array.isArray(live)) return;
-    setCachedList<T>(key, live);
-  }, [key, live, conn]);
+    // The server is still catching up: keep what the user just did on screen.
+    if (pending > 0) return;
+    const delay = pendingSettleDelay();
+    if (!delay) {
+      setCachedList<T>(key, live);
+      return;
+    }
+    const timer = setTimeout(() => setCachedList<T>(key, live), delay);
+    return () => clearTimeout(timer);
+  }, [key, live, conn, pending]);
 
   const apply = (updater: (prev: T[]) => T[]) => applyCachedList<T>(key, updater);
 
