@@ -573,7 +573,7 @@ export type VideoFailure = 'no-link' | 'no-text' | 'no-recipe';
 export type VideoResult = { recipe: VideoRecipe | null; reason?: VideoFailure; cached?: boolean };
 
 // v2: v1 entries were built from empty metadata (TikTok without CORS).
-const CACHE_PREFIX = 'spoonful:video-recipe:v2:';
+const CACHE_PREFIX = 'spoonful:video-recipe:v3:';
 
 export const VIDEO_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
 
