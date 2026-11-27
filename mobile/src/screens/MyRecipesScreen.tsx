@@ -161,9 +161,9 @@ export function MyRecipesScreen() {
           style={{ marginBottom: 10 }}
         />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 8 }}>
-          <Chip label={`${t('saved.allSaved')} · ${countFor('all')}`} active={active === 'all'} onPress={() => setActive('all')} icon={<Bookmark size={13} color={colors.accent} />} />
-          <Chip label={`${tr2('Eigene', 'Mine', lang)} · ${countFor('mine')}`} active={active === 'mine'} onPress={() => setActive('mine')} icon={<ChefHat size={13} color={colors.accent} />} />
-          <Chip label={`${tr2('Gespeichert', 'Saved', lang)} · ${countFor('saved')}`} active={active === 'saved'} onPress={() => setActive('saved')} icon={<Bookmark size={13} color={colors.accent} />} />
+          <Chip label={`${t('saved.allSaved')} · ${countFor('all')}`} active={active === 'all'} onPress={() => setActive('all')} icon={<Bookmark size={13} color={colors.accentInk} />} />
+          <Chip label={`${tr2('Eigene', 'Mine', lang)} · ${countFor('mine')}`} active={active === 'mine'} onPress={() => setActive('mine')} icon={<ChefHat size={13} color={colors.accentInk} />} />
+          <Chip label={`${tr2('Gespeichert', 'Saved', lang)} · ${countFor('saved')}`} active={active === 'saved'} onPress={() => setActive('saved')} icon={<Bookmark size={13} color={colors.accentInk} />} />
           {colls.map((c) => (
             <Chip key={c._id} label={`${c.name} · ${countFor(c._id)}`} active={active === c._id} onPress={() => setActive(c._id)} />
           ))}
@@ -172,12 +172,12 @@ export function MyRecipesScreen() {
 
       {loading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color={colors.accent} />
+          <ActivityIndicator size="large" color={colors.accentInk} />
         </View>
       ) : filtered.length === 0 ? (
         <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
           <EmptyState
-            icon={<ChefHat size={26} color={colors.accent} strokeWidth={2} />}
+            icon={<ChefHat size={26} color={colors.accentInk} strokeWidth={2} />}
             title={mineItems.length + savedItems.length ? t('saved.nothingSaved') : t('dashboard.startBook')}
             body={mineItems.length + savedItems.length ? t('saved.bookmarkDesc') : t('s.mineStartBody')}
             action={(
@@ -219,14 +219,14 @@ export function MyRecipesScreen() {
               </Pressable>
             </View>
             <Pressable onPress={openEditor} style={addRow}>
-              <View style={addIcon}><ChefHat size={19} color={colors.accent} /></View>
+              <View style={addIcon}><ChefHat size={19} color={colors.accentInk} /></View>
               <View style={{ flex: 1 }}>
                 <Text style={addTitle}>{tr2('Neues Rezept', 'New recipe', lang)}</Text>
                 <Text style={addSub}>{tr2('Selbst eintragen und in deiner Küche speichern', 'Write it yourself and keep it in your kitchen', lang)}</Text>
               </View>
             </Pressable>
             <Pressable onPress={openCollections} style={[addRow, { marginTop: 8 }]}>
-              <View style={addIcon}><FolderPlus size={19} color={colors.accent} /></View>
+              <View style={addIcon}><FolderPlus size={19} color={colors.accentInk} /></View>
               <View style={{ flex: 1 }}>
                 <Text style={addTitle}>{tr2('Neue Sammlung', 'New collection', lang)}</Text>
                 <Text style={addSub}>{tr2('Gespeicherte Rezepte gruppieren', 'Group your saved recipes', lang)}</Text>
@@ -282,8 +282,8 @@ function KitchenCard({
       </Pressable>
       <View style={{ flexDirection: 'row', gap: 8, padding: 10, borderTopWidth: 1, borderTopColor: colors.cardBorder }}>
         <Pressable onPress={() => openRecipe(item)} style={[rowBtn, { backgroundColor: colors.accentSoft, borderColor: 'transparent' }]}>
-          <Play size={14} color={colors.accent} strokeWidth={2.4} />
-          <Text numberOfLines={1} style={[rowText, { color: colors.accent }]}>{t('common.open')}</Text>
+          <Play size={14} color={colors.accentInk} strokeWidth={2.4} />
+          <Text numberOfLines={1} style={[rowText, { color: colors.accentInk }]}>{t('common.open')}</Text>
         </Pressable>
         <Pressable onPress={() => editItem(item)} style={rowBtn}>
           <Pencil size={14} color={colors.textSecondary} strokeWidth={2.2} />

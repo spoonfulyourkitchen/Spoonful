@@ -197,7 +197,7 @@ export function ProfileRefreshGate() {
             ) : null}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <View style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accentSoft }}>
-                <Sparkles size={18} color={colors.accent} />
+                <Sparkles size={18} color={colors.accentInk} />
               </View>
               <Text style={{ flex: 1, fontFamily: fonts.display, fontSize: 19, fontWeight: '800', color: colors.textPrimary }}>
                 {tr2('Deine Küche, neu auf dich abgestimmt', 'Your kitchen, tuned to you', lang)}
@@ -231,7 +231,7 @@ export function ProfileRefreshGate() {
         <Text style={{ fontSize: 14.5, fontWeight: '700', color: colors.textPrimary }}>{label}</Text>
         {hint ? <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>{hint}</Text> : null}
       </View>
-      {active ? <Check size={16} color={colors.accent} /> : null}
+      {active ? <Check size={16} color={colors.accentInk} /> : null}
     </Pressable>
   );
 
@@ -241,7 +241,7 @@ export function ProfileRefreshGate() {
       onPress={onPress}
       style={{ borderRadius: 999, borderWidth: 1, borderColor: active ? colors.accent : colors.cardBorder, backgroundColor: active ? colors.accentSoft : colors.card, paddingHorizontal: 14, paddingVertical: 9 }}
     >
-      <Text style={{ fontSize: 13.5, fontWeight: '700', color: active ? colors.accent : colors.textPrimary }}>{label}</Text>
+      <Text style={{ fontSize: 13.5, fontWeight: '700', color: active ? colors.accentInk : colors.textPrimary }}>{label}</Text>
     </Pressable>
   );
 
@@ -290,7 +290,7 @@ export function ProfileRefreshGate() {
             {t('ob.progress', { n: index + 1, total })}
           </Text>
           <Pressable onPress={dismiss} hitSlop={10} accessibilityRole="button">
-            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.accent }}>{tr2('Später', 'Later', lang)}</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.accentInk }}>{tr2('Später', 'Later', lang)}</Text>
           </Pressable>
         </View>
         <View style={{ height: 3, borderRadius: 2, backgroundColor: colors.surfaceMuted, marginHorizontal: 20, marginTop: 10, overflow: 'hidden' }}>

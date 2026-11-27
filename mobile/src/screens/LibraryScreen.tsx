@@ -553,7 +553,7 @@ export function LibraryScreen() {
 
       {reportNote ? (
         <View style={{ marginTop: 10, borderRadius: 12, backgroundColor: colors.accentSoft, paddingHorizontal: 12, paddingVertical: 9 }}>
-          <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.accent }}>{reportNote}</Text>
+          <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.accentInk }}>{reportNote}</Text>
         </View>
       ) : null}
       {quickReport ? (
@@ -669,7 +669,7 @@ export function LibraryScreen() {
                       },
                     ]}
                   >
-                    <Search size={14} color={colors.accent} />
+                    <Search size={14} color={colors.accentInk} />
                     <Text numberOfLines={1} style={{ flex: 1, fontSize: 13.5, color: colors.textPrimary, fontWeight: '600' }}>
                       {localHitTitles[r.title] ?? r.title}
                     </Text>
@@ -727,7 +727,7 @@ export function LibraryScreen() {
             <BookLoader label={t('s.loadCooking')} progress={loadPct} />
           ) : (
             <EmptyState
-              icon={<Filter size={24} color={colors.accent} strokeWidth={2} />}
+              icon={<Filter size={24} color={colors.accentInk} strokeWidth={2} />}
               title={t('library.noMatch')}
               body={activeChips.length ? t('library.clearFilters') : undefined}
               action={
@@ -830,8 +830,8 @@ export function LibraryScreen() {
                         },
                       ]}
                     >
-                      <Shuffle size={14} color={colors.accent} />
-                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.accent }}>{t('s.xSurpriseMe')}</Text>
+                      <Shuffle size={14} color={colors.accentInk} />
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.accentInk }}>{t('s.xSurpriseMe')}</Text>
                     </Pressable>
                   </View>
 
@@ -921,10 +921,10 @@ export function LibraryScreen() {
                       paddingHorizontal: 14, paddingVertical: 10, opacity: pressed ? 0.85 : 1,
                     }]}
                   >
-                    <Text style={{ fontSize: 13.5, fontWeight: '700', color: cuisine === 'all' ? colors.textPrimary : colors.accent }}>
+                    <Text style={{ fontSize: 13.5, fontWeight: '700', color: cuisine === 'all' ? colors.textPrimary : colors.accentInk }}>
                       {cuisine === 'all' ? t('library.allCuisines') : formatCuisine(cuisine)}
                     </Text>
-                    <X size={13} color={cuisine === 'all' ? colors.textSecondary : colors.accent} />
+                    <X size={13} color={cuisine === 'all' ? colors.textSecondary : colors.accentInk} />
                   </Pressable>
                 </FilterSection>
 
@@ -1015,7 +1015,7 @@ export function LibraryScreen() {
                 style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.cardBorder }}
               >
                 <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textPrimary }}>{t('library.allCuisines')}</Text>
-                {cuisine === 'all' ? <Check size={16} color={colors.accent} /> : null}
+                {cuisine === 'all' ? <Check size={16} color={colors.accentInk} /> : null}
               </Pressable>
               {cuisineMatches.map((c: any) => (
                 <Pressable
@@ -1024,7 +1024,7 @@ export function LibraryScreen() {
                   style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.cardBorder }}
                 >
                   <Text style={{ fontSize: 14, color: colors.textPrimary }}>{c.label}</Text>
-                  {cuisine === c.value ? <Check size={16} color={colors.accent} /> : null}
+                  {cuisine === c.value ? <Check size={16} color={colors.accentInk} /> : null}
                 </Pressable>
               ))}
               {!cuisineMatches.length ? (
@@ -1094,7 +1094,7 @@ const RecipeTile = React.memo(function RecipeTile({
                 <Text style={{ fontSize: 10, fontWeight: '700', color: diff.fg }}>{difficultyLabel(recipe.difficulty)}</Text>
               </View>
             </View>
-            <Text numberOfLines={1} style={{ fontSize: 11, color: colors.accent, fontWeight: '600', marginTop: 5 }}>
+            <Text numberOfLines={1} style={{ fontSize: 11, color: colors.accentInk, fontWeight: '600', marginTop: 5 }}>
               {recipe.calories != null ? `${recipe.calories} kcal` : ' '}
             </Text>
           </View>

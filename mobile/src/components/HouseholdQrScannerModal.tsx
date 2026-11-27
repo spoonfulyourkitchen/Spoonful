@@ -155,7 +155,7 @@ window.addEventListener('load', go);
               </View>
 
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 12 }}>
-                <QrCode size={15} color={colors.accent} />
+                <QrCode size={15} color={colors.accentInk} />
                 <Text style={{ flex: 1, fontSize: 12.5, color: colors.textSecondary }}>{t('s.hhQrScanHint')}</Text>
               </View>
 
@@ -189,12 +189,12 @@ window.addEventListener('load', go);
 
               {liveError ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, borderRadius: 14, backgroundColor: rgbaHelper(colors.accent, 0.12), padding: 12 }}>
-                  <QrCode size={15} color={colors.accent} />
+                  <QrCode size={15} color={colors.accentInk} />
                   <Text style={{ flex: 1, fontSize: 12, lineHeight: 17, color: colors.textSecondary }}>{t('s.hhScanNoCamera')}</Text>
                 </View>
               ) : (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
-                  <ActivityIndicator size="small" color={colors.accent} />
+                  <ActivityIndicator size="small" color={colors.accentInk} />
                   <Text style={{ fontSize: 12, color: colors.textSecondary }}>{t('s.scanLiveHint')}</Text>
                 </View>
               )}

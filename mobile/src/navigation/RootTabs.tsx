@@ -93,7 +93,7 @@ function TabIcon({ name, focused }: { name: RootTabScreenNames; focused: boolean
         }}
       />
       <Animated.View style={{ transform: [{ scale }] }}>
-        <Icon size={21} strokeWidth={focused ? 2.5 : 2} color={focused ? colors.accent : colors.textSecondary} />
+        <Icon size={21} strokeWidth={focused ? 2.5 : 2} color={focused ? colors.accentInk : colors.textSecondary} />
       </Animated.View>
     </View>
   );
@@ -107,7 +107,7 @@ function TabLabel({ name, focused }: { name: RootTabScreenNames; focused: boolea
         style={{
           fontSize: 10,
           fontWeight: focused ? '700' : '500',
-          color: focused ? colors.accent : colors.textSecondary,
+          color: focused ? colors.accentInk : colors.textSecondary,
         }}
         numberOfLines={1}
       >

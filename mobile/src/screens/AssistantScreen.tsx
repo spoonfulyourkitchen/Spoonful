@@ -29,6 +29,7 @@ import { setAiRunning, setAiDone, setAiError } from '../lib/aiTask';
 import { notifyAiReady } from '../lib/notifications';
 import { useConnectivity, retryConnectivity, addPendingOp, getConnNow } from '../lib/offline';
 import { useTranslation } from '../lib/i18n';
+import { tr2 } from '../lib/hardcoded-l10n';
 import { OfflineTv } from '../components/OfflineTv';
 import { recipeFromVideo } from '../lib/video-recipe';
 import { estimateNutritionLocally } from '../lib/ai';
@@ -498,7 +499,7 @@ export function AssistantScreen() {
             {pageDots(pageRef.current)}
             <GlassCard pad={16} radius={20} style={{ minHeight: PAGE_MIN - 26 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                <Video size={16} color={colors.accent} />
+                <Video size={16} color={colors.accentInk} />
                 <Text style={{ fontSize: 13, fontWeight: '800', color: colors.textPrimary }}>{t('s.videoTitle')}</Text>
               </View>
               <TextField value={videoUrl} onChangeText={setVideoUrl} placeholder={t('s.videoUrlPh')} autoCapitalize="none" keyboardType="url" />
@@ -534,8 +535,8 @@ export function AssistantScreen() {
               paddingHorizontal: 12, paddingVertical: 8, opacity: pressed ? 0.85 : 1,
             }]}
           >
-            <SlidersHorizontal size={15} color={filterCount ? colors.accent : colors.textPrimary} />
-            <Text style={{ fontSize: 13, fontWeight: '700', color: filterCount ? colors.accent : colors.textPrimary }}>
+            <SlidersHorizontal size={15} color={filterCount ? colors.accentInk : colors.textPrimary} />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: filterCount ? colors.accentInk : colors.textPrimary }}>
               {t('common.filter')}
             </Text>
             {filterCount ? (
@@ -590,11 +591,11 @@ export function AssistantScreen() {
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                   <Chip label={t('s.chefAny')} active={difficultyPick === '' && spice === ''} tone="neutral" onPress={() => { setDifficultyPick(''); setSpice(''); }} />
                   {['easy', 'medium', 'hard'].map((d) => (
-                    <Chip key={d} label={d} active={difficultyPick === d} onPress={() => setDifficultyPick(difficultyPick === d ? '' : d)} />
+                    <Chip key={d} label={d === 'easy' ? t('recipe.easy') : d === 'hard' ? t('recipe.hard') : t('recipe.medium')} active={difficultyPick === d} onPress={() => setDifficultyPick(difficultyPick === d ? '' : d)} />
                   ))}
                   <Chip label={t('s.chefMild')} active={spice === 'mild'} onPress={() => setSpice(spice === 'mild' ? '' : 'mild')} />
                   <Chip label={t('s.chefMedium')} active={spice === 'medium'} onPress={() => setSpice(spice === 'medium' ? '' : 'medium')} />
-                  <Chip label="hot" active={spice === 'hot'} onPress={() => setSpice(spice === 'hot' ? '' : 'hot')} />
+                  <Chip label={tr2('Scharf', 'Hot', lang)} active={spice === 'hot'} onPress={() => setSpice(spice === 'hot' ? '' : 'hot')} />
                 </View>
 
                 <Text style={[fieldLabel, { marginTop: 14 }]}>{t('s.chefTools')}</Text>
@@ -638,7 +639,7 @@ export function AssistantScreen() {
             {history.slice(0, 8).map((h: any, i: number) => (
               <Pressable key={i} onPress={() => { setResult(h); setPreview(true); }} style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.cardBorder }}>
                 <Text style={{ fontSize: 14.5, color: colors.textPrimary, fontWeight: '600' }}>{h.title}</Text>
-                {h.fromVideo ? <Text style={{ fontSize: 11.5, fontWeight: '800', color: colors.accent, marginTop: 2 }}>{t('s.videoBadge')}</Text> : null}
+                {h.fromVideo ? <Text style={{ fontSize: 11.5, fontWeight: '800', color: colors.accentInk, marginTop: 2 }}>{t('s.videoBadge')}</Text> : null}
                 <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>{h.cuisine} · {h.calories ?? '?'} kcal</Text>
               </Pressable>
             ))}
@@ -670,7 +671,7 @@ export function AssistantScreen() {
                 <ScrollView style={{ maxHeight: 430 }} contentContainerStyle={{ padding: 18 }}>
                   <Text style={{ fontSize: 22, fontWeight: '800', color: colors.textPrimary, fontFamily: 'serif' }}>{result.title}</Text>
                   {result.fromVideo ? (
-                    <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.accent, marginTop: 6, letterSpacing: 0.2 }}>{t('s.videoBadge')}</Text>
+                    <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.accentInk, marginTop: 6, letterSpacing: 0.2 }}>{t('s.videoBadge')}</Text>
                   ) : null}
                   <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>
                     {result.cuisine || t('common.none')} · {result.calories ?? '?'} {t('common.kcal')} · {result.prepTime ?? 0} {t('common.min')}

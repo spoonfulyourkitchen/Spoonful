@@ -96,7 +96,7 @@ export function TutorialGate() {
               accessibilityLabel={t('tut.resume')}
               style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, opacity: pressed ? 0.8 : 1 }]}
             >
-              <Play size={15} color={colors.accent} strokeWidth={2.4} />
+              <Play size={15} color={colors.accentInk} strokeWidth={2.4} />
               <Text style={{ fontFamily: fonts.display, fontSize: 13.5, fontWeight: '800', color: colors.textPrimary }}>
                 {t('tut.resume')}
               </Text>

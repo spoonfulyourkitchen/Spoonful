@@ -179,7 +179,7 @@ export function TutorialOverlay() {
                   transform: [{ translateY: reduceMotion ? 0 : bounce.interpolate({ inputRange: [0, 1], outputRange: [0, 7] }) }],
                 }}
               >
-                <Pointer size={18} color={colors.accent} fill={colors.accent} strokeWidth={2} />
+                <Pointer size={18} color={colors.accentInk} fill={colors.accent} strokeWidth={2} />
               </Animated.View>
             ) : null}
           </>
@@ -198,7 +198,7 @@ export function TutorialOverlay() {
             }}
           >
             <View style={[{ alignItems: 'center', gap: 10 }, rowDir]}>
-              <Text style={{ fontSize: 11.5, fontWeight: '800', color: colors.accent, letterSpacing: 0.3 }}>
+              <Text style={{ fontSize: 11.5, fontWeight: '800', color: colors.accentInk, letterSpacing: 0.3 }}>
                 {t('tut.stepOf', { n: prog.index, total: prog.total })}
               </Text>
               <View style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.surfaceMuted, overflow: 'hidden' }}>
@@ -224,7 +224,7 @@ export function TutorialOverlay() {
             <Text style={{ fontSize: 14, lineHeight: 20, color: colors.textSecondary, marginTop: 4, textAlign: rtl ? 'right' : 'left' }}>{body}</Text>
 
             {needsAction ? (
-              <Text style={{ fontSize: 12.5, fontWeight: '700', color: targetGone ? colors.rose : colors.accent, marginTop: 10, textAlign: rtl ? 'right' : 'left' }}>
+              <Text style={{ fontSize: 12.5, fontWeight: '700', color: targetGone ? colors.rose : colors.accentInk, marginTop: 10, textAlign: rtl ? 'right' : 'left' }}>
                 {targetGone ? t('tut.hintMissing') : hint}
               </Text>
             ) : null}

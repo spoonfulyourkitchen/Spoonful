@@ -7,7 +7,7 @@ import { Alert } from '../lib/alert';
 import { Droplets, Flame, Plus, Scale, ScanLine, Trash2, X } from 'lucide-react-native';
 import { useMutation, useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';
-import { colors, fonts, rgbaHelper, readableText, subscribeTheme } from '../theme';
+import { colors, fonts, rgbaHelper, readableText, subscribeTheme, mutedOn } from '../theme';
 import { Page } from '../navigation/Shell';
 import { AppButton, GlassCard, PageHeader, TextField } from '../components/ui';
 import { TrackerExtras as TrackerPanel } from '../components/TrackerExtras';
@@ -288,10 +288,10 @@ export function TrackerScreen() {
           >
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginTop: 6 }}>
               <Text style={{ fontSize: 38, fontWeight: '900', letterSpacing: -1.4, color: readableText(colors.darkButton), fontVariant: ['tabular-nums'] }}>{remaining}</Text>
-              <Text style={{ fontSize: 12.5, fontWeight: '700', color: rgbaHelper(readableText(colors.darkButton), 0.7), paddingBottom: 7 }}>{t('common.kcal')}</Text>
+              <Text style={{ fontSize: 12.5, fontWeight: '700', color: mutedOn(colors.darkButton, readableText(colors.darkButton), 0.85), paddingBottom: 7 }}>{t('common.kcal')}</Text>
               <View style={{ flex: 1 }} />
               <Pressable onPress={() => setShowProfile(true)} style={({ pressed }) => [{ borderRadius: 999, backgroundColor: rgbaHelper(readableText(colors.darkButton), 0.14), paddingHorizontal: 11, paddingVertical: 6, marginBottom: 4, opacity: pressed ? 0.8 : 1 }]}>
-                <Text style={{ fontSize: 11.5, fontWeight: '800', color: rgbaHelper(readableText(colors.darkButton), 0.9) }}>{t('s.trackAdjust')}</Text>
+                <Text style={{ fontSize: 11.5, fontWeight: '800', color: colors.darkButtonText }}>{t('s.trackAdjust')}</Text>
               </Pressable>
             </View>
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
@@ -301,10 +301,10 @@ export function TrackerScreen() {
                 { label: t('common.fat'), value: todayFat, goal: fatGoal, pct: fatPct, color: colors.amber },
               ].map((m) => (
                 <View key={m.label} style={{ flex: 1, borderRadius: 12, backgroundColor: rgbaHelper(readableText(colors.darkButton), 0.12), padding: 9 }}>
-                  <Text style={{ fontSize: 9.5, fontWeight: '900', letterSpacing: 0.6, textTransform: 'uppercase', color: rgbaHelper(readableText(colors.darkButton), 0.62) }}>{m.label}</Text>
+                  <Text style={{ fontSize: 9.5, fontWeight: '900', letterSpacing: 0.6, textTransform: 'uppercase', color: mutedOn(colors.darkButton, readableText(colors.darkButton), 0.85) }}>{m.label}</Text>
                   <Text style={{ fontSize: 13.5, fontWeight: '800', color: readableText(colors.darkButton), marginTop: 2 }}>
                     {Math.round(m.value)}
-                    <Text style={{ fontSize: 9.5, fontWeight: '600', color: rgbaHelper(readableText(colors.darkButton), 0.62) }}> / {m.goal} g</Text>
+                    <Text style={{ fontSize: 9.5, fontWeight: '600', color: mutedOn(colors.darkButton, readableText(colors.darkButton), 0.85) }}> / {m.goal} g</Text>
                   </Text>
                   <View style={{ height: 3, borderRadius: 2, backgroundColor: rgbaHelper(readableText(colors.darkButton), 0.18), marginTop: 6, overflow: 'hidden' }}>
                     <View style={{ height: 3, width: `${m.pct}%`, borderRadius: 2, backgroundColor: m.color }} />
@@ -349,7 +349,7 @@ export function TrackerScreen() {
               <View style={{ flex: 1, marginTop: 6 }}>
                 {today.length === 0 ? (
                   <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 44 }}>
-                    <Flame size={26} color={colors.accent} strokeWidth={2} />
+                    <Flame size={26} color={colors.accentInk} strokeWidth={2} />
                     <Text style={{ fontSize: 14.5, fontWeight: '700', color: colors.textSecondary, marginTop: 10 }}>{t('tracker.noMeals')}</Text>
                   </View>
                 ) : (
@@ -364,7 +364,7 @@ export function TrackerScreen() {
                           {item.fat != null ? ` · F ${roundN(item.fat)}g` : ''}
                         </Text>
                       </View>
-                      <Text style={{ fontSize: 15, color: colors.accent, fontWeight: '800', marginRight: 10 }}>{Math.round(Number(item.calories) || 0)} kcal</Text>
+                      <Text style={{ fontSize: 15, color: colors.accentInk, fontWeight: '800', marginRight: 10 }}>{Math.round(Number(item.calories) || 0)} kcal</Text>
                       <Pressable onPress={() => del(item._id)} hitSlop={8}>
                         <Trash2 size={16} color={colors.rose} strokeWidth={2} />
                       </Pressable>
@@ -414,7 +414,7 @@ export function TrackerScreen() {
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {(['male', 'female'] as Sex[]).map((s) => (
                 <Pressable key={s} onPress={() => updateProfile({ sex: s })} style={({ pressed }) => [{ flex: 1, borderRadius: 12, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: profile.sex === s ? colors.accent : colors.cardBorder, backgroundColor: profile.sex === s ? colors.accentSoft : colors.card, opacity: pressed ? 0.8 : 1 }]}>
-                  <Text style={{ fontSize: 13, fontWeight: profile.sex === s ? '800' : '600', color: profile.sex === s ? colors.accent : colors.textPrimary }}>{s === 'male' ? t('s.trackMale') : t('s.trackFemale')}</Text>
+                  <Text style={{ fontSize: 13, fontWeight: profile.sex === s ? '800' : '600', color: profile.sex === s ? colors.accentInk : colors.textPrimary }}>{s === 'male' ? t('s.trackMale') : t('s.trackFemale')}</Text>
                 </Pressable>
               ))}
             </View>
@@ -423,7 +423,7 @@ export function TrackerScreen() {
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
               {([1, 2, 3, 4] as Activity[]).map((a) => (
                 <Pressable key={a} onPress={() => updateProfile({ activity: a })} style={({ pressed }) => [{ paddingHorizontal: 11, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: profile.activity === a ? colors.accent : colors.cardBorder, backgroundColor: profile.activity === a ? colors.accentSoft : colors.card, opacity: pressed ? 0.8 : 1 }]}>
-                  <Text style={{ fontSize: 12, fontWeight: profile.activity === a ? '800' : '600', color: profile.activity === a ? colors.accent : colors.textPrimary }}>{activityLabel[a]}</Text>
+                  <Text style={{ fontSize: 12, fontWeight: profile.activity === a ? '800' : '600', color: profile.activity === a ? colors.accentInk : colors.textPrimary }}>{activityLabel[a]}</Text>
                 </Pressable>
               ))}
             </View>
@@ -432,7 +432,7 @@ export function TrackerScreen() {
             <View style={{ flexDirection: 'row', gap: 6 }}>
               {(['cut', 'maintain', 'bulk'] as GoalTag[]).map((g) => (
                 <Pressable key={g} onPress={() => updateProfile({ goal: g })} style={({ pressed }) => [{ flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: profile.goal === g ? colors.accent : colors.cardBorder, backgroundColor: profile.goal === g ? colors.accentSoft : colors.card, opacity: pressed ? 0.8 : 1 }]}>
-                  <Text style={{ fontSize: 12.5, fontWeight: profile.goal === g ? '800' : '600', color: profile.goal === g ? colors.accent : colors.textPrimary }}>
+                  <Text style={{ fontSize: 12.5, fontWeight: profile.goal === g ? '800' : '600', color: profile.goal === g ? colors.accentInk : colors.textPrimary }}>
                     {g === 'cut' ? t('onb.lose') : g === 'bulk' ? t('onb.gain') : t('onb.keep')}
                   </Text>
                 </Pressable>
@@ -484,7 +484,7 @@ export function TrackerScreen() {
                           backgroundColor: active ? colors.accentSoft : colors.card, opacity: pressed ? 0.85 : 1,
                         }]}
                       >
-                        <Text style={{ fontSize: 13, fontWeight: '800', color: active ? colors.accent : colors.textPrimary }}>{tab.label}</Text>
+                        <Text style={{ fontSize: 13, fontWeight: '800', color: active ? colors.accentInk : colors.textPrimary }}>{tab.label}</Text>
                       </Pressable>
                     );
                   })}
@@ -507,7 +507,7 @@ export function TrackerScreen() {
                         <Pressable onPress={() => setPortions((v) => Math.min(12, v + 1))} style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted }}>
                           <Text style={{ fontSize: 20, fontWeight: '800', color: colors.textPrimary }}>+</Text>
                         </Pressable>
-                        <Text style={{ flex: 1, textAlign: 'right', fontSize: 14, fontWeight: '800', color: colors.accent }}>
+                        <Text style={{ flex: 1, textAlign: 'right', fontSize: 14, fontWeight: '800', color: colors.accentInk }}>
                           {Math.round((Number(pickedRecipe.calories) || 0) * portions)} kcal
                         </Text>
                       </View>
@@ -527,7 +527,7 @@ export function TrackerScreen() {
                               {Math.round(Number(recipe.calories) || 0)} kcal {tr2('pro Portion', 'per portion', lang)}
                             </Text>
                           </View>
-                          <Plus size={16} color={colors.accent} />
+                          <Plus size={16} color={colors.accentInk} />
                         </Pressable>
                       )) : (
                         <Text style={{ fontSize: 13, color: colors.textSecondary, paddingVertical: 8 }}>
@@ -553,7 +553,7 @@ export function TrackerScreen() {
                             {food.calories ?? 0} kcal{food.protein != null ? ` · P ${Math.round(food.protein)}g` : ''}
                           </Text>
                         </View>
-                        <Plus size={16} color={colors.accent} />
+                        <Plus size={16} color={colors.accentInk} />
                       </Pressable>
                     )) : (
                       <Text style={{ fontSize: 13, color: colors.textSecondary, paddingVertical: 8 }}>

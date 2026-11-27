@@ -49,7 +49,7 @@ export function BookLoader({ label = 'Loading recipes', progress }: { label?: st
           <View style={{ width: '100%', height: 6, borderRadius: 999, backgroundColor: colors.surfaceMuted, overflow: 'hidden' }}>
             <View style={{ width: `${pct}%`, height: '100%', borderRadius: 999, backgroundColor: colors.accent }} />
           </View>
-          <Text style={{ marginTop: 7, fontSize: 13, fontWeight: '700', color: colors.accent }}>{pct}%</Text>
+          <Text style={{ marginTop: 7, fontSize: 13, fontWeight: '700', color: colors.accentInk }}>{pct}%</Text>
         </View>
       ) : null}
     </View>

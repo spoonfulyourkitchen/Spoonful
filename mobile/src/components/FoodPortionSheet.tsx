@@ -96,7 +96,7 @@ export function FoodPortionSheet({
                     ]}
                   >
                     <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: mode === o.value ? colors.accent : colors.cardBorder, alignItems: 'center', justifyContent: 'center' }}>
-                      {mode === o.value ? <Check size={13} color={colors.accent} strokeWidth={3} /> : null}
+                      {mode === o.value ? <Check size={13} color={colors.accentInk} strokeWidth={3} /> : null}
                     </View>
                     <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: colors.textPrimary }}>{o.label}</Text>
                   </Pressable>

@@ -71,14 +71,14 @@ export function CommunityExtras() {
           { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, paddingVertical: 4, opacity: pressed ? 0.7 : 1 },
         ]}
       >
-        <Trophy size={14} color={colors.accent} />
+        <Trophy size={14} color={colors.accentInk} />
         <View style={{ flex: 1, height: 1, backgroundColor: colors.cardBorder }} />
         <ChevronUp size={15} color={colors.textSecondary} />
       </Pressable>
       <SectionLabel>{t('x.challenges')}</SectionLabel>
       <GlassCard pad={16} radius={20}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Trophy size={18} color={colors.accent} />
+          <Trophy size={18} color={colors.accentInk} />
           <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '800', color: colors.textPrimary }}>{t('x.challenges')}</Text>
           <Chip label={t('x.near')} active={!!region} onPress={() => setRegionOpen((v) => !v)} />
         </View>
@@ -119,7 +119,7 @@ export function CommunityExtras() {
               onPress={() => void joinChallenge({ challengeId: c._id, userName: profile?.name ?? '' }).catch(() => {})}
               style={({ pressed }) => [{ marginTop: 8, alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: colors.accentSoft, opacity: pressed ? 0.8 : 1 }]}
             >
-              <Text style={{ color: colors.accent, fontWeight: '800', fontSize: 12 }}>{t('x.join')}</Text>
+              <Text style={{ color: colors.accentInk, fontWeight: '800', fontSize: 12 }}>{t('x.join')}</Text>
             </Pressable>
           </View>
         ))}

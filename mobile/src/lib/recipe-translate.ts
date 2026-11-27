@@ -17,6 +17,7 @@ export type TranslatedRecipe = {
 type Dict = Record<string, string>;
 
 import { maps } from './recipe-translate-dict';
+import { IS_WEB } from './platform';
 
 let extrasMerged = false;
 
@@ -163,6 +164,13 @@ async function withTimeout<T>(fn: (signal?: AbortSignal) => Promise<T>, ms: numb
 
 const lineCache = new Map<string, string>();
 
+// Web: der Google-Endpunkt ist per CORS blockiert, MyMemory ist stark limitiert.
+// Nach einem Fehlversuch eine Weile pausieren, statt bei jedem Render neu zu fragen.
+let googleCooldownUntil = 0;
+let memoryCooldownUntil = 0;
+const GOOGLE_COOLDOWN_MS = 10 * 60 * 1000;
+const MEMORY_COOLDOWN_MS = 5 * 60 * 1000;
+
 function cacheGet(lang: string, text: string): string | undefined {
   return lineCache.get(`${lang}|${text}`);
 }
@@ -187,7 +195,10 @@ async function translateWithGoogle(lines: string[], lang: string, sourceLang = '
     if (!res || !res.ok) throw new Error('http ' + (res ? res.status : 'no response'));
     return res.json();
   }, 12000);
-  if (!data || !Array.isArray(data[0])) return null;
+  if (!data || !Array.isArray(data[0])) {
+    googleCooldownUntil = Date.now() + GOOGLE_COOLDOWN_MS;
+    return null;
+  }
   const joined = (data[0] as any[])
     .map((part) => (Array.isArray(part) ? String(part[0] ?? '') : ''))
     .join('');
@@ -296,6 +307,7 @@ export async function translateRecipeContentOnline(
     const translated = primaryAlive ? await translateWithGoogle(pendingLines, lang) : null;
     if (!translated) {
       primaryAlive = false;
+      if (Date.now() >= googleCooldownUntil) googleCooldownUntil = Date.now() + GOOGLE_COOLDOWN_MS;
       continue;
     }
     pending.forEach((pos, i) => {
@@ -307,7 +319,7 @@ export async function translateRecipeContentOnline(
     });
   }
 
-  let secondaryAlive = true;
+  let secondaryAlive = Date.now() >= memoryCooldownUntil;
   let misses = 0;
   for (let i = 0; i < segments.length && secondaryAlive; i += 1) {
     const original = (segments[i] ?? '').trim();
@@ -316,7 +328,10 @@ export async function translateRecipeContentOnline(
     const res = await fetchTranslation(original, language);
     if (res === null) {
       misses += 1;
-      if (misses >= 3) secondaryAlive = false;
+      if (misses >= 3) {
+        secondaryAlive = false;
+        memoryCooldownUntil = Date.now() + MEMORY_COOLDOWN_MS;
+      }
       continue;
     }
     misses = 0;

@@ -42,7 +42,7 @@ import { HouseholdQrScannerModal } from '../components/HouseholdQrScannerModal';
 import { useTranslation } from '../lib/i18n';
 import { clearQueryCacheAndRefresh, useMutation, useQuery } from '../lib/convex-auth';
 import { api } from '../lib/api';
-import { colors, fonts, rgbaHelper } from '../theme';
+import { colors, fonts, rgbaHelper, mutedOn } from '../theme';
 import { navigate } from '../navigation/rootRef';
 import { showAdminLoginAlert } from '../lib/notifications';
 import { recipeLines } from '../lib/recipe';
@@ -445,7 +445,7 @@ export function HouseholdScreen() {
   const setupView = (
     <>
       <GlassCard variant="solid" pad={18} style={{ marginTop: 16 }}>
-        <EmptyState icon={<UsersRound size={22} color={colors.accent} />} title={t('s.hhNoneTitle')} body={t('s.hhNoneBody')} />
+        <EmptyState icon={<UsersRound size={22} color={colors.accentInk} />} title={t('s.hhNoneTitle')} body={t('s.hhNoneBody')} />
       </GlassCard>
 
       <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
@@ -492,8 +492,8 @@ export function HouseholdScreen() {
               onPress={() => setScanOpen(true)}
               style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 10, borderRadius: 14, paddingVertical: 12, backgroundColor: colors.accentSoft, opacity: pressed ? 0.75 : 1 }]}
             >
-              <QrCode size={16} color={colors.accent} />
-              <Text style={{ fontSize: 13, fontWeight: '800', color: colors.accent }}>{t('s.scanLive')}</Text>
+              <QrCode size={16} color={colors.accentInk} />
+              <Text style={{ fontSize: 13, fontWeight: '800', color: colors.accentInk }}>{t('s.scanLive')}</Text>
             </Pressable>
           </>
         )}
@@ -514,7 +514,7 @@ export function HouseholdScreen() {
           multiline
           editable={!busy}
           style={[inputStyle, { minHeight: 58, textAlignVertical: 'top' }]}/>
-        <ActionPill label={t('s.hhAdd')} icon={<Plus size={13} color={colors.accent} />} disabled={!noteDraft.trim() || busy} onPress={() => void doAddNote()} />
+        <ActionPill label={t('s.hhAdd')} icon={<Plus size={13} color={colors.accentInk} />} disabled={!noteDraft.trim() || busy} onPress={() => void doAddNote()} />
         {!notes.length ? <EmptyLine text={t('s.hhFeedEmpty')} /> : null}
         {notes.slice(0, 6).map((n) => (
           <View key={n.id} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingTop: 10 }}>
@@ -550,7 +550,7 @@ export function HouseholdScreen() {
             placeholderTextColor={colors.textSecondary}
             editable={!busy}
             style={[inputStyle, { width: 74, marginBottom: 0 }]}/>
-          <IconButton icon={<Plus size={17} color={colors.accent} />} disabled={!pantryName.trim() || busy} onPress={() => void doAddPantry()} />
+          <IconButton icon={<Plus size={17} color={colors.accentInk} />} disabled={!pantryName.trim() || busy} onPress={() => void doAddPantry()} />
         </View>
         {!pantry.length ? <EmptyLine text={t('s.hhFeedEmpty')} /> : null}
         {pantry.slice(0, 10).map((p) => (
@@ -579,7 +579,7 @@ export function HouseholdScreen() {
           returnKeyType="done"
           onSubmitEditing={() => (taskDraft.trim() ? void doAddTask() : undefined)}
           style={[inputStyle, { flex: 1, marginBottom: 0 }]}/>
-        <IconButton icon={<Plus size={17} color={colors.accent} />} disabled={!taskDraft.trim() || busy} onPress={() => void doAddTask()} />
+        <IconButton icon={<Plus size={17} color={colors.accentInk} />} disabled={!taskDraft.trim() || busy} onPress={() => void doAddTask()} />
       </View>
 
       {!tasks.length ? <EmptyLine text={t('s.hhPlanEmpty')} /> : null}
@@ -630,7 +630,7 @@ export function HouseholdScreen() {
             returnKeyType="done"
             onSubmitEditing={addToShop}
             style={[inputStyle, { flex: 1, marginBottom: 0 }]}/>
-          <IconButton icon={<Plus size={17} color={colors.accent} />} disabled={!shopDraft.trim() || busy} onPress={addToShop} />
+          <IconButton icon={<Plus size={17} color={colors.accentInk} />} disabled={!shopDraft.trim() || busy} onPress={addToShop} />
         </View>
 
         {!shop.length ? <EmptyLine text={t('s.shopEmptyBody')} /> : null}
@@ -656,7 +656,7 @@ export function HouseholdScreen() {
         ))}
 
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-          <ActionPill label={t('s.shopShareHh')} icon={<Share2 size={12} color={colors.accent} />} onPress={() => void shareShopping()} />
+          <ActionPill label={t('s.shopShareHh')} icon={<Share2 size={12} color={colors.accentInk} />} onPress={() => void shareShopping()} />
           {openShop.length ? <ActionPill label={t('s.hhShoppingClear')} icon={<Check size={12} color={colors.textSecondary} />} onPress={clearShopping} /> : null}
         </View>
       </GlassCard>
@@ -684,7 +684,7 @@ export function HouseholdScreen() {
                       </Pressable>
                     ))}
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-                      <ActionPill label={t('s.hhListTake')} icon={<ShoppingCart size={12} color={colors.accent} />} onPress={() => void takeList(list)} />
+                      <ActionPill label={t('s.hhListTake')} icon={<ShoppingCart size={12} color={colors.accentInk} />} onPress={() => void takeList(list)} />
                       <ActionPill label={t('s.hhListRemove')} danger icon={<Trash2 size={12} color={colors.rose} />} onPress={() => confirmRemoveList(list)} />
                     </View>
                   </Collapsible>
@@ -708,7 +708,7 @@ export function HouseholdScreen() {
         return (
           <View key={day} style={{ paddingVertical: 8, borderTopWidth: entries.length ? 1 : 0, borderTopColor: colors.cardBorder, marginTop: entries.length ? 6 : 0 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={{ width: 38, fontSize: 12.5, fontWeight: '900', color: isToday ? colors.accent : entries.length ? colors.textPrimary : colors.textMuted }}>{dayLabel(day - 1)}</Text>
+              <Text style={{ width: 38, fontSize: 12.5, fontWeight: '900', color: isToday ? colors.accentInk : entries.length ? colors.textPrimary : colors.textMuted }}>{dayLabel(day - 1)}</Text>
               <Text numberOfLines={1} style={{ flex: 1, fontSize: 12.5, color: entries.length ? colors.textPrimary : colors.textMuted }}>
                 {entries.length ? entries.map((e) => e.title).join(' · ') : '-'}
               </Text>
@@ -721,7 +721,7 @@ export function HouseholdScreen() {
                 hitSlop={6}
                 style={{ width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accentSoft }}
               >
-                <Plus size={15} color={colors.accent} />
+                <Plus size={15} color={colors.accentInk} />
               </Pressable>
             </View>
             {entries.map((e) => (
@@ -729,7 +729,7 @@ export function HouseholdScreen() {
                 <Utensils size={12} color={colors.textSecondary} />
                 <Text numberOfLines={1} style={{ flex: 1, fontSize: 12.5, color: colors.textPrimary }}>{e.title}</Text>
                 <Pressable onPress={() => void planToShopping(e)} hitSlop={6} accessibilityLabel={t('s.hhPlanToShop')}>
-                  <ShoppingCart size={13} color={colors.accent} />
+                  <ShoppingCart size={13} color={colors.accentInk} />
                 </Pressable>
                 <Pressable onPress={() => void run(() => removePlanEntry(e.id))} hitSlop={6}>
                   <Trash2 size={13} color={colors.rose} />
@@ -753,7 +753,7 @@ export function HouseholdScreen() {
       {others.length ? (
         <GlassCard variant="solid" pad={14}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <ChefHat size={15} color={colors.accent} />
+            <ChefHat size={15} color={colors.accentInk} />
             <Text style={{ flex: 1, fontSize: 12.5, fontWeight: '800', color: colors.textPrimary }}>{t('s.hhCookingNow')}</Text>
           </View>
           {others.slice(0, 3).map((c) => (
@@ -774,14 +774,14 @@ export function HouseholdScreen() {
       {todayPlan.length ? (
         <GlassCard variant="solid" pad={14} style={{ marginTop: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Utensils size={15} color={colors.accent} />
+            <Utensils size={15} color={colors.accentInk} />
             <Text style={{ flex: 1, fontSize: 12.5, fontWeight: '800', color: colors.textPrimary }}>{dayLabel(todayIndex - 1)}</Text>
           </View>
           {todayPlan.map((entry) => (
             <View key={entry.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
               <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, color: colors.textPrimary }}>{entry.title}</Text>
               <Pressable onPress={() => void planToShopping(entry)} hitSlop={6}>
-                <ShoppingCart size={14} color={colors.accent} />
+                <ShoppingCart size={14} color={colors.accentInk} />
               </Pressable>
             </View>
           ))}
@@ -791,7 +791,7 @@ export function HouseholdScreen() {
       {openTasks.length ? (
         <GlassCard variant="solid" pad={14} style={{ marginTop: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <ClipboardList size={15} color={colors.accent} />
+            <ClipboardList size={15} color={colors.accentInk} />
             <Text style={{ flex: 1, fontSize: 12.5, fontWeight: '800', color: colors.textPrimary }}>{t('s.hhTasksSection')}</Text>
             <Pressable onPress={() => setTab('tasks')} hitSlop={6}>
               <ArrowRight size={15} color={colors.textSecondary} />
@@ -813,7 +813,7 @@ export function HouseholdScreen() {
       {openShop.length ? (
         <GlassCard variant="solid" pad={14} style={{ marginTop: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <ShoppingCart size={15} color={colors.accent} />
+            <ShoppingCart size={15} color={colors.accentInk} />
             <Text style={{ flex: 1, fontSize: 12.5, fontWeight: '800', color: colors.textPrimary }}>{openShop.length} {t('s.hhShoppingOpen')}</Text>
             <Pressable onPress={() => setTab('shop')} hitSlop={6}>
               <ArrowRight size={15} color={colors.textSecondary} />
@@ -855,9 +855,9 @@ export function HouseholdScreen() {
             ) : null}
           </View>
         ))}
-        {!members.length && loading ? <ActivityIndicator color={colors.accent} style={{ marginTop: 8 }} /> : null}
+        {!members.length && loading ? <ActivityIndicator color={colors.accentInk} style={{ marginTop: 8 }} /> : null}
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-          <ActionPill label={t('s.hhShareHh')} icon={<Share2 size={13} color={colors.accent} />} onPress={() => void shareCode()} />
+          <ActionPill label={t('s.hhShareHh')} icon={<Share2 size={13} color={colors.accentInk} />} onPress={() => void shareCode()} />
           <ActionPill label={t('s.hhRemind')} icon={<Bell size={13} color={colors.textSecondary} />} onPress={doRemind} />
         </View>
       </GlassCard>
@@ -880,7 +880,7 @@ export function HouseholdScreen() {
             keyboardType="decimal-pad"
             editable={!busy}
             style={[inputStyle, { width: 76, marginBottom: 0 }]}/>
-          <IconButton icon={<Plus size={17} color={colors.accent} />} disabled={!expenseTitle.trim() || !expenseAmount.trim() || busy} onPress={() => void doAddExpense()} />
+          <IconButton icon={<Plus size={17} color={colors.accentInk} />} disabled={!expenseTitle.trim() || !expenseAmount.trim() || busy} onPress={() => void doAddExpense()} />
         </View>
         {!expenses.length ? <EmptyLine text={t('s.hhFeedEmpty')} /> : null}
         {expenses.slice(0, 6).map((e) => (
@@ -942,7 +942,7 @@ export function HouseholdScreen() {
       >
         <View style={{ backgroundColor: colors.darkButton, paddingHorizontal: 20, paddingTop: 22, paddingBottom: 22, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Text style={{ flex: 1, fontSize: 11, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase', color: rgbaHelper(colors.darkButtonText, 0.6) }}>
+            <Text style={{ flex: 1, fontSize: 11, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase', color: mutedOn(colors.darkButton, colors.darkButtonText, 0.85) }}>
               {t('s.hhEyebrow')}
             </Text>
             {hasHousehold ? (
@@ -983,7 +983,7 @@ export function HouseholdScreen() {
                     </View>
                   ))}
                 </View>
-                <Text style={{ flex: 1, fontSize: 12.5, color: rgbaHelper(colors.darkButtonText, 0.75) }} numberOfLines={1}>
+                <Text style={{ flex: 1, fontSize: 12.5, color: mutedOn(colors.darkButton, colors.darkButtonText, 0.85) }} numberOfLines={1}>
                   {members.length} {t('s.hhMembers')}
                 </Text>
                 <Pressable onPress={() => void shareCode()} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: colors.accent, opacity: pressed ? 0.8 : 1 }]}>
@@ -999,7 +999,7 @@ export function HouseholdScreen() {
               </View>
             </>
           ) : (
-            <Text style={{ fontSize: 13, color: rgbaHelper(colors.darkButtonText, 0.7), marginTop: 6 }}>{t('s.hhSubtitle')}</Text>
+            <Text style={{ fontSize: 13, color: mutedOn(colors.darkButton, colors.darkButtonText, 0.85), marginTop: 6 }}>{t('s.hhSubtitle')}</Text>
           )}
         </View>
 
@@ -1107,7 +1107,7 @@ export function HouseholdScreen() {
                     <Utensils size={15} color={colors.textSecondary} />
                     <Text numberOfLines={1} style={{ flex: 1, fontSize: 13.5, color: colors.textPrimary }}>{String(r?.title ?? '')}</Text>
                     <ActionPill label={t('s.hhPlanToShop')} onPress={() => addRecipeToPlan(r, true)} />
-                    <IconButton icon={<Plus size={16} color={colors.accent} />} onPress={() => addRecipeToPlan(r, false)} />
+                    <IconButton icon={<Plus size={16} color={colors.accentInk} />} onPress={() => addRecipeToPlan(r, false)} />
                   </View>
                 ))}
                 {!pickerItems.length ? <Text style={{ fontSize: 12.5, color: colors.textSecondary, paddingVertical: 10 }}>{t('s.hhPlanEmpty')}</Text> : null}
@@ -1127,13 +1127,13 @@ export function HouseholdScreen() {
                   <X size={18} color={colors.textSecondary} />
                 </Pressable>
               </View>
-              {code ? <QrCodeView value={`SPOONFUL-HH:${code}`} size={250} /> : <ActivityIndicator color={colors.accent} />}
+              {code ? <QrCodeView value={`SPOONFUL-HH:${code}`} size={250} /> : <ActivityIndicator color={colors.accentInk} />}
               <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 10, textAlign: 'center' }}>{t('s.hhQrBody')}</Text>
               <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 4, textAlign: 'center' }}>{t('s.hhQrScanHint')}</Text>
-              <Text style={{ fontSize: 16, fontWeight: '900', letterSpacing: 3, color: colors.accent, marginTop: 10 }}>{t('s.hhCode')}: {code ?? '-'}</Text>
+              <Text style={{ fontSize: 16, fontWeight: '900', letterSpacing: 3, color: colors.accentInk, marginTop: 10 }}>{t('s.hhCode')}: {code ?? '-'}</Text>
               <View style={{ flexDirection: 'row', gap: 12, marginTop: 16, justifyContent: 'center' }}>
                 <Pressable onPress={() => void shareCode()} accessibilityRole="button" accessibilityLabel={t('s.hhShareHh')} style={{ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accentSoft }}>
-                  <Share2 size={20} color={colors.accent} />
+                  <Share2 size={20} color={colors.accentInk} />
                 </Pressable>
                 <Pressable onPress={() => { setQrOpen(false); setScanOpen(true); }} accessibilityRole="button" accessibilityLabel={t('s.hhScan')} style={{ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accent }}>
                   <Camera size={20} color={colors.accentText} />
@@ -1165,7 +1165,7 @@ function HeroStat({ value, label }: { value: number; label: string }) {
   return (
     <View style={{ flex: 1, borderRadius: 16, backgroundColor: rgbaHelper(colors.darkButtonText, 0.12), paddingHorizontal: 12, paddingVertical: 11 }}>
       <Text style={{ fontSize: 22, fontWeight: '900', color: colors.darkButtonText, letterSpacing: -0.4 }}>{value}</Text>
-      <Text numberOfLines={1} style={{ fontSize: 10.5, color: rgbaHelper(colors.darkButtonText, 0.7), marginTop: 2 }}>{label}</Text>
+      <Text numberOfLines={1} style={{ fontSize: 10.5, color: mutedOn(colors.darkButton, colors.darkButtonText, 0.85), marginTop: 2 }}>{label}</Text>
     </View>
   );
 }

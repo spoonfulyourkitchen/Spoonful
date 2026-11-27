@@ -437,7 +437,7 @@ export function RecipeDetailScreen({ route }: any) {
         />
 
         <View style={{ paddingHorizontal: 18, marginTop: 24 }}>
-          <Text style={{ fontSize: 13, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: colors.accent }}>
+          <Text style={{ fontSize: 13, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: colors.accentInk }}>
             {formatCuisine(recipe.cuisine)}
             {recipe.dietaryRestrictions?.length ? ` · ${recipe.dietaryRestrictions.join(' · ')}` : ''}
           </Text>
@@ -449,8 +449,8 @@ export function RecipeDetailScreen({ route }: any) {
           ) : null}
 
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-            <MetaPill icon={<Clock3 size={13} color={colors.accent} />} text={`${Number(recipe.prepTime) || 0} min prep`} />
-            {recipe.cookTime ? <MetaPill icon={<Clock3 size={13} color={colors.accent} />} text={`${recipe.cookTime} min cook`} /> : null}
+            <MetaPill icon={<Clock3 size={13} color={colors.accentInk} />} text={`${Number(recipe.prepTime) || 0} ${t('common.min')} ${t('recipe.prepTime')}`} />
+            {recipe.cookTime ? <MetaPill icon={<Clock3 size={13} color={colors.accentInk} />} text={`${recipe.cookTime} ${t('common.min')} ${t('recipe.cookTime')}`} /> : null}
             <View style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: diff.bg }}>
               <Text style={{ fontSize: 12, fontWeight: '700', color: diff.fg }}>{difficultyLabel(recipe.difficulty)}</Text>
             </View>
@@ -459,10 +459,10 @@ export function RecipeDetailScreen({ route }: any) {
           {hasNutrition ? (
             <GlassCard pad={10} radius={20} style={{ marginTop: 16 }}>
               <View style={{ flexDirection: 'row' }}>
-                <InfoBox label="kcal" value={recipe.calories != null ? `${recipe.calories}` : '-'} accent />
-                <InfoBox label="protein" value={recipe.protein != null ? `${recipe.protein}g` : '-'} />
-                <InfoBox label="carbs" value={recipe.carbs != null ? `${recipe.carbs}g` : '-'} />
-                <InfoBox label="fat" value={recipe.fat != null ? `${recipe.fat}g` : '-'} />
+                <InfoBox label={t('common.kcal')} value={recipe.calories != null ? `${recipe.calories}` : '-'} accent />
+                <InfoBox label={t('common.protein')} value={recipe.protein != null ? `${recipe.protein}g` : '-'} />
+                <InfoBox label={t('common.carbs')} value={recipe.carbs != null ? `${recipe.carbs}g` : '-'} />
+                <InfoBox label={t('common.fat')} value={recipe.fat != null ? `${recipe.fat}g` : '-'} />
               </View>
             </GlassCard>
           ) : null}
@@ -494,7 +494,7 @@ export function RecipeDetailScreen({ route }: any) {
                     <View style={{ marginTop: 7, borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.surfaceMuted, padding: 10, gap: 4 }}>
                       {guide?.coach ? (
                         <Text style={{ fontSize: 13, lineHeight: 19, color: colors.textPrimary }}>
-                          <Text style={{ fontWeight: '800', color: colors.accent }}>{tr2('Kochtipp: ', 'Coach tip: ', lang)}</Text>
+                          <Text style={{ fontWeight: '800', color: colors.accentInk }}>{tr2('Kochtipp: ', 'Coach tip: ', lang)}</Text>
                           {guide.coach}
                         </Text>
                       ) : null}
@@ -605,7 +605,7 @@ export function RecipeDetailScreen({ route }: any) {
               </Pressable>
             </View>
 
-            <Text style={{ textAlign: 'center', fontSize: 19, fontWeight: '800', color: colors.accent, marginTop: 14 }}>
+            <Text style={{ textAlign: 'center', fontSize: 19, fontWeight: '800', color: colors.accentInk, marginTop: 14 }}>
               {Math.round((recipe?.calories ?? 0) * logPortions)} {t('common.kcal')}
             </Text>
 

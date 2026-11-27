@@ -140,7 +140,7 @@ export function CommentSheet({
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                <MessageSquare size={17} color={colors.accent} />
+                <MessageSquare size={17} color={colors.accentInk} />
                 <Text numberOfLines={1} style={{ flex: 1, fontSize: 16, fontWeight: '800', color: colors.textPrimary }}>
                   {shareTitle}
                 </Text>
@@ -152,7 +152,7 @@ export function CommentSheet({
 
             <ScrollView style={{ maxHeight: 320 }} keyboardShouldPersistTaps="handled">
               {comments === undefined ? (
-                <ActivityIndicator color={colors.accent} style={{ marginVertical: 18 }} />
+                <ActivityIndicator color={colors.accentInk} style={{ marginVertical: 18 }} />
               ) : shown.length === 0 ? (
                 <Text style={{ fontSize: 13, color: colors.textSecondary, marginVertical: 14 }}>
                   {t('s.cmtEmpty')}
@@ -162,7 +162,7 @@ export function CommentSheet({
                 shown.map((c) => (
                   <View key={c._id} style={{ paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: colors.cardBorder }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.accent }}>{c.userName}</Text>
+                      <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.accentInk }}>{c.userName}</Text>
                       {c.mine ? (
                         <Pressable onPress={() => remove(c._id)} hitSlop={8}>
                           <Trash2 size={14} color={colors.rose} />

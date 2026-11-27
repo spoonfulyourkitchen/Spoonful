@@ -67,9 +67,9 @@ export function DashboardScreen() {
         <PageHeader eyebrow={`${greeting(t)}, ${name}`} title={t('landing.tagline')} />
 
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 2 }}>
-          <Stat icon={<ChefHat size={18} color={colors.accent} />} value={`${mine.length}`} label={t('s.mineTitle')} />
-          <Stat icon={<Bookmark size={18} color={colors.accent} />} value={`${saved.length}`} label={t('s.dashSaved')} />
-          <Stat icon={<Flame size={18} color={colors.accent} />} value={`${todayCal}`} label={t('s.dashKcalToday')} />
+          <Stat icon={<ChefHat size={18} color={colors.accentInk} />} value={`${mine.length}`} label={t('s.mineTitle')} />
+          <Stat icon={<Bookmark size={18} color={colors.accentInk} />} value={`${saved.length}`} label={t('s.dashSaved')} />
+          <Stat icon={<Flame size={18} color={colors.accentInk} />} value={`${todayCal}`} label={t('s.dashKcalToday')} />
         </View>
 
         {offline ? <OfflineBadge style={{ marginTop: 10 }} /> : null}
@@ -81,8 +81,8 @@ export function DashboardScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 {streak > 1 ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                    <Flame size={13} color={colors.accent} />
-                    <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.accent, fontVariant: ['tabular-nums'] }}>{streak}</Text>
+                    <Flame size={13} color={colors.accentInk} />
+                    <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.accentInk, fontVariant: ['tabular-nums'] }}>{streak}</Text>
                   </View>
                 ) : null}
                 <Text style={{ fontSize: 13, fontWeight: '800', color: kcalPct >= 100 ? colors.rose : colors.success, fontVariant: ['tabular-nums'] }}>
@@ -101,28 +101,28 @@ export function DashboardScreen() {
           <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>{sug.hint}</Text>
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
             <Pressable onPress={() => navigate('Main', { screen: 'Library' })} style={quickPill}>
-              <Library size={14} color={colors.accent} />
-              <Text style={{ color: colors.accent, fontSize: 13, fontWeight: '700' }}>{t('s.dashBrowse')}</Text>
+              <Library size={14} color={colors.accentInk} />
+              <Text style={{ color: colors.accentInk, fontSize: 13, fontWeight: '700' }}>{t('s.dashBrowse')}</Text>
             </Pressable>
             <Pressable onPress={() => navigate('Main', { screen: 'Assistant' })} style={quickPill}>
-              <Sparkles size={14} color={colors.accent} />
-              <Text style={{ color: colors.accent, fontSize: 13, fontWeight: '700' }}>{t('s.dashAskAi')}</Text>
+              <Sparkles size={14} color={colors.accentInk} />
+              <Text style={{ color: colors.accentInk, fontSize: 13, fontWeight: '700' }}>{t('s.dashAskAi')}</Text>
             </Pressable>
           </View>
         </GlassCard>
 
         <Text style={label}>{t('s.dashQuick')}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          <QuickLink icon={<ChefHat size={17} color={colors.accent} />} label={t('s.mineTitle')} onPress={() => navigate('Main', { screen: 'MyRecipes' })} />
-          <QuickLink icon={<Flame size={17} color={colors.accent} />} label={t('s.dashTracker')} onPress={() => navigate('Main', { screen: 'Tracker' })} />
-          <QuickLink icon={<Bookmark size={17} color={colors.accent} />} label={t('s.dashSaved')} onPress={() => navigate('Main', { screen: 'MyRecipes' })} />
+          <QuickLink icon={<ChefHat size={17} color={colors.accentInk} />} label={t('s.mineTitle')} onPress={() => navigate('Main', { screen: 'MyRecipes' })} />
+          <QuickLink icon={<Flame size={17} color={colors.accentInk} />} label={t('s.dashTracker')} onPress={() => navigate('Main', { screen: 'Tracker' })} />
+          <QuickLink icon={<Bookmark size={17} color={colors.accentInk} />} label={t('s.dashSaved')} onPress={() => navigate('Main', { screen: 'MyRecipes' })} />
         </View>
 
         <Text style={label}>{t('onboarding.gettingStarted')}</Text>
         <GlassCard pad={14} radius={20}>
-          <CheckRow done={(mine?.length ?? 0) > 0} label={t('s.dashFirstRecipe')} onPress={() => navigate('RecipeForm', {})} icon={<Plus size={15} color={colors.accent} />} />
-          <CheckRow done={(saved?.length ?? 0) > 0} label={t('s.dashSaveFromLibrary')} onPress={() => navigate('Main', { screen: 'Library' })} icon={<Bookmark size={15} color={colors.accent} />} />
-          <CheckRow done={false} label={t('s.dashTryAi')} onPress={() => navigate('Main', { screen: 'Assistant' })} icon={<Sparkles size={15} color={colors.accent} />} />
+          <CheckRow done={(mine?.length ?? 0) > 0} label={t('s.dashFirstRecipe')} onPress={() => navigate('RecipeForm', {})} icon={<Plus size={15} color={colors.accentInk} />} />
+          <CheckRow done={(saved?.length ?? 0) > 0} label={t('s.dashSaveFromLibrary')} onPress={() => navigate('Main', { screen: 'Library' })} icon={<Bookmark size={15} color={colors.accentInk} />} />
+          <CheckRow done={false} label={t('s.dashTryAi')} onPress={() => navigate('Main', { screen: 'Assistant' })} icon={<Sparkles size={15} color={colors.accentInk} />} />
         </GlassCard>
       </ScrollView>
     </Page>

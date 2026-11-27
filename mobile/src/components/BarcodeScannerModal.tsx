@@ -379,7 +379,7 @@ if (document.readyState === 'complete') start(); else window.addEventListener('l
               <ScrollView contentContainerStyle={{ padding: 18 }} keyboardShouldPersistTaps="handled">
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <View style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accentSoft }}>
-                    <ScanLine size={17} color={colors.accent} />
+                    <ScanLine size={17} color={colors.accentInk} />
                   </View>
                   <Text style={{ flex: 1, fontFamily: fonts.display, fontSize: 18, fontWeight: '800', color: colors.textPrimary }}>
                     {pick(lang, BARCODE_L10N.scanTitle)}
@@ -452,10 +452,10 @@ if (document.readyState === 'complete') start(); else window.addEventListener('l
                     <Search size={16} color={colors.textSecondary} />
                     <TextInput value={searchQ} onChangeText={setSearchQ} onSubmitEditing={() => void runSearch()} placeholder={t('s.scanSearchPh')} placeholderTextColor={colors.textSecondary} style={[{ flex: 1, paddingVertical: 11, fontSize: 15, color: colors.textPrimary }, { backgroundColor: 'transparent' }]}/>
                     <Pressable onPress={() => void runSearch()} hitSlop={8}>
-                      <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.accent }}>{t('s.scanSearchGo')}</Text>
+                      <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.accentInk }}>{t('s.scanSearchGo')}</Text>
                     </Pressable>
                   </View>
-                  {searching ? <ActivityIndicator size="small" color={colors.accent} style={{ marginTop: 10 }} /> : null}
+                  {searching ? <ActivityIndicator size="small" color={colors.accentInk} style={{ marginTop: 10 }} /> : null}
                   {hits.map((hit) => (
                     <Pressable key={hit.code} onPress={() => { onCode(hit.code); onClose(); }} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.cardBorder, opacity: pressed ? 0.7 : 1 }]}>
                       <ImageIcon size={15} color={colors.textSecondary} />
@@ -480,7 +480,7 @@ if (document.readyState === 'complete') start(); else window.addEventListener('l
                       onSubmitEditing={useManual}
                       style={[{ flex: 1, paddingVertical: 11, fontSize: 15, color: colors.textPrimary }, { backgroundColor: 'transparent' }]}/>
                     <Pressable onPress={useManual} hitSlop={8} disabled={manual.replace(/\D/g, '').length < 6}>
-                      <Text style={{ fontSize: 12.5, fontWeight: '800', color: manual.replace(/\D/g, '').length < 6 ? colors.textSecondary : colors.accent }}>
+                      <Text style={{ fontSize: 12.5, fontWeight: '800', color: manual.replace(/\D/g, '').length < 6 ? colors.textSecondary : colors.accentInk }}>
                         {pick(lang, BARCODE_L10N.use)}
                       </Text>
                     </Pressable>
@@ -520,7 +520,7 @@ if (document.readyState === 'complete') start(); else window.addEventListener('l
                   <View style={{ marginTop: 14 }}>
                     <Image source={{ uri: image }} style={{ width: '100%', height: 132, borderRadius: 16, backgroundColor: colors.surfaceMuted }} resizeMode="contain" />
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                      <ActivityIndicator size="small" color={colors.accent} />
+                      <ActivityIndicator size="small" color={colors.accentInk} />
                       <Text style={{ fontSize: 12.5, color: colors.textSecondary }}>
                         {pick(lang, BARCODE_L10N.reading)}
                         {progress.total ? ` · ${pick(lang, BARCODE_L10N.pass)} ${progress.done}/${progress.total}` : ''}
@@ -563,8 +563,8 @@ if (document.readyState === 'complete') start(); else window.addEventListener('l
                     accessibilityLabel={pick(lang, BARCODE_L10N.retry)}
                     style={({ pressed }) => [{ marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 16, paddingVertical: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, opacity: pressed ? 0.85 : 1 }]}
                   >
-                    <RotateCcw size={16} color={colors.accent} />
-                    <Text style={{ color: colors.accent, fontWeight: '700', fontSize: 13.5 }}>{pick(lang, BARCODE_L10N.retry)}</Text>
+                    <RotateCcw size={16} color={colors.accentInk} />
+                    <Text style={{ color: colors.accentInk, fontWeight: '700', fontSize: 13.5 }}>{pick(lang, BARCODE_L10N.retry)}</Text>
                   </Pressable>
                 ) : null}
 
@@ -578,7 +578,7 @@ if (document.readyState === 'complete') start(); else window.addEventListener('l
         visible={!!notice}
         onClose={() => setNotice(null)}
         closeLabel={pick(lang, BARCODE_L10N.cancel)}
-        icon={<TriangleAlert size={20} color={colors.accent} />}
+        icon={<TriangleAlert size={20} color={colors.accentInk} />}
         title={notice === 'blurry' ? pick(lang, BARCODE_L10N.blurryTitle) : pick(lang, BARCODE_L10N.noCodeTitle)}
         body={notice === 'blurry' ? pick(lang, BARCODE_L10N.blurry) : pick(lang, BARCODE_L10N.noCodeHere)}
         actions={[

@@ -306,7 +306,7 @@ export function RecipeFormScreen({ route }: any) {
 
         {draftRestored ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4, marginBottom: 2 }}>
-            <Text style={{ flex: 1, fontSize: 12, fontWeight: '700', color: colors.accent }}>{t('s.draftRestored')}</Text>
+            <Text style={{ flex: 1, fontSize: 12, fontWeight: '700', color: colors.accentInk }}>{t('s.draftRestored')}</Text>
             <Pressable onPress={discardDraft} hitSlop={8}>
               <Text style={{ fontSize: 12, fontWeight: '800', color: colors.textSecondary }}>{t('s.draftDiscard')}</Text>
             </Pressable>
@@ -316,11 +316,11 @@ export function RecipeFormScreen({ route }: any) {
         <GlassCard pad={16} radius={22} style={{ marginTop: 8 }}>
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
             <Pressable onPress={() => void attachPhoto('camera')} disabled={photoBusy} style={({ pressed }) => [{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingVertical: 10, opacity: pressed || photoBusy ? 0.7 : 1 }]}>
-              <Camera size={16} color={colors.accent} />
+              <Camera size={16} color={colors.accentInk} />
               <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 13 }}>{tr2('Foto machen', 'Take photo', lang)}</Text>
             </Pressable>
             <Pressable onPress={() => void attachPhoto('gallery')} disabled={photoBusy} style={({ pressed }) => [{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingVertical: 10, opacity: pressed || photoBusy ? 0.7 : 1 }]}>
-              <ImagePlus size={16} color={colors.accent} />
+              <ImagePlus size={16} color={colors.accentInk} />
               <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 13 }}>{t('s.formGallery')}</Text>
             </Pressable>
           </View>
@@ -341,7 +341,7 @@ export function RecipeFormScreen({ route }: any) {
               </Pressable>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
                 <Pressable onPress={() => void recropPhoto()} style={{ paddingHorizontal: 2, paddingVertical: 5 }}>
-                  <Text style={{ color: colors.accent, fontWeight: '700', fontSize: 12 }}>{t('s.cropEdit')}</Text>
+                  <Text style={{ color: colors.accentInk, fontWeight: '700', fontSize: 12 }}>{t('s.cropEdit')}</Text>
                 </Pressable>
                 <Pressable onPress={clearPhoto} style={{ paddingHorizontal: 2, paddingVertical: 5 }}>
                   <Text style={{ color: colors.rose, fontWeight: '700', fontSize: 12 }}>{t('dialog.removePhoto')}</Text>
@@ -388,7 +388,7 @@ export function RecipeFormScreen({ route }: any) {
             <Text style={{ flex: 1, fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>
               {tr2('Details: Zeit, Kalorien, Küche', 'Details: time, calories, cuisine', lang)}
             </Text>
-            <Text style={{ fontSize: 16, fontWeight: '800', color: colors.accent }}>{detailsOpen ? '−' : '+'}</Text>
+            <Text style={{ fontSize: 16, fontWeight: '800', color: colors.accentInk }}>{detailsOpen ? '−' : '+'}</Text>
           </Pressable>
 
           {detailsOpen ? (
@@ -430,7 +430,7 @@ export function RecipeFormScreen({ route }: any) {
                     pressed && { opacity: 0.8 },
                   ]}
                 >
-                  <Sparkles size={15} color={colors.accent} />
+                  <Sparkles size={15} color={colors.accentInk} />
                   <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 13 }}>
                     {estimating ? t('recipe.estimating') : t('recipe.estimateAI')}
                   </Text>
@@ -455,7 +455,7 @@ export function RecipeFormScreen({ route }: any) {
                     hitSlop={8}
                     style={{ width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accentSoft }}
                   >
-                    <Info size={18} color={colors.accent} />
+                    <Info size={18} color={colors.accentInk} />
                   </Pressable>
                 ) : null}
               </View>

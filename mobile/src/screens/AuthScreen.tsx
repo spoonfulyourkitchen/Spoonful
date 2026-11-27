@@ -415,10 +415,10 @@ export function AuthScreen() {
                   <CheckRow checked={agreeHealth} onToggle={() => setAgreeHealth((v) => !v)} label={translate('auth.healthConsent')} />
                   <View style={{ flexDirection: 'row', gap: 16, marginTop: 8, marginLeft: 30 }}>
                     <Pressable onPress={() => navigate('Legal', { page: 'datenschutz' })} hitSlop={6}>
-                      <Text style={{ color: colors.accent, fontWeight: '700', fontSize: 12.5 }}>{translate('legal.navPrivacy')}</Text>
+                      <Text style={{ color: colors.accentInk, fontWeight: '700', fontSize: 12.5 }}>{translate('legal.navPrivacy')}</Text>
                     </Pressable>
                     <Pressable onPress={() => navigate('Legal', { page: 'agb' })} hitSlop={6}>
-                      <Text style={{ color: colors.accent, fontWeight: '700', fontSize: 12.5 }}>{translate('legal.navTerms')}</Text>
+                      <Text style={{ color: colors.accentInk, fontWeight: '700', fontSize: 12.5 }}>{translate('legal.navTerms')}</Text>
                     </Pressable>
                   </View>
                 </View>
@@ -433,7 +433,7 @@ export function AuthScreen() {
                 </Text>
                 {codeNote ? <Text style={{ fontSize: 12.5, color: colors.success, marginTop: 8 }}>{codeNote}</Text> : null}
                 <Pressable onPress={() => void resendCode()} disabled={resendBusy} hitSlop={6} style={{ marginTop: 12 }}>
-                  <Text style={{ color: colors.accent, fontSize: 13.5, fontWeight: '700' }}>
+                  <Text style={{ color: colors.accentInk, fontSize: 13.5, fontWeight: '700' }}>
                     {resendBusy ? translate('ax.resendBusy') : translate('ax.resendNew')}
                   </Text>
                 </Pressable>
@@ -459,12 +459,12 @@ export function AuthScreen() {
             {error ? <Text style={{ color: colors.rose, fontSize: 13, marginTop: 10, lineHeight: 18 }}>{error}</Text> : null}
         {needsResend ? (
           <Pressable onPress={() => void resendConfirmation()} disabled={resendBusy} style={{ marginTop: 8 }}>
-            <Text style={{ color: colors.accent, fontSize: 13, fontWeight: '700' }}>
+            <Text style={{ color: colors.accentInk, fontSize: 13, fontWeight: '700' }}>
               {resendBusy ? translate('common.loading') : resendNote ?? translate('ax.resendConfirm')}
             </Text>
           </Pressable>
         ) : resendNote ? (
-          <Text style={{ color: colors.accent, fontSize: 13, marginTop: 8 }}>{resendNote}</Text>
+          <Text style={{ color: colors.accentInk, fontSize: 13, marginTop: 8 }}>{resendNote}</Text>
         ) : null}
             {notice && mode !== 'register' ? (
               <View style={{ flexDirection: 'row', gap: 8, borderRadius: 14, backgroundColor: colors.successBg, padding: 12, marginTop: 10 }}>
@@ -541,7 +541,7 @@ export function AuthScreen() {
                       opacity: pressed ? 0.8 : 1,
                     }]}
                   >
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.accent }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.accentInk }}>
                       Test starten (nur lokal)
                     </Text>
                   </Pressable>
@@ -554,11 +554,11 @@ export function AuthScreen() {
             <View style={{ alignItems: 'center', marginTop: 18 }}>
               <Pressable onPress={() => navigate('Landing', { showIntro: true } as any)} hitSlop={6}>
                 <Text style={{ fontSize: 14, color: colors.textSecondary }}>
-                  {translate('s.authNew')} <Text style={{ color: colors.accent, fontWeight: '800' }}>{translate('s.authCreate')}</Text>
+                  {translate('s.authNew')} <Text style={{ color: colors.accentInk, fontWeight: '800' }}>{translate('s.authCreate')}</Text>
                 </Text>
               </Pressable>
               <Pressable onPress={() => switchMode('forgot')} hitSlop={6} style={{ marginTop: 8 }}>
-                <Text style={{ fontSize: 13, color: colors.accent, fontWeight: '600' }}>{translate('s.xForgotPassword')}</Text>
+                <Text style={{ fontSize: 13, color: colors.accentInk, fontWeight: '600' }}>{translate('s.xForgotPassword')}</Text>
               </Pressable>
             </View>
           ) : null}
@@ -600,7 +600,7 @@ function ModePill({ active, label, onPress }: { active: boolean; label: string; 
         active ? { backgroundColor: colors.accentSoft, borderColor: colors.accent } : { borderColor: colors.cardBorder },
       ]}
     >
-      <Text style={{ fontSize: 12.5, fontWeight: active ? '700' : '500', color: active ? colors.accent : colors.textSecondary }}>{label}</Text>
+      <Text style={{ fontSize: 12.5, fontWeight: active ? '700' : '500', color: active ? colors.accentInk : colors.textSecondary }}>{label}</Text>
     </Pressable>
   );
 }
@@ -644,7 +644,7 @@ function Field(props: {
           {hidden ? (
             <Eye size={18} color={colors.textSecondary} strokeWidth={2} />
           ) : (
-            <EyeOff size={18} color={colors.accent} strokeWidth={2} />
+            <EyeOff size={18} color={colors.accentInk} strokeWidth={2} />
           )}
         </Pressable>
       ) : null}

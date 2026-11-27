@@ -37,7 +37,7 @@ function RingSpinner() {
   return (
     <Animated.View style={{ width: 14, height: 14, transform: [{ rotate }] }}>
       <Svg width={14} height={14}>
-        <Circle cx={7} cy={7} r={5} stroke={colors.accent} strokeWidth={2} fill="none" strokeDasharray="20 12" strokeLinecap="round" />
+        <Circle cx={7} cy={7} r={5} stroke={colors.accentInk} strokeWidth={2} fill="none" strokeDasharray="20 12" strokeLinecap="round" />
       </Svg>
     </Animated.View>
   );
@@ -70,11 +70,11 @@ export function AiStatusIndicator() {
         onPress={() => { clearAiTask(); navigate('Main', { screen: 'Assistant' }); }}
         style={({ pressed }) => [styles.aiDone, pressed && { opacity: 0.8 }]}
       >
-        <Sparkles size={12} color={colors.accent} strokeWidth={2.5} />
+        <Sparkles size={12} color={colors.accentInk} strokeWidth={2.5} />
         <Text numberOfLines={1} style={styles.aiDoneText}>
           {task.recipeTitle}
         </Text>
-        <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 0.5, color: colors.accent }}>{t('s.xReady')}</Text>
+        <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 0.5, color: colors.accentInk }}>{t('s.xReady')}</Text>
       </Pressable>
     );
   }

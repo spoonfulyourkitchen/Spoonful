@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Menu, Search } from 'lucide-react-native';
 
-import { colors, fonts, glassShadow, readableText, rgbaHelper } from '../theme';
+import { colors, fonts, glassShadow, readableText, rgbaHelper, mutedOn } from '../theme';
 import { useConnectivity } from '../lib/offline';
 import { useTranslation } from '../lib/i18n';
 import { useAppShell } from '../navigation/Shell';
@@ -386,7 +386,7 @@ export function PageHeader({
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         {leading}
         {eyebrow ? (
-          <Text numberOfLines={1} style={{ flex: 1, fontSize: 11, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase', color: rgbaHelper(fg, 0.62) }}>
+          <Text numberOfLines={1} style={{ flex: 1, fontSize: 11, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase', color: mutedOn(colors.darkButton, fg, 0.72) }}>
             {eyebrow}
           </Text>
         ) : (
@@ -406,7 +406,7 @@ export function PageHeader({
       </Text>
 
       {subtitle ? (
-        <Text style={{ fontSize: 13.5, lineHeight: 20, color: rgbaHelper(fg, 0.7), marginTop: 6 }}>{subtitle}</Text>
+        <Text style={{ fontSize: 13.5, lineHeight: 20, color: mutedOn(colors.darkButton, fg, 0.78), marginTop: 6 }}>{subtitle}</Text>
       ) : null}
 
       {children ? <View style={{ marginTop: 16 }}>{children}</View> : null}
@@ -507,7 +507,7 @@ export function SectionLabel({ children, style }: { children: React.ReactNode; s
 export function InfoBox({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
     <View style={{ flex: 1, alignItems: 'center', paddingVertical: 10 }}>
-      <Text style={{ fontSize: 17, fontWeight: '800', color: accent ? colors.accent : colors.textPrimary }}>{value}</Text>
+      <Text style={{ fontSize: 17, fontWeight: '800', color: accent ? colors.accentInk : colors.textPrimary }}>{value}</Text>
       <Text style={{ fontSize: 11, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 3 }}>{label}</Text>
     </View>
   );

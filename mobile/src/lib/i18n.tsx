@@ -25,6 +25,7 @@ import { ONBOARDING_L10N } from './i18n-onboarding';
 import { I18N_TEXTS } from './i18n-texts';
 import { I18N_TEXTS_EXTRA } from './i18n-texts-extra';
 import { I18N_GAPS } from './i18n-gaps';
+import { I18N_FILL } from './i18n-fill';
 import { I18N_AUTH } from './i18n-auth';
 import { I18N_AUTH2 } from './i18n-auth2';
 
@@ -168,6 +169,12 @@ export async function loadDeviceLanguageAsk(): Promise<boolean> {
 export function applyLayoutDirection(lang: Language) {
   if (IS_WEB) {
     restartRequired = false;
+    // Web: text direction and language for the whole document (Arabic needs RTL).
+    const doc = (globalThis as any).document;
+    if (doc?.documentElement) {
+      doc.documentElement.dir = isRtlLanguage(lang) ? 'rtl' : 'ltr';
+      doc.documentElement.lang = lang;
+    }
     return;
   }
   try {
@@ -474,6 +481,21 @@ const baseDicts: Record<Language, Dict> = {
   zh: {}, ja: {}, ko: {}, hi: {}, pl: {},
 };
 
+
+function fromFlatDict(flat: Record<string, string>): Dict {
+  const out: Dict = {};
+  for (const [key, value] of Object.entries(flat)) {
+    const parts = key.split('.');
+    let node: any = out;
+    for (let i = 0; i < parts.length - 1; i += 1) {
+      node[parts[i]] = node[parts[i]] ?? {};
+      node = node[parts[i]];
+    }
+    node[parts[parts.length - 1]] = value;
+  }
+  return out;
+}
+
 function mergeDict(base: Dict, extra?: Dict): Dict {
   const out: Dict = { ...base };
   if (!extra) return out;
@@ -495,10 +517,11 @@ const translations: Record<Language, Dict> = (Object.keys(baseDicts) as Language
 
     LANGS_35, I18N_GAPS, I18N_AUTH, I18N_AUTH2,
   ].reduce<Dict>((dict, source) => mergeDict(dict, languageModule(source, lang)), baseDicts[lang]);
+  const filled = mergeDict(merged, fromFlatDict(I18N_FILL[lang] ?? {}));
   acc[lang] = {
-    ...merged,
-    ui: { ...(merged.ui ?? {}), ...(UI_L10N.en ?? {}), ...(UI_L10N[lang] ?? {}) },
-    s: { ...(merged.s ?? {}), ...(SCREENS_L10N.en ?? {}), ...(SCREENS_L10N[lang] ?? {}) },
+    ...filled,
+    ui: { ...(UI_L10N.en ?? {}), ...(filled.ui ?? {}), ...(UI_L10N[lang] ?? {}) },
+    s: { ...(SCREENS_L10N.en ?? {}), ...(filled.s ?? {}), ...(SCREENS_L10N[lang] ?? {}) },
   };
   return acc;
 }, {} as Record<Language, Dict>);

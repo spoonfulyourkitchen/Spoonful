@@ -122,7 +122,7 @@ export function VerifyGate() {
           zIndex: 20,
         }}
       >
-        <MailCheck size={16} color={colors.accent} />
+        <MailCheck size={16} color={colors.accentInk} />
         <Text style={{ flex: 1, fontSize: 12.5, color: colors.textPrimary }}>
           {t('s.xConfirmBanner')}
         </Text>
@@ -157,14 +157,14 @@ export function VerifyGate() {
       <View style={{ flex: 1, backgroundColor: colors.overlayStrong, justifyContent: 'center', paddingHorizontal: 22 }}>
         <View style={{ borderRadius: 22, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder, padding: 20 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <MailCheck size={18} color={colors.accent} />
+            <MailCheck size={18} color={colors.accentInk} />
             <Text style={{ fontSize: 17, fontWeight: '800', color: colors.textPrimary }}>{t('s.xConfirmTitle')}</Text>
           </View>
           <Text style={{ fontSize: 13.5, lineHeight: 20, color: colors.textSecondary, marginTop: 10 }}>
             {t('s.xConfirmBody', { mail: (user as any)?.email ?? state?.email ?? '' })}
           </Text>
 
-          {note ? <Text style={{ fontSize: 12.5, color: colors.accent, marginTop: 10 }}>{note}</Text> : null}
+          {note ? <Text style={{ fontSize: 12.5, color: colors.accentInk, marginTop: 10 }}>{note}</Text> : null}
 
           <Pressable
             onPress={() => void checkAgain()}

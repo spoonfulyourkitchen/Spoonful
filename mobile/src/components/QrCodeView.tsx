@@ -72,7 +72,7 @@ if (document.readyState === 'complete') run(); else window.addEventListener('loa
       ) : failed ? (
         <View style={{ width: size, height: size }} />
       ) : (
-        <ActivityIndicator color={colors.accent} />
+        <ActivityIndicator color={colors.accentInk} />
       )}
       {!matrix && !failed ? (
         <View style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }}>

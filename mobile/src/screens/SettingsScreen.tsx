@@ -264,7 +264,7 @@ export function SettingsScreen() {
               backgroundColor: colors.accentSoft,
             }}
           >
-            <Text style={{ fontSize: 20, fontWeight: '800', color: colors.accent }}>
+            <Text style={{ fontSize: 20, fontWeight: '800', color: colors.accentInk }}>
               {(user?.name || user?.email || 'S').trim().charAt(0).toUpperCase()}
             </Text>
           </View>
@@ -283,7 +283,7 @@ export function SettingsScreen() {
         <Text style={label}>{L('Haushalt', 'Household')}</Text>
         <GlassCard pad={4} radius={20}>
           <NavRow
-            icon={<Users size={18} color={colors.accent} />}
+            icon={<Users size={18} color={colors.accentInk} />}
             label={household?.name ?? t('hh.title')}
             value={household ? `${(household.members ?? []).length}` : undefined}
             onPress={() => navigate('Main' as any, { screen: 'Household' } as any)}
@@ -292,10 +292,10 @@ export function SettingsScreen() {
 
         <Text style={label}>{L('App & Darstellung', 'App & appearance')}</Text>
         <GlassCard pad={4} radius={20}>
-          <NavRow icon={<Palette size={18} color={colors.accent} />} label={t('settings.theme')} onPress={() => navigate('Theme')} />
+          <NavRow icon={<Palette size={18} color={colors.accentInk} />} label={t('settings.theme')} onPress={() => navigate('Theme')} />
           <Divider style={{ marginLeft: 16 }} />
           <NavRow
-            icon={<Globe size={18} color={colors.accent} />}
+            icon={<Globe size={18} color={colors.accentInk} />}
             label={t('settings.language')}
             value={LANGUAGES.find((l) => l.code === lang)?.native ?? lang}
             onPress={() => setLangOpen(true)}
@@ -315,26 +315,26 @@ export function SettingsScreen() {
 
         <Text style={label}>{L('Daten & Sicherung', 'Data & backup')}</Text>
         <GlassCard pad={4} radius={20}>
-          <NavRow icon={<Download size={18} color={colors.accent} />} label={t('ui.exportData')} onPress={() => void exportData()} />
+          <NavRow icon={<Download size={18} color={colors.accentInk} />} label={t('ui.exportData')} onPress={() => void exportData()} />
           <Divider style={{ marginLeft: 16 }} />
-          <NavRow icon={<Upload size={18} color={colors.accent} />} label={L('Daten importieren', 'Import my data')} onPress={() => setImportOpen(true)} />
+          <NavRow icon={<Upload size={18} color={colors.accentInk} />} label={L('Daten importieren', 'Import my data')} onPress={() => setImportOpen(true)} />
           <Divider style={{ marginLeft: 16 }} />
-          <NavRow icon={<Users size={18} color={colors.accent} />} label={L('Profil & Ziele neu einrichten', 'Redo profile setup')} onPress={redoOnboarding} />
+          <NavRow icon={<Users size={18} color={colors.accentInk} />} label={L('Profil & Ziele neu einrichten', 'Redo profile setup')} onPress={redoOnboarding} />
         </GlassCard>
 
         <Text style={label}>{t('ui.help')}</Text>
         <GlassCard pad={4} radius={20}>
           <NavRow
-            icon={<Play size={18} color={colors.accent} />}
+            icon={<Play size={18} color={colors.accentInk} />}
             label={t('tut.restart')}
             onPress={() => {
               void restartTutorial().then(() => setPopup({ title: t('tut.resetTitle'), body: t('tut.resetBody') }));
             }}
           />
           <Divider style={{ marginLeft: 16 }} />
-          <NavRow icon={<Star size={18} color={colors.accent} />} label={t('s.xFeedbackTitle')} onPress={() => setShowFeedback(true)} />
+          <NavRow icon={<Star size={18} color={colors.accentInk} />} label={t('s.xFeedbackTitle')} onPress={() => setShowFeedback(true)} />
           <Divider style={{ marginLeft: 16 }} />
-          <NavRow icon={<Mail size={18} color={colors.accent} />} label={t('ui.contact')} onPress={() => Linking.openURL('mailto:spoonfulsupport@gmail.com')} />
+          <NavRow icon={<Mail size={18} color={colors.accentInk} />} label={t('ui.contact')} onPress={() => Linking.openURL('mailto:spoonfulsupport@gmail.com')} />
         </GlassCard>
 
         {showFeedback ? (
@@ -397,13 +397,13 @@ export function SettingsScreen() {
 
         <Text style={label}>{t('legal.privacyTitle')} · {t('legal.navTerms')}</Text>
         <GlassCard pad={4} radius={20}>
-          <NavRow icon={<FileText size={18} color={colors.accent} />} label={t('legal.navImprint')} onPress={() => navigate('Legal', { page: 'impressum' })} />
+          <NavRow icon={<FileText size={18} color={colors.accentInk} />} label={t('legal.navImprint')} onPress={() => navigate('Legal', { page: 'impressum' })} />
           <Divider style={{ marginLeft: 16 }} />
-          <NavRow icon={<ShieldCheck size={18} color={colors.accent} />} label={t('legal.navPrivacy')} onPress={() => navigate('Legal', { page: 'datenschutz' })} />
+          <NavRow icon={<ShieldCheck size={18} color={colors.accentInk} />} label={t('legal.navPrivacy')} onPress={() => navigate('Legal', { page: 'datenschutz' })} />
           <Divider style={{ marginLeft: 16 }} />
-          <NavRow icon={<FileText size={18} color={colors.accent} />} label={t('legal.navCookies')} onPress={() => navigate('Legal', { page: 'cookies' })} />
+          <NavRow icon={<FileText size={18} color={colors.accentInk} />} label={t('legal.navCookies')} onPress={() => navigate('Legal', { page: 'cookies' })} />
           <Divider style={{ marginLeft: 16 }} />
-          <NavRow icon={<FileText size={18} color={colors.accent} />} label={t('legal.navTerms')} onPress={() => navigate('Legal', { page: 'agb' })} />
+          <NavRow icon={<FileText size={18} color={colors.accentInk} />} label={t('legal.navTerms')} onPress={() => navigate('Legal', { page: 'agb' })} />
         </GlassCard>
 
         <Text style={label}>{t('s.profileTitle')}</Text>
@@ -542,7 +542,7 @@ export function SettingsScreen() {
         visible={!!popup}
         onClose={() => setPopup(null)}
         closeLabel={t('common.close')}
-        icon={<Globe size={20} color={colors.accent} />}
+        icon={<Globe size={20} color={colors.accentInk} />}
         title={popup?.title ?? ''}
         body={popup?.body}
         actions={

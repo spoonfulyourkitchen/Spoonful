@@ -57,7 +57,7 @@ export function UpdateGate() {
         <View style={card}>
           <View style={[{ alignItems: 'center', gap: 10 }, row]}>
             <View style={badge}>
-              <Rocket size={18} color={colors.accent} />
+              <Rocket size={18} color={colors.accentInk} />
             </View>
             <Text style={[{ flex: 1, fontFamily: fonts.display, fontSize: 19, fontWeight: '800', color: colors.textPrimary }, align]}>
               {notice.title || t('s.upBox')}
@@ -69,7 +69,7 @@ export function UpdateGate() {
 
           <View style={[{ marginTop: 10, borderRadius: 12, backgroundColor: colors.surfaceMuted, paddingHorizontal: 12, paddingVertical: 8, gap: 6, alignSelf: 'stretch' }, row]}>
             <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.textSecondary }}>{t('s.upVersion')}</Text>
-            <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.accent }}>{String(notice.version ?? '')}</Text>
+            <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.accentInk }}>{String(notice.version ?? '')}</Text>
             <View style={{ flex: 1 }} />
             <Text style={{ fontSize: 11.5, color: colors.textSecondary }}>{`${t('s.upCurrent')}: ${APP_VERSION}`}</Text>
           </View>

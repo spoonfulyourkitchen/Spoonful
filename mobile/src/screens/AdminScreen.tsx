@@ -191,7 +191,7 @@ export function AdminScreen() {
       <View style={{ paddingHorizontal: 18 }}>
         <PageHeader eyebrow={t('s.adminEyebrow')} title={t('nav.adminPanel')} subtitle={t('admin.desc')} />
         {openCount ? (
-          <Text style={{ fontSize: 13, color: colors.accent, marginBottom: 6 }}>{openCount} open image report(s)</Text>
+          <Text style={{ fontSize: 13, color: colors.accentInk, marginBottom: 6 }}>{openCount} open image report(s)</Text>
         ) : null}
         <Segmented
           options={isAdmin
@@ -239,7 +239,7 @@ export function AdminScreen() {
                       })}
                       style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.7 : 1 }]}
                     >
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: colors.accent, textDecorationLine: 'underline' }} numberOfLines={1}>{s.title}</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: colors.accentInk, textDecorationLine: 'underline' }} numberOfLines={1}>{s.title}</Text>
                     </Pressable>
                     <View style={{ borderRadius: 999, backgroundColor: colors.mediumBg, paddingHorizontal: 9, paddingVertical: 3 }}>
                       <Text style={{ fontSize: 11, fontWeight: '800', color: colors.medium }}>{t('s.adminPending')}</Text>
@@ -247,8 +247,8 @@ export function AdminScreen() {
                   </View>
                   <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 6 }}>by {s.ownerName || 'Unknown'} · {s.imageUrl ? 'with photo' : 'no photo'} · tap title for full preview</Text>
                   <Pressable onPress={() => setOpenId(openId === s._id ? null : s._id)} style={({ pressed }) => [{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 7, opacity: pressed ? 0.7 : 1 }]}>
-                    {openId === s._id ? <ChevronUp size={15} color={colors.accent} /> : <ChevronDown size={15} color={colors.accent} />}
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.accent }}>
+                    {openId === s._id ? <ChevronUp size={15} color={colors.accentInk} /> : <ChevronDown size={15} color={colors.accentInk} />}
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.accentInk }}>
                       {openId === s._id ? 'Hide preview' : 'Preview photo + description'}
                     </Text>
                   </Pressable>
@@ -319,7 +319,7 @@ export function AdminScreen() {
                 <GlassCard key={u._id} pad={14} radius={18} variant="solid">
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                     <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: u.role === 'admin' ? colors.accentSoft : u.role === 'mod' ? colors.mediumBg : colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' }}>
-                      <UsersRound size={17} color={u.role === 'admin' ? colors.accent : u.role === 'mod' ? colors.medium : colors.textSecondary} />
+                      <UsersRound size={17} color={u.role === 'admin' ? colors.accentInk : u.role === 'mod' ? colors.medium : colors.textSecondary} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textPrimary }}>{u.name}</Text>
@@ -327,7 +327,7 @@ export function AdminScreen() {
                     </View>
                     {u.role !== 'user' ? (
                       <View style={{ borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: u.role === 'admin' ? colors.accentSoft : colors.mediumBg }}>
-                        <Text style={{ fontSize: 11, fontWeight: '800', color: u.role === 'admin' ? colors.accent : colors.medium }}>{u.role === 'admin' ? 'ADMIN' : 'MOD'}</Text>
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: u.role === 'admin' ? colors.accentInk : colors.medium }}>{u.role === 'admin' ? 'ADMIN' : 'MOD'}</Text>
                       </View>
                     ) : null}
                   </View>
@@ -352,8 +352,8 @@ export function AdminScreen() {
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
                 {(adminEmails ?? []).map((e: string) => (
                   <Pressable key={e} onPress={() => confirmDelete(`Remove ${e}?`, () => safe(() => removeAdminEmail({ email: e })))} style={{ flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, backgroundColor: colors.accentSoft, paddingHorizontal: 10, paddingVertical: 5 }}>
-                    <Shield size={12} color={colors.accent} />
-                    <Text style={{ fontSize: 12, color: colors.accent }}>{e}</Text>
+                    <Shield size={12} color={colors.accentInk} />
+                    <Text style={{ fontSize: 12, color: colors.accentInk }}>{e}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -379,7 +379,7 @@ export function AdminScreen() {
                 <GlassCard key={u._id} pad={14} radius={18} variant="solid">
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                     <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: u.role === 'admin' ? colors.accentSoft : colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' }}>
-                      <UsersRound size={17} color={u.role === 'admin' ? colors.accent : colors.textSecondary} />
+                      <UsersRound size={17} color={u.role === 'admin' ? colors.accentInk : colors.textSecondary} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textPrimary }}>{u.name}</Text>
@@ -387,7 +387,7 @@ export function AdminScreen() {
                     </View>
                     {u.role === 'admin' ? (
                       <View style={{ borderRadius: 999, backgroundColor: colors.accentSoft, paddingHorizontal: 10, paddingVertical: 5 }}>
-                        <Text style={{ fontSize: 11, fontWeight: '700', color: colors.accent }}>{t('s.adminBadge')}</Text>
+                        <Text style={{ fontSize: 11, fontWeight: '700', color: colors.accentInk }}>{t('s.adminBadge')}</Text>
                       </View>
                     ) : null}
                     <Pressable onPress={() => toggleUser(u)} style={({ pressed }) => [{ borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 }]}>
@@ -410,7 +410,7 @@ export function AdminScreen() {
               (feedback as any[]).map((f: any) => (
                 <GlassCard key={f._id} pad={14} radius={18} variant="solid" style={{ opacity: f.read ? 0.75 : 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <MessageSquare size={15} color={f.read ? colors.textSecondary : colors.accent} />
+                    <MessageSquare size={15} color={f.read ? colors.textSecondary : colors.accentInk} />
                     <Text style={{ flex: 1, fontSize: 13, color: colors.textSecondary }} numberOfLines={1}>{f.userName || f.userEmail || 'Anonymous'}</Text>
                     {f.rating != null ? (
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
@@ -449,7 +449,7 @@ export function AdminScreen() {
                   <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>{r.reporterName} · {r.reporterEmail || 'no email'}</Text>
                   {r.status === 'open' ? (
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-                      <MiniAction label={t('s.adminResolve')} onPress={() => safe(() => resolveReport({ reportId: r._id }))} icon={<CheckCircle2 size={13} color={colors.accent} />} />
+                      <MiniAction label={t('s.adminResolve')} onPress={() => safe(() => resolveReport({ reportId: r._id }))} icon={<CheckCircle2 size={13} color={colors.accentInk} />} />
                       <MiniAction danger label={t('s.adminDismiss')} onPress={() => safe(() => dismissReport({ reportId: r._id }))} icon={<XCircle size={13} color={colors.rose} />} />
                     </View>
                   ) : null}
@@ -461,7 +461,7 @@ export function AdminScreen() {
           <>
             <GlassCard pad={14} radius={18}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <LogIn size={16} color={colors.accent} />
+                <LogIn size={16} color={colors.accentInk} />
                 <Text style={{ flex: 1, fontSize: 15, fontWeight: '800', color: colors.textPrimary }}>{t('adminAlert.listTitle')}</Text>
                 <Text style={{ fontSize: 11, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.6 }}>
                   {t('adminAlert.onlyAdmins')}
@@ -476,7 +476,7 @@ export function AdminScreen() {
                   accessibilityRole="button"
                   style={({ pressed }) => [{ marginTop: 10, alignSelf: 'flex-start', borderRadius: 10, paddingHorizontal: 11, paddingVertical: 7, backgroundColor: colors.accentSoft, opacity: pressed ? 0.8 : 1 }]}
                 >
-                  <Text style={{ color: colors.accent, fontWeight: '800', fontSize: 12.5 }}>
+                  <Text style={{ color: colors.accentInk, fontWeight: '800', fontSize: 12.5 }}>
                     {`${loginAlerts.unread} · ${t('adminAlert.markSeen')}`}
                   </Text>
                 </Pressable>
@@ -512,10 +512,10 @@ export function AdminScreen() {
           <>
             <GlassCard pad={16} radius={20}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Rocket size={16} color={colors.accent} />
+                <Rocket size={16} color={colors.accentInk} />
                 <Text style={{ flex: 1, fontSize: 15, fontWeight: '800', color: colors.textPrimary }}>{t('s.upBox')}</Text>
                 <View style={{ borderRadius: 999, backgroundColor: colors.accentSoft, paddingHorizontal: 9, paddingVertical: 3 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '800', color: colors.accent }}>{`v${APP_VERSION}`}</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: colors.accentInk }}>{`v${APP_VERSION}`}</Text>
                 </View>
               </View>
               <Text style={{ fontSize: 12.5, color: colors.textSecondary, marginTop: 4 }}>{t('s.upHint')}</Text>
@@ -568,7 +568,7 @@ export function AdminScreen() {
             {(updateNotices ?? []).map((u: any) => (
               <GlassCard key={u._id} pad={14} radius={18} style={{ marginTop: 10, opacity: u.active ? 1 : 0.6 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Rocket size={14} color={u.active ? colors.accent : colors.textSecondary} />
+                  <Rocket size={14} color={u.active ? colors.accentInk : colors.textSecondary} />
                   <Text style={{ flex: 1, fontSize: 14, fontWeight: '800', color: colors.textPrimary }}>
                     {`${u.title || t('s.upBox')} · v${u.version}`}
                   </Text>

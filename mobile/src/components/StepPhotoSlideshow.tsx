@@ -63,7 +63,7 @@ export function StepPhotoStrip({
   return (
     <Pressable onPress={() => onOpen(0)} style={[{ marginTop: 14, borderRadius: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder, padding: 12 }, style]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        <Camera size={14} color={colors.accent} />
+        <Camera size={14} color={colors.accentInk} />
         <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.textPrimary }}>{label} ({photos.length})</Text>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingTop: 10 }}>

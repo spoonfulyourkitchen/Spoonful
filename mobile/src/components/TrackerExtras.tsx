@@ -364,7 +364,7 @@ export function TrackerExtras({ onLocalLog, mode }: { onLocalLog?: (payload: any
           </Pressable>
         </View>
 
-        {searching ? <ActivityIndicator style={{ marginTop: 12 }} color={colors.accent} /> : null}
+        {searching ? <ActivityIndicator style={{ marginTop: 12 }} color={colors.accentInk} /> : null}
 
         {!searching && hits.length ? (
           <View style={{ marginTop: 12, gap: 8 }}>
@@ -382,7 +382,7 @@ export function TrackerExtras({ onLocalLog, mode }: { onLocalLog?: (payload: any
                   </Text>
                 </View>
                 <Pressable onPress={() => setPending(hit)} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: colors.accentSoft }}>
-                  <Text style={{ color: colors.accent, fontWeight: '800', fontSize: 12 }}>{t('x.logIt')}</Text>
+                  <Text style={{ color: colors.accentInk, fontWeight: '800', fontSize: 12 }}>{t('x.logIt')}</Text>
                 </Pressable>
               </View>
             ))}
@@ -473,8 +473,8 @@ export function TrackerExtras({ onLocalLog, mode }: { onLocalLog?: (payload: any
               <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textSecondary, paddingBottom: 10 }}>kg</Text>
               <View style={{ flex: 1 }} />
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingBottom: 11 }}>
-                {trend.delta <= 0 ? <TrendingDown size={16} color={colors.success} /> : <TrendingUp size={16} color={colors.accent} />}
-                <Text style={{ fontSize: 13, fontWeight: '800', color: trend.delta <= 0 ? colors.success : colors.accent }}>
+                {trend.delta <= 0 ? <TrendingDown size={16} color={colors.success} /> : <TrendingUp size={16} color={colors.accentInk} />}
+                <Text style={{ fontSize: 13, fontWeight: '800', color: trend.delta <= 0 ? colors.success : colors.accentInk }}>
                   {trend.delta > 0 ? '+' : ''}
                   {trend.delta} kg
                 </Text>
@@ -531,7 +531,7 @@ export function TrackerExtras({ onLocalLog, mode }: { onLocalLog?: (payload: any
         visible={!!popup}
         onClose={() => setPopup(null)}
         closeLabel={pick(lang, TRACKER_L10N.ok)}
-        icon={<ScanLine size={20} color={colors.accent} />}
+        icon={<ScanLine size={20} color={colors.accentInk} />}
         title={popup?.title ?? ''}
         body={popup?.body}
         actions={[{ label: pick(lang, TRACKER_L10N.ok), onPress: () => setPopup(null) }]}

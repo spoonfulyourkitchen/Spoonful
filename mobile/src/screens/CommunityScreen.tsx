@@ -276,7 +276,7 @@ export function CommunityScreen() {
 
       {community === undefined ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color={colors.accent} />
+          <ActivityIndicator size="large" color={colors.accentInk} />
         </View>
       ) : (
         <TutorialTarget id="tut-community-feed" style={{ flex: 1 }}>
@@ -318,7 +318,7 @@ export function CommunityScreen() {
               <Pressable style={{ flex: 1 }} onPress={() => setFiltersOpen(false)} />
               <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 28 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <SlidersHorizontal size={17} color={colors.accent} />
+                  <SlidersHorizontal size={17} color={colors.accentInk} />
                   <Text style={{ flex: 1, fontSize: 17, fontWeight: '800', color: colors.textPrimary }}>{t('s.commFilters')}</Text>
                   <Pressable onPress={() => setFiltersOpen(false)} hitSlop={10}>
                     <X size={19} color={colors.textSecondary} />
@@ -344,7 +344,7 @@ export function CommunityScreen() {
       </>}
           ListEmptyComponent={
             <EmptyState
-              icon={<UsersRound size={24} color={colors.accent} strokeWidth={2} />}
+              icon={<UsersRound size={24} color={colors.accentInk} strokeWidth={2} />}
               title={q || diff !== 'all' ? 'No matches' : t('community.emptyTitle')}
               body={q || diff !== 'all' ? 'Try a different search or difficulty.' : t('community.emptyShare')}
             />
@@ -438,7 +438,7 @@ function CommunityCard({ item, saved, liked, likesCount, commentCount, likeBusyI
             ) : null}
             {item.cuisine ? (
               <View style={{ borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: colors.accentSoft }}>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.accent }}>{formatCuisine(item.cuisine)}</Text>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.accentInk }}>{formatCuisine(item.cuisine)}</Text>
               </View>
             ) : null}
             {item.calories != null ? (
@@ -465,8 +465,8 @@ function CommunityCard({ item, saved, liked, likesCount, commentCount, likeBusyI
               hitSlop={6}
               style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4, backgroundColor: colors.surfaceMuted, opacity: pressed ? 0.7 : 1 }]}
             >
-              <MessageSquare size={13} color={colors.accent} />
-              <Text style={{ fontSize: 12, fontWeight: '800', color: colors.accent }}>{commentCount || 0}</Text>
+              <MessageSquare size={13} color={colors.accentInk} />
+              <Text style={{ fontSize: 12, fontWeight: '800', color: colors.accentInk }}>{commentCount || 0}</Text>
             </Pressable>
             <CommunityReportButton shareId={item._id} />
           </View>

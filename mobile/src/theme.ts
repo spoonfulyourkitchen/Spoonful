@@ -129,6 +129,24 @@ function foregroundOn(bg: string, preferred: string, min = MIN_BUTTON_CONTRAST):
   return contrastRatio(bg, out) >= min ? out : readableText(bg);
 }
 
+
+export function ensureContrast(color: string, bg: string | string[], min = MIN_BUTTON_CONTRAST): string {
+  const bgs = Array.isArray(bg) ? bg : [bg];
+  const pass = (c: string) => bgs.every((b) => contrastRatio(c, b) >= min);
+  if (pass(color)) return color;
+  const dir = luminance(bgs[0]) > 0.2 ? '#000000' : '#ffffff';
+  let out = color;
+  for (let step = 1; step <= 25 && !pass(out); step += 1) {
+    out = mix(color, dir, step * 0.04);
+  }
+  return pass(out) ? out : readableText(bgs[0]);
+}
+
+/** Gedämpfte Textfarbe auf einer Fläche, die trotzdem den Mindestkontrast hält. */
+export function mutedOn(bg: string, fg: string, keep = 0.75, min = MIN_BUTTON_CONTRAST): string {
+  return ensureContrast(mix(bg, fg, keep), bg, min);
+}
+
 export function themeById(id: string): ThemeDef {
   return themes.find((t) => t.id === id) || themes[0];
 }
@@ -142,6 +160,7 @@ export type Palette = {
   surfaceMuted: string;
   cardBorder: string;
   accent: string;
+  accentInk: string;
   accentStrong: string;
   accentText: string;
   accentSoft: string;
@@ -205,6 +224,7 @@ function computePalette(theme: ThemeDef): Palette {
   const accentTint = flattenOver(rgba(accentRgba, 0.16), theme.bodyBg);
   const accentTextSafe = readableText(theme.accent);
   const accentSurface = surfaceForContrast(theme.accent, accentTextSafe);
+  const textSecondarySafe = ensureContrast(theme.textSecondary, [card, theme.bodyBg, accentSoft, accentSofter]);
   const textRgba = parseColor(theme.textPrimary) || { r: 0, g: 0, b: 0, a: 1 };
   const strokeColor = flattenOver(rgba(textRgba, theme.dark ? 0.22 : 0.16), theme.bodyBg);
   const dark = theme.dark;
@@ -226,6 +246,7 @@ function computePalette(theme: ThemeDef): Palette {
     surfaceMuted: accentSofter,
     cardBorder: strokeColor,
     accent: accentSurface,
+    accentInk: ensureContrast(accentSurface, [card, accentSoft]),
     accentStrong: accentSurface,
     accentText: accentTextSafe,
     accentSoft,
@@ -238,8 +259,8 @@ function computePalette(theme: ThemeDef): Palette {
     brandOrange: '#E8722A',
     text: theme.textPrimary,
     textPrimary: theme.textPrimary,
-    textSecondary: theme.textSecondary,
-    textMuted: theme.textSecondary,
+    textSecondary: textSecondarySafe,
+    textMuted: textSecondarySafe,
     slate950: theme.textPrimary,
     slate900: theme.textPrimary,
     slate800: theme.textPrimary,

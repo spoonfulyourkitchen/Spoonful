@@ -70,7 +70,7 @@ export function ReviewGate() {
               >
                 <Star
                   size={32}
-                  color={stars >= n ? colors.accent : colors.cardBorder}
+                  color={stars >= n ? colors.accentInk : colors.cardBorder}
                   fill={stars >= n ? colors.accent : 'transparent'}
                   strokeWidth={1.6}
                 />

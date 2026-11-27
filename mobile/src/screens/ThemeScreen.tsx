@@ -28,11 +28,11 @@ export function ThemeScreen() {
 
         <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
           <View style={pillRow}>
-            <Sun size={15} color={colors.accent} />
+            <Sun size={15} color={colors.accentInk} />
             <Text style={{ fontSize: 13, color: colors.textPrimary }}>{themeUi(lang, 'light')}</Text>
           </View>
           <View style={pillRow}>
-            <Moon size={15} color={colors.accent} />
+            <Moon size={15} color={colors.accentInk} />
             <Text style={{ fontSize: 13, color: colors.textPrimary }}>{themeUi(lang, 'dark')}</Text>
           </View>
         </View>

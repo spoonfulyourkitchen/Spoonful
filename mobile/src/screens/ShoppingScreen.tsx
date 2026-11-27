@@ -192,7 +192,7 @@ export function ShoppingScreen() {
 
         {!synced ? (
           <View style={{ paddingVertical: 18, alignItems: 'center' }}>
-            <ActivityIndicator color={colors.accent} />
+            <ActivityIndicator color={colors.accentInk} />
           </View>
         ) : null}
 
@@ -202,7 +202,7 @@ export function ShoppingScreen() {
               <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.textSecondary }}>
                 {doneItems.length} / {total} {t('common.done')}
               </Text>
-              <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.accent }}>{pct}%</Text>
+              <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.accentInk }}>{pct}%</Text>
             </View>
             <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.surfaceMuted, overflow: 'hidden' }}>
               <View style={{ width: `${pct}%`, height: '100%', borderRadius: 3, backgroundColor: colors.accent }} />
@@ -212,8 +212,8 @@ export function ShoppingScreen() {
 
         {sharedCount ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 10, borderRadius: 12, backgroundColor: colors.accentSoft, paddingHorizontal: 12, paddingVertical: 9 }}>
-            <UsersRound size={14} color={colors.accent} />
-            <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.accent }}>{t('s.shopSharedToHh')}</Text>
+            <UsersRound size={14} color={colors.accentInk} />
+            <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.accentInk }}>{t('s.shopSharedToHh')}</Text>
           </View>
         ) : null}
 
@@ -255,7 +255,7 @@ export function ShoppingScreen() {
         </View>
 
         {synced && !items.length ? (
-          <EmptyState icon={<ShoppingCart size={22} color={colors.accent} />} title={t('shopping.emptyList')} body={t('s.shopEmptyBody')} />
+          <EmptyState icon={<ShoppingCart size={22} color={colors.accentInk} />} title={t('shopping.emptyList')} body={t('s.shopEmptyBody')} />
         ) : null}
 
         {groups.map((group) => (
@@ -265,7 +265,7 @@ export function ShoppingScreen() {
           >
             {group.title ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 6, paddingBottom: 2 }}>
-                <ShoppingCart size={12} color={colors.accent} />
+                <ShoppingCart size={12} color={colors.accentInk} />
                 <Text numberOfLines={1} style={{ flex: 1, fontSize: 11.5, fontWeight: '800', letterSpacing: 0.4, textTransform: 'uppercase', color: colors.textSecondary }}>
                   {group.title}
                 </Text>

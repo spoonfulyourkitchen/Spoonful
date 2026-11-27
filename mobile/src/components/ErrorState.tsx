@@ -41,7 +41,7 @@ export function ErrorState({
           marginBottom: 10,
         }}
       >
-        <WifiOff size={19} color={colors.accent} strokeWidth={2} />
+        <WifiOff size={19} color={colors.accentInk} strokeWidth={2} />
       </View>
       <Text style={{ fontFamily: fonts.display, fontSize: 17, fontWeight: '700', color: colors.textPrimary, textAlign: 'center' }}>
         {title ?? t('s.errTitle')}

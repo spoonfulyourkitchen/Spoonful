@@ -32,7 +32,7 @@ export function LanguagePicker({
         <View style={{ width: '100%', maxWidth: 420, maxHeight: '86%', borderRadius: 22, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 18 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <View style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accentSoft }}>
-              <Globe size={19} color={colors.accent} />
+              <Globe size={19} color={colors.accentInk} />
             </View>
             <Text style={{ flex: 1, fontFamily: fonts.display, fontSize: 18, fontWeight: '800', color: colors.textPrimary }}>
               {t('langue.title')}
@@ -44,7 +44,7 @@ export function LanguagePicker({
 
           {hintBody ? (
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 12, borderRadius: 14, backgroundColor: colors.surfaceMuted, padding: 12 }}>
-              <TriangleAlert size={15} color={colors.accent} />
+              <TriangleAlert size={15} color={colors.accentInk} />
               <Text style={{ flex: 1, fontSize: 12.5, lineHeight: 18, color: colors.textSecondary }}>{hintBody}</Text>
             </View>
           ) : null}
@@ -69,14 +69,14 @@ export function LanguagePicker({
                     ]}
                   >
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14.5, fontWeight: active ? '800' : '600', color: active ? colors.accent : colors.textPrimary }}>
+                      <Text style={{ fontSize: 14.5, fontWeight: active ? '800' : '600', color: active ? colors.accentInk : colors.textPrimary }}>
                         {l.native}
                       </Text>
                       <Text style={{ fontSize: 11.5, color: colors.textSecondary, marginTop: 2 }}>
                         {l.name}{isRtlLanguage(l.code) ? ' · RTL' : ''}
                       </Text>
                     </View>
-                    {active ? <Check size={16} color={colors.accent} strokeWidth={3} /> : null}
+                    {active ? <Check size={16} color={colors.accentInk} strokeWidth={3} /> : null}
                   </Pressable>
                 );
               })}

@@ -30,7 +30,7 @@ import {
 import { useMutation } from '../lib/convex-auth';
 import { api } from '../lib/api';
 import { addPendingOp, useConnectivity } from '../lib/offline';
-import { colors, fonts, rgbaHelper } from '../theme';
+import { colors, fonts, rgbaHelper, mutedOn } from '../theme';
 import { goBack } from '../navigation/rootRef';
 import { AppButton } from '../components/ui';
 import { useTranslation } from '../lib/i18n';
@@ -593,7 +593,7 @@ export function CookingScreen({ route }: any) {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Text
             numberOfLines={1}
-            style={{ flex: 1, fontSize: 11, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase', color: rgbaHelper(colors.darkButtonText, 0.62) }}
+            style={{ flex: 1, fontSize: 11, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase', color: mutedOn(colors.darkButton, colors.darkButtonText, 0.85) }}
           >
             {t('s.cookHeader')}
           </Text>
@@ -622,7 +622,7 @@ export function CookingScreen({ route }: any) {
                 {String(index + 1).padStart(2, '0')}
               </Text>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 11.5, fontWeight: '700', color: rgbaHelper(colors.darkButtonText, 0.72) }}>
+                <Text style={{ fontSize: 11.5, fontWeight: '700', color: mutedOn(colors.darkButton, colors.darkButtonText, 0.85) }}>
                   {t('s.cookStepOf', { n: index + 1, total })}
                 </Text>
                 <View style={{ height: 5, borderRadius: 3, backgroundColor: rgbaHelper(colors.darkButtonText, 0.26), marginTop: 5, overflow: 'hidden' }}>
@@ -782,7 +782,7 @@ export function CookingScreen({ route }: any) {
             <Text style={{ marginTop: 6, fontSize: 13, color: colors.textSecondary }}>{total} {t('cooking.step')} · ~{totalTime || '?'} min</Text>
 
             <View style={{ marginTop: 10, borderRadius: 22, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 18 }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: colors.accent, marginBottom: 4 }}>{t('s.cookGetReady')}</Text>
+              <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: colors.accentInk, marginBottom: 4 }}>{t('s.cookGetReady')}</Text>
               <Text style={{ fontFamily: fonts.display, fontSize: 24, fontWeight: '800', color: colors.textPrimary, marginBottom: 6 }}>{t('s.cookReadyToCook')}</Text>
               <Text style={{ fontSize: 13.5, lineHeight: 20, color: colors.textSecondary }}>
                 Start by scaling the recipe, then tick off every ingredient you have ready. The coach guides you through each step as you go.
@@ -846,10 +846,10 @@ export function CookingScreen({ route }: any) {
             <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: 'center', marginTop: 8, lineHeight: 22 }}>{t('s.xReadyToServe', { title })}</Text>
             {hasNutrition ? (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 20, alignSelf: 'stretch' }}>
-                {scaledNutrition.calories !== null ? <NutChip label="kcal" value={String(scaledNutrition.calories)} /> : null}
+                {scaledNutrition.calories !== null ? <NutChip label={t('common.kcal')} value={String(scaledNutrition.calories)} /> : null}
                 {scaledNutrition.protein !== null ? <NutChip label={t('common.protein')} value={`${scaledNutrition.protein}g`} /> : null}
                 {scaledNutrition.carbs !== null ? <NutChip label={t('common.carbs')} value={`${scaledNutrition.carbs}g`} /> : null}
-                {scaledNutrition.fat !== null ? <NutChip label="fat" value={`${scaledNutrition.fat}g`} /> : null}
+                {scaledNutrition.fat !== null ? <NutChip label={t('common.fat')} value={`${scaledNutrition.fat}g`} /> : null}
               </View>
             ) : null}
 
@@ -874,7 +874,7 @@ export function CookingScreen({ route }: any) {
 
             {guideText && guideText.coach ? (
               <View style={{ marginTop: 14, borderRadius: 16, backgroundColor: colors.accentSoft, paddingHorizontal: 14, paddingVertical: 11 }}>
-                <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', color: colors.accent }}>
+                <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', color: colors.accentInk }}>
                   {t('s.cookGuideCoach')}
                 </Text>
                 <Text style={{ fontSize: 13, lineHeight: 18.5, color: colors.textPrimary, marginTop: 3 }}>
@@ -1057,7 +1057,7 @@ export function CookingScreen({ route }: any) {
         <View {...popupPan.panHandlers} style={{ flex: 1, backgroundColor: colors.overlayStrong, padding: 16, justifyContent: 'center' }}>
           <View style={{ borderRadius: 24, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, padding: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={{ flex: 1, fontSize: 12, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', color: colors.accent }}>
+              <Text style={{ flex: 1, fontSize: 12, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', color: colors.accentInk }}>
                 {t('cooking.step')} {index + 1} {t('cooking.of')} {total}
               </Text>
               <Pressable onPress={() => { void stopReadAloud(); setPopupOpen(false); }} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('common.close')}>
@@ -1077,8 +1077,8 @@ export function CookingScreen({ route }: any) {
                   accessibilityLabel={speaking ? t('s.cookListenStop') : t('s.cookListen')}
                   style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, borderWidth: 1, borderColor: speaking ? colors.accent : colors.cardBorder, backgroundColor: speaking ? colors.accentSoft : colors.surfaceMuted, paddingHorizontal: 12, paddingVertical: 8, opacity: pressed ? 0.8 : 1 }]}
                 >
-                  {speaking ? <Square size={13} color={colors.accent} /> : <Volume2 size={14} color={colors.accent} />}
-                  <Text style={{ fontSize: 12, fontWeight: '800', color: colors.accent }}>{speaking ? t('s.cookListenStop') : t('s.cookListen')}</Text>
+                  {speaking ? <Square size={13} color={colors.accentInk} /> : <Volume2 size={14} color={colors.accentInk} />}
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: colors.accentInk }}>{speaking ? t('s.cookListenStop') : t('s.cookListen')}</Text>
                 </Pressable>
               ) : null}
             </View>

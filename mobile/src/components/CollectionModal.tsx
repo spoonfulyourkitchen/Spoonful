@@ -201,7 +201,7 @@ export function CollectionModal({
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.cardBorder }}
                   >
                     <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-                      <FolderPlus size={17} color={colors.accent} />
+                      <FolderPlus size={17} color={colors.accentInk} />
                     </View>
                     <Text numberOfLines={1} style={{ flex: 1, color: colors.textPrimary, fontSize: 14, fontWeight: '700' }}>{item.name}</Text>
                     <Pencil size={14} color={colors.textSecondary} />
@@ -213,9 +213,9 @@ export function CollectionModal({
               ) : null}
               <Pressable onPress={() => setCreating(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 }}>
                 <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-                  <Plus size={18} color={colors.accent} />
+                  <Plus size={18} color={colors.accentInk} />
                 </View>
-                <Text style={{ color: colors.accent, fontSize: 14, fontWeight: '800' }}>{t('s.collectionNew')}</Text>
+                <Text style={{ color: colors.accentInk, fontSize: 14, fontWeight: '800' }}>{t('s.collectionNew')}</Text>
               </Pressable>
               {mode === 'manage' ? <AppButton label={t('common.close')} variant="dark" onPress={close} style={{ marginTop: 6 }} /> : null}
             </>

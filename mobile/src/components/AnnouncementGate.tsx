@@ -48,7 +48,7 @@ export function AnnouncementGate() {
       <View style={{ flex: 1, backgroundColor: colors.overlayStrong, justifyContent: 'center', paddingHorizontal: 22 }}>
         <View style={{ borderRadius: 22, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder, padding: 20 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Megaphone size={18} color={colors.accent} />
+            <Megaphone size={18} color={colors.accentInk} />
             <Text style={{ flex: 1, fontFamily: fonts.display, fontSize: 18, fontWeight: '800', color: colors.textPrimary }}>
               {latest.title}
             </Text>

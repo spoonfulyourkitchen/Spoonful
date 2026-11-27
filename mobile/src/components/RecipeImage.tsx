@@ -44,7 +44,7 @@ export function RecipeImage({
               <Ellipse cx="60" cy="62" rx="26" ry="14" fill={colors.accentSoft} />
               <Path
                 d="M60 60 q-26 -18 -4 -26 q22 -8 8 24 M60 60 q26 -18 4 -26 q-22 -8 -8 24"
-                stroke={colors.accent}
+                stroke={colors.accentInk}
                 strokeWidth="3"
                 strokeLinecap="round"
                 fill="none"

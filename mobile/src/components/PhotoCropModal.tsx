@@ -250,8 +250,8 @@ export function PhotoCropHost() {
               accessibilityLabel={t('s.cropPart')}
               style={chip(!whole)}
             >
-              <Crop size={14} color={!whole ? colors.accent : colors.textSecondary} />
-              <Text style={{ fontSize: 12.5, fontWeight: '800', color: !whole ? colors.accent : colors.textSecondary }}>
+              <Crop size={14} color={!whole ? colors.accentInk : colors.textSecondary} />
+              <Text style={{ fontSize: 12.5, fontWeight: '800', color: !whole ? colors.accentInk : colors.textSecondary }}>
                 {t('s.cropPart')}
               </Text>
             </Pressable>
@@ -261,8 +261,8 @@ export function PhotoCropHost() {
               accessibilityLabel={t('s.cropWhole')}
               style={chip(whole)}
             >
-              <Maximize2 size={14} color={whole ? colors.accent : colors.textSecondary} />
-              <Text style={{ fontSize: 12.5, fontWeight: '800', color: whole ? colors.accent : colors.textSecondary }}>
+              <Maximize2 size={14} color={whole ? colors.accentInk : colors.textSecondary} />
+              <Text style={{ fontSize: 12.5, fontWeight: '800', color: whole ? colors.accentInk : colors.textSecondary }}>
                 {t('s.cropWhole')}
               </Text>
             </Pressable>

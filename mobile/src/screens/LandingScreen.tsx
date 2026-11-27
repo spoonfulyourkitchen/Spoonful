@@ -285,7 +285,7 @@ export function LandingScreen() {
         <View style={{ gap: 12, marginTop: 4 }}>
           {[t('ob.autosave'), t('ob.bodyNote'), t('onb.privacy')].map((line) => (
             <View key={line} style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
-              <View style={welcomeDot}><Check size={13} color={colors.accent} strokeWidth={3} /></View>
+              <View style={welcomeDot}><Check size={13} color={colors.accentInk} strokeWidth={3} /></View>
               <Text style={{ flex: 1, fontSize: 14.5, lineHeight: 21, color: colors.textSecondary }}>{line}</Text>
             </View>
           ))}
@@ -458,7 +458,7 @@ export function LandingScreen() {
             ))}
           </View>
           <View style={planCard}>
-            <Text style={{ fontSize: 11.5, fontWeight: '800', letterSpacing: 0.9, textTransform: 'uppercase', color: colors.accent }}>{t('ob.planTitle')}</Text>
+            <Text style={{ fontSize: 11.5, fontWeight: '800', letterSpacing: 0.9, textTransform: 'uppercase', color: colors.accentInk }}>{t('ob.planTitle')}</Text>
             <Text style={{ fontSize: 30, fontWeight: '800', letterSpacing: -0.6, color: colors.textPrimary, marginTop: 6 }}>{t('ob.kcalDay', { n: targets.budget })}</Text>
             <Text style={{ fontSize: 13, lineHeight: 19, color: colors.textSecondary, marginTop: 4 }}>
               {t('ob.waterDay', { n: water })}
@@ -484,7 +484,7 @@ export function LandingScreen() {
               {t('ob.progress', { n: index + 1, total })}
             </Text>
             <Pressable onPress={() => void finish(false)} hitSlop={12} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center', paddingLeft: 8 }}>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.accent }}>{t('onb.skip')}</Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.accentInk }}>{t('onb.skip')}</Text>
             </Pressable>
           </View>
 
@@ -652,7 +652,7 @@ function Option({
           justifyContent: 'center',
         }}
       >
-        {active ? <Check size={13} color={readableText(colors.accent)} strokeWidth={3} /> : null}
+        {active ? <Check size={13} color={readableText(colors.accentInk)} strokeWidth={3} /> : null}
       </View>
     </Pressable>
   );
@@ -683,7 +683,7 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
         style={{
           fontSize: 13.5,
           fontWeight: active ? '800' : '600',
-          color: active ? colors.accent : colors.textPrimary,
+          color: active ? colors.accentInk : colors.textPrimary,
         }}
       >
         {label}
