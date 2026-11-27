@@ -14,7 +14,7 @@ import { CroppedImage } from '../components/CroppedImage';
 import { notifyRecipeAdded } from '../lib/notifications';
 import { pickFromGallery, takePhoto, uploadPhotoToServer } from '../lib/photo';
 import { copyCrop, editPhotoCrop } from '../lib/photo-crop';
-import { addPendingOp } from '../lib/offline';
+import { addPendingOp, applyCachedList } from '../lib/offline';
 import { useTranslation } from '../lib/i18n';
 import { clearDraft, loadDraft, saveDraft } from '../lib/draft';
 
@@ -169,7 +169,7 @@ export function RecipeFormScreen({ route }: any) {
     setDraftRestored(false);
   };
 
-  const save = async () => {
+  const save = () => {
     setError(null);
     if (!title.trim()) { setError(t('s.formErrTitle')); return; }
     const ingredients = linesOf(ingredientsText);
@@ -188,44 +188,69 @@ export function RecipeFormScreen({ route }: any) {
       tips: Array.isArray(editing?.tips) ? editing.tips : [],
       note: editing?.note,
     };
-    setBusy(true);
-    try {
-      let savedRecipeId: string | undefined;
-      if (savedId) {
-        savedRecipeId = savedId;
-        await updateSaved({ id: savedId, ...payload });
-      } else if (editing?.id || editing?._id) {
-        savedRecipeId = editing._id ?? editing.id;
-        await updateRecipe({ id: savedRecipeId, ...payload });
-      } else {
-        const created: any = await createRecipe(payload as any);
-        savedRecipeId = created?._id ?? created?.id;
-        void notifyRecipeAdded(title.trim());
-      }
-      
+    const editingId = savedId ?? editing?._id ?? editing?.id;
+    const listKey = savedId ? 'saved' : 'mine';
+    const tempId = editingId ?? `tmp-${Date.now()}`;
+    const optimistic = { ...(editing ?? {}), ...payload, _id: tempId, id: tempId };
 
-      if (pendingPhoto && savedRecipeId) {
-        try {
-          const remote = await uploadPhotoToServer(pendingPhoto.base64, pendingPhoto.mime);
-          if (remote) {
-            if (savedId) await updateSaved({ id: savedId, imageUrl: remote });
-            else await updateRecipe({ id: savedRecipeId, imageUrl: remote });
-            if (localPhoto) await copyCrop(localPhoto, remote);
-          } else {
+    // The list shows the new or edited recipe at once; the server runs afterwards.
+    applyCachedList<any>(listKey, (prev) =>
+      editingId
+        ? prev.map((r) => (String(r?._id ?? r?.id ?? '') === String(editingId) ? { ...r, ...optimistic } : r))
+        : [optimistic, ...prev.filter((r) => String(r?._id ?? r?.id ?? '') !== String(tempId))],
+    );
+    savedRef.current = true;
+    void clearDraft(draftKey);
+    setDraftRestored(false);
+    goBack();
+
+    void (async () => {
+      try {
+        let savedRecipeId: string | undefined;
+        if (savedId) {
+          savedRecipeId = savedId;
+          await updateSaved({ id: savedId, ...payload });
+        } else if (editingId) {
+          savedRecipeId = editingId;
+          await updateRecipe({ id: editingId, ...payload });
+        } else {
+          const created: any = await createRecipe(payload as any);
+          savedRecipeId = created?._id ?? created?.id;
+          if (created) {
+            applyCachedList<any>('mine', (prev) =>
+              prev.map((r) => (String(r?._id ?? r?.id ?? '') === String(tempId) ? { ...created } : r)),
+            );
+          }
+          void notifyRecipeAdded(title.trim());
+        }
+
+        if (pendingPhoto && savedRecipeId) {
+          try {
+            const remote = await uploadPhotoToServer(pendingPhoto.base64, pendingPhoto.mime);
+            if (remote) {
+              if (savedId) await updateSaved({ id: savedId, imageUrl: remote });
+              else await updateRecipe({ id: savedRecipeId, imageUrl: remote });
+              if (localPhoto) await copyCrop(localPhoto, remote);
+            } else {
+              await addPendingOp('photo.upload', { recipeId: savedRecipeId, base64: pendingPhoto.base64, mime: pendingPhoto.mime });
+            }
+          } catch {
             await addPendingOp('photo.upload', { recipeId: savedRecipeId, base64: pendingPhoto.base64, mime: pendingPhoto.mime });
           }
-        } catch {
-          await addPendingOp('photo.upload', { recipeId: savedRecipeId, base64: pendingPhoto.base64, mime: pendingPhoto.mime });
         }
+      } catch (e) {
+        // Roll the optimistic change back, the recipe really is not saved.
+        applyCachedList<any>(listKey, (prev) =>
+          editingId
+            ? prev.map((r) => (String(r?._id ?? r?.id ?? '') === String(editingId) ? { ...(editing ?? {}) } : r))
+            : prev.filter((r) => String(r?._id ?? r?.id ?? '') !== String(tempId)),
+        );
+        Alert.alert(
+          t('s.saveFailed'),
+          e instanceof Error ? e.message : lang === 'de' ? 'Bitte versuch es noch einmal.' : 'Please try again.',
+        );
       }
-      savedRef.current = true;
-      void clearDraft(draftKey);
-      setDraftRestored(false);
-      goBack();
-    } catch {
-      setError(t('s.saveFailed'));
-      setBusy(false);
-    }
+    })();
   };
 
   const runEstimate = async () => {

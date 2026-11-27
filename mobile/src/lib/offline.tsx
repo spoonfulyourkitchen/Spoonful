@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useSyncExternalStore } from 'react';
 import { Alert, AppState, Text } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -358,7 +358,13 @@ export async function hydrateOfflineCaches(keys: string[]) {
     keys.map(async (key) => {
       try {
         const raw = await AsyncStorage.getItem(CACHE_PREFIX + key);
-        if (raw) memCache.set(key, JSON.parse(raw));
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          memCache.set(key, parsed);
+          const entry = listEntry(key);
+          entry.value = parsed;
+          entry.listeners.forEach((listener) => listener());
+        }
       } catch {  }
     }),
   );
@@ -371,26 +377,57 @@ export async function hydrateOfflineCaches(keys: string[]) {
   } catch {  }
 }
 
+type ListEntry = { value: unknown[] | undefined; listeners: Set<() => void> };
+const listStore = new Map<string, ListEntry>();
+
+function listEntry(key: string): ListEntry {
+  let entry = listStore.get(key);
+  if (!entry) {
+    entry = { value: cacheRead<unknown[]>(key), listeners: new Set() };
+    listStore.set(key, entry);
+  }
+  return entry;
+}
+
+function emitList(key: string) {
+  listEntry(key).listeners.forEach((listener) => listener());
+}
+
+/** Writes a list locally and updates every mounted screen at once. */
+export function setCachedList<T>(key: string, next: T[]) {
+  listEntry(key).value = next;
+  void cacheWrite(key, next);
+  emitList(key);
+}
+
+/**
+ * Changes a list immediately, before the server answers. The screens that show
+ * the same list (kitchen, dashboard counters, library) all update in this frame.
+ */
+export function applyCachedList<T>(key: string, updater: (prev: T[]) => T[]) {
+  setCachedList<T>(key, updater((listEntry(key).value ?? []) as T[]));
+}
+
 export function useCachedList<T>(key: string, live: T[] | undefined) {
   const conn = useConnectivity();
-  const [cached, setCached] = useState<T[] | undefined>(cacheRead<T[]>(key));
+  const entry = listEntry(key);
+  const cached = useSyncExternalStore(
+    (notify) => {
+      entry.listeners.add(notify);
+      return () => entry.listeners.delete(notify);
+    },
+    () => entry.value as T[] | undefined,
+    () => entry.value as T[] | undefined,
+  );
 
   useEffect(() => {
-    if (conn !== 'offline' && Array.isArray(live)) {
-      setCached(live);
-      void cacheWrite(key, live);
-    }
+    if (conn === 'offline' || !Array.isArray(live)) return;
+    setCachedList<T>(key, live);
   }, [key, live, conn]);
 
-  const apply = (updater: (prev: T[]) => T[]) => {
-    setCached((prev) => {
-      const next = updater(prev ?? ([] as unknown as T[]));
-      void cacheWrite(key, next);
-      return next;
-    });
-  };
+  const apply = (updater: (prev: T[]) => T[]) => applyCachedList<T>(key, updater);
 
-  return { data: conn === 'offline' ? cached : live ?? cached, offline: conn === 'offline', apply };
+  return { data: cached ?? live, offline: conn === 'offline', apply };
 }
 
 export function useOfflineGuard() {

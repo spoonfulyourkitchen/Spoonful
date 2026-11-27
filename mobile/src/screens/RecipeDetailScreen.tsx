@@ -27,7 +27,7 @@ import { StepPhotoSlideshow, StepPhotoStrip, useStepPhotos } from '../components
 import { ReportPhotoButton } from '../components/ReportPhotoButton';
 import { CollectionModal } from '../components/CollectionModal';
 import { useTranslation } from '../lib/i18n';
-import { addPendingOp, getConnNow } from '../lib/offline';
+import { addPendingOp, applyCachedList, getConnNow } from '../lib/offline';
 import { LibraryRecipe, difficultyLabel, formatCuisine, recipeLines, totalMinutes } from '../lib/recipe';
 import { getRecipeTranslation, rememberRecipeTranslation } from '../lib/recipe-translation-cache';
 import { getRememberedRecipe, rememberRecipe } from '../lib/recipe-store';
@@ -199,6 +199,9 @@ export function RecipeDetailScreen({ route }: any) {
     setSaveOptimistic(next);
     if (!next) {
       flash(t('s.savedRemoved'));
+      if (savedDoc) {
+        applyCachedList<any>('saved', (prev) => prev.filter((s) => s._id !== savedDoc._id));
+      }
       try {
         if (!savedDoc) return;
         if (getConnNow() === 'offline') {
@@ -208,6 +211,11 @@ export function RecipeDetailScreen({ route }: any) {
         await removeSaved({ id: savedDoc._id });
       } catch (e) {
         setSaveOptimistic(null);
+        if (savedDoc) {
+          applyCachedList<any>('saved', (prev) =>
+            prev.some((s) => s._id === savedDoc._id) ? prev : [savedDoc, ...prev],
+          );
+        }
         Alert.alert(t('s.xCouldNotUpdate'), e instanceof Error ? e.message : t('common.tryAgain'));
       }
       return;
@@ -233,11 +241,14 @@ export function RecipeDetailScreen({ route }: any) {
       note: (recipe as any).note,
       collectionIds: collectionId ? [collectionId] : [],
     };
+    const tempSaved = { _id: `tmp-save-${Date.now()}`, ...payload };
+    applyCachedList<any>('saved', (prev) => [tempSaved, ...prev]);
     try {
       if (getConnNow() === 'offline') await addPendingOp('saved.save', payload);
       else await saveRecipe(payload);
       flash(t('s.savedToCollection'));
     } catch (e) {
+      applyCachedList<any>('saved', (prev) => prev.filter((s) => s._id !== tempSaved._id));
       setSaveOptimistic(null);
       Alert.alert(t('s.xCouldNotUpdate'), e instanceof Error ? e.message : t('common.tryAgain'));
     }
@@ -264,6 +275,16 @@ export function RecipeDetailScreen({ route }: any) {
   const confirmLog = async () => {
     if (!recipe || logBusy) return;
     const portions = Math.max(1, Math.min(12, logPortions));
+    const tempEntry = {
+      _id: `tmp-log-${Date.now()}`,
+      title: portions > 1 ? `${recipe.title} x${portions}` : recipe.title,
+      calories: Math.round((recipe.calories ?? 0) * portions),
+      protein: Math.round((recipe.protein ?? 0) * portions),
+      carbs: Math.round((recipe.carbs ?? 0) * portions),
+      fat: Math.round((recipe.fat ?? 0) * portions),
+      eatenAt: Date.now(),
+    };
+    applyCachedList<any>('tracker', (prev) => [tempEntry, ...prev]);
     setLogBusy(true);
     try {
       await logMeal({
@@ -306,10 +327,27 @@ export function RecipeDetailScreen({ route }: any) {
         text: t('recipe.deleteRecipe'),
         style: 'destructive',
         onPress: () => {
-          try {
-            removeRecipe({ id: recipeId });
-            goBack();
-          } catch {  }
+          // The recipe disappears right away; the server call runs in the background.
+          applyCachedList<any>('mine', (prev) =>
+            prev.filter((r) => String(r?._id ?? r?.id ?? '') !== String(recipeId)),
+          );
+          goBack();
+          void (async () => {
+            try {
+              if (getConnNow() === 'offline') {
+                await addPendingOp('recipe.remove', { id: recipeId });
+                return;
+              }
+              await removeRecipe({ id: recipeId });
+            } catch (e) {
+              applyCachedList<any>('mine', (prev) =>
+                prev.some((r) => String(r?._id ?? r?.id ?? '') === String(recipeId))
+                  ? prev
+                  : [{ ...(recipe as any), _id: recipeId }, ...prev],
+              );
+              Alert.alert(t('s.xCouldNotUpdate'), e instanceof Error ? e.message : t('common.tryAgain'));
+            }
+          })();
         },
       },
     ]);
