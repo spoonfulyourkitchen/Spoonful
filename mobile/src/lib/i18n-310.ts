@@ -23,7 +23,7 @@ export const APP_310: Record<string, Record<string, any>> = {
       cropTitle: 'Bild-Ausschnitt', cropHint: 'Ziehen, um die sichtbare Stelle zu wählen', cropReset: 'Zurücksetzen',
       cropCancel: 'Abbrechen', cropApply: 'Übernehmen',
       cropPart: 'Ausschnitt', cropWhole: 'Ganzes Bild', cropEdit: 'Ausschnitt ändern', cropLongPress: 'Lange drücken zum Bearbeiten oder Löschen',
-      advSection: 'Kochmodus', advTitle: 'Cooking Mode Advanced',
+      advSection: 'Kochmodus', advTitle: 'Erweiterter Kochmodus',
       advDesc: 'An: alle neuen Funktionen (Schritte, Notizen, Fotos, Zweitgericht, Haushalt). Aus: klassischer Kochmodus.',
       cookAgain: 'Nochmal kochen', cookFinishBtn: 'Fertig',
       slideTitle: 'Deine Schritt-Fotos', slideOfStep: 'Schritt {n}', slideOf: '{n} von {m}',
