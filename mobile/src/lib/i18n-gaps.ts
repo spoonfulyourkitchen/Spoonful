@@ -12,6 +12,7 @@ const de: Gap = {
     notifAdminDesc: 'Nur für Admins: Benachrichtigung, wenn sich jemand registriert oder anmeldet.',
   },
   s: {
+    authMagic: 'Code per E-Mail',
     xFeedbackSend: 'Feedback senden',
     imageUnavailable: 'Kein lizenzfreies Foto',
     hhLeaveNote:
@@ -38,6 +39,7 @@ const ar: Gap = {
     notifAdminDesc: 'للمشرفين فقط: إشعار عند إنشاء حساب أو تسجيل الدخول.',
   },
   s: {
+    authMagic: 'رمز عبر البريد',
     xFeedbackSend: 'إرسال الملاحظات',
     imageUnavailable: 'لا توجد صورة مجانية',
     hhLeaveNote: 'عند المغادرة تُحذف مساهماتك من المنزل. وإن لم يبقَ أحد يُحذف المنزل وكل بياناته.',
@@ -63,6 +65,7 @@ const fr: Gap = {
     notifAdminDesc: 'Réservé aux admins : notification quand quelqu’un crée un compte ou se connecte.',
   },
   s: {
+    authMagic: 'Code par e-mail',
     xFeedbackSend: 'Envoyer un avis',
     imageUnavailable: 'Pas de photo libre de droits',
     hhLeaveNote:
@@ -89,6 +92,7 @@ const es: Gap = {
     notifAdminDesc: 'Solo administradores: aviso cuando alguien crea una cuenta o inicia sesión.',
   },
   s: {
+    authMagic: 'Código por correo',
     xFeedbackSend: 'Enviar comentarios',
     imageUnavailable: 'Sin foto libre de derechos',
     hhLeaveNote: 'Al salir, tus aportes se eliminan del hogar. Si no queda nadie, se borra el hogar y todos sus datos.',
@@ -114,6 +118,7 @@ const it: Gap = {
     notifAdminDesc: 'Solo admin: notifica quando qualcuno crea un account o accede.',
   },
   s: {
+    authMagic: 'Codice via email',
     xFeedbackSend: 'Invia feedback',
     imageUnavailable: 'Nessuna foto libera',
     hhLeaveNote:
@@ -140,6 +145,7 @@ const tr: Gap = {
     notifAdminDesc: 'Yalnızca yöneticiler: biri hesap oluşturduğunda veya giriş yaptığında bildirim.',
   },
   s: {
+    authMagic: 'E-posta kodu',
     xFeedbackSend: 'Geri bildirim gönder',
     imageUnavailable: 'Lisanssız fotoğraf yok',
     hhLeaveNote: 'Ayrıldığında katkıların evden kaldırılır. Kimse kalmazsa ev ve tüm verileri silinir.',
@@ -165,6 +171,7 @@ const pt: Gap = {
     notifAdminDesc: 'Só administradores: aviso quando alguém cria conta ou inicia sessão.',
   },
   s: {
+    authMagic: 'Código por e-mail',
     xFeedbackSend: 'Enviar feedback',
     imageUnavailable: 'Sem foto livre de direitos',
     hhLeaveNote:
@@ -191,6 +198,7 @@ const nl: Gap = {
     notifAdminDesc: 'Alleen beheerders: melding wanneer iemand een account maakt of inlogt.',
   },
   s: {
+    authMagic: 'Code per e-mail',
     xFeedbackSend: 'Feedback sturen',
     imageUnavailable: 'Geen rechtenvrije foto',
     hhLeaveNote:
@@ -217,6 +225,7 @@ const ru: Gap = {
     notifAdminDesc: 'Только для админов: уведомление, когда кто-то создаёт аккаунт или входит.',
   },
   s: {
+    authMagic: 'Код по почте',
     xFeedbackSend: 'Отправить отзыв',
     imageUnavailable: 'Нет свободного фото',
     hhLeaveNote: 'При выходе ваши записи удаляются из дома. Если никого не останется, дом и все его данные удаляются.',
@@ -242,6 +251,7 @@ const uk: Gap = {
     notifAdminDesc: 'Лише для адмінів: сповіщення, коли хтось створює акаунт або входить.',
   },
   s: {
+    authMagic: 'Код поштою',
     xFeedbackSend: 'Надіслати відгук',
     imageUnavailable: 'Немає вільного фото',
     hhLeaveNote: 'Після виходу ваші записи видаляються з дому. Якщо нікого не залишиться, дім і всі його дані видаляються.',
@@ -267,6 +277,7 @@ const zh: Gap = {
     notifAdminDesc: '仅管理员：有人注册或登录时通知你。',
   },
   s: {
+    authMagic: '邮件验证码',
     xFeedbackSend: '发送反馈',
     imageUnavailable: '没有免费授权照片',
     hhLeaveNote: '退出后你的内容会从家庭中移除。如果没有人留下，家庭及其所有数据都会被删除。',
@@ -292,6 +303,7 @@ const ja: Gap = {
     notifAdminDesc: '管理者のみ：誰かが登録またはログインしたときに通知します。',
   },
   s: {
+    authMagic: 'メールのコード',
     xFeedbackSend: 'フィードバックを送る',
     imageUnavailable: 'フリー素材の写真がありません',
     hhLeaveNote: '退出するとあなたの投稿は世帯から削除されます。誰も残らない場合、世帯とすべてのデータが削除されます。',
@@ -317,6 +329,7 @@ const ko: Gap = {
     notifAdminDesc: '관리자 전용: 누군가 가입하거나 로그인하면 알림을 받습니다.',
   },
   s: {
+    authMagic: '이메일 코드',
     xFeedbackSend: '피드백 보내기',
     imageUnavailable: '무료 라이선스 사진 없음',
     hhLeaveNote: '나가면 내 기여가 가구에서 삭제됩니다. 아무도 남지 않으면 가구와 모든 데이터가 삭제됩니다.',
@@ -342,6 +355,7 @@ const hi: Gap = {
     notifAdminDesc: 'केवल एडमिन: जब कोई खाता बनाए या साइन इन करे तो सूचना।',
   },
   s: {
+    authMagic: 'ईमेल कोड',
     xFeedbackSend: 'फ़ीडबैक भेजें',
     imageUnavailable: 'कोई मुफ़्त फ़ोटो नहीं',
     hhLeaveNote: 'छोड़ने पर आपके योगदान घर से हट जाते हैं। अगर कोई न बचे तो घर और उसका सारा डेटा हटा दिया जाता है।',
@@ -367,6 +381,7 @@ const pl: Gap = {
     notifAdminDesc: 'Tylko administratorzy: powiadomienie, gdy ktoś utworzy konto lub się zaloguje.',
   },
   s: {
+    authMagic: 'Kod e-mailem',
     xFeedbackSend: 'Wyślij opinię',
     imageUnavailable: 'Brak darmowego zdjęcia',
     hhLeaveNote:

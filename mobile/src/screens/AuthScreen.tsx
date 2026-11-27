@@ -88,15 +88,15 @@ export function AuthScreen() {
     if (resendBusy) return;
     const address = email.trim();
     if (!address.includes('@')) {
-      setResendNote('Please enter your email address first.');
+      setResendNote(translate('ax.enterEmailFirst'));
       return;
     }
     setResendBusy(true);
     const res = await sendConfirmationEmail(address);
-    if (res.ok) setResendNote('Sent - please check your inbox (and spam).');
-    else if (res.reason === 'mail_failed') setResendNote('The mail service is having trouble - please try again in a few minutes.');
-    else if (res.reason === 'throttled') setResendNote('Please wait a moment before trying again.');
-    else setResendNote(res.message ?? 'Could not send the email.');
+    if (res.ok) setResendNote(translate('ax.resendSent'));
+    else if (res.reason === 'mail_failed') setResendNote(translate('ax.resendMailFail'));
+    else if (res.reason === 'throttled') setResendNote(translate('ax.resendThrottle'));
+    else setResendNote(res.message ?? translate('ax.emailSendFailed'));
     setResendBusy(false);
   };
 
@@ -126,7 +126,7 @@ export function AuthScreen() {
     setError(null);
     if (regStep === 1) {
       if (!email.trim().includes('@')) {
-        setError('Enter a valid email address.');
+        setError(translate('ax.emailInvalid'));
         return;
       }
       setRegStep(2);
@@ -144,7 +144,7 @@ export function AuthScreen() {
 
   const submitLogin = async () => {
     if (!email.includes('@') || !password) {
-      setError('Enter your email and password.');
+      setError(translate('ax.emailPassMissing'));
       return;
     }
     setBusy(true);
@@ -153,7 +153,7 @@ export function AuthScreen() {
     try {
       await signInWithPassword(email, password);
     } catch (e) {
-      showError(e, 'Could not sign in. Please check your email and password.');
+      showError(e, translate('ax.signInFailed'));
     } finally {
       setBusy(false);
     }
@@ -161,7 +161,7 @@ export function AuthScreen() {
 
   const submitMagic = async () => {
     if (!email.includes('@')) {
-      setError('Enter a valid email address.');
+      setError(translate('ax.emailInvalid'));
       return;
     }
     setBusy(true);
@@ -171,7 +171,7 @@ export function AuthScreen() {
       await sendOtp(email);
       openCode('magic');
     } catch (e) {
-      showError(e, 'Could not send the sign-in code.');
+      showError(e, translate('ax.signInCodeFailed'));
     } finally {
       setBusy(false);
     }
@@ -193,11 +193,11 @@ export function AuthScreen() {
 
   const submitRegister = async () => {
     if (!email.trim().includes('@')) {
-      setError('Enter a valid email address.');
+      setError(translate('ax.emailInvalid'));
       return;
     }
     if (password.length < 8) {
-      setError('Your password must be at least 8 characters.');
+      setError(translate('ax.pwTooShort'));
       return;
     }
     if (passwordStrengthLevel(password) < PASSWORD_MIN_LEVEL) {
@@ -209,7 +209,7 @@ export function AuthScreen() {
       return;
     }
     if (password !== confirm) {
-      setError('Passwords do not match.');
+      setError(translate('ax.pwMismatch'));
       return;
     }
     setBusy(true);
@@ -228,12 +228,12 @@ export function AuthScreen() {
       const account: any = res?.user ?? res?.session?.user ?? null;
       const confirmed = !!(account?.email_confirmed_at || account?.confirmed_at);
       if (res?.session && confirmed) {
-        setNotice('Your account is ready.');
+        setNotice(translate('ax.accountReady'));
       } else {
         openCode('signup');
       }
     } catch (e) {
-      showError(e, 'Registration failed. Please try again.');
+      showError(e, translate('ax.registerFailed'));
     } finally {
       setBusy(false);
     }
@@ -241,7 +241,7 @@ export function AuthScreen() {
 
   const submitForgot = async () => {
     if (!email.includes('@')) {
-      setError('Enter a valid email address.');
+      setError(translate('ax.emailInvalid'));
       return;
     }
     setBusy(true);
@@ -251,7 +251,7 @@ export function AuthScreen() {
       await sendReset(email);
       openCode('recovery');
     } catch (e) {
-      showError(e, 'Could not send the reset email.');
+      showError(e, translate('ax.resetFailed'));
     } finally {
       setBusy(false);
     }
@@ -261,7 +261,7 @@ export function AuthScreen() {
   const verifyCode = async () => {
     const token = code.replace(/\D/g, '');
     if (token.length < 6) {
-      setError('Enter the code from your email (8 digits).');
+      setError(translate('ax.codeMissing'));
       return;
     }
     setBusy(true);
@@ -278,10 +278,10 @@ export function AuthScreen() {
         setRecoveryPending(true);
       } else {
         await clearVerifyState();
-        setNotice('You are all set.');
+        setNotice(translate('ax.allSet'));
       }
     } catch (e) {
-      showError(e, 'That code is not valid any more. Please request a new one.');
+      showError(e, translate('ax.codeInvalid'));
     } finally {
       setBusy(false);
     }
@@ -295,15 +295,15 @@ export function AuthScreen() {
     try {
       if (codePurpose === 'signup') {
         const r = await sendConfirmationEmail(email.trim());
-        if (!r.ok) throw new Error(r.message ?? 'Could not send the code.');
+        if (!r.ok) throw new Error(r.message ?? translate('ax.codeSendFailed'));
       } else if (codePurpose === 'magic') {
         await sendOtp(email);
       } else {
         await sendReset(email);
       }
-      setCodeNote(`New code sent to ${email.trim() || 'your email'}.`);
+      setCodeNote(translate('ax.newCodeSent', { email: email.trim() || translate('ax.yourEmail') }));
     } catch (e) {
-      showError(e, 'Could not send a new code right now.');
+      showError(e, translate('ax.resendFailed'));
     } finally {
       setResendBusy(false);
     }
@@ -318,35 +318,35 @@ export function AuthScreen() {
   };
 
   const codeTitle =
-    codePurpose === 'signup' ? 'Confirm your email' : codePurpose === 'magic' ? 'Enter your sign-in code' : 'Enter your reset code';
+    codePurpose === 'signup' ? translate('auth.verifyYourEmail') : codePurpose === 'magic' ? translate('auth.signInWithCode') : translate('ax.resetCodeTitle');
   const codeSubtitle =
     codePurpose === 'signup'
-      ? `We emailed an 8 digit code to ${email.trim() || 'your email'}. Copy it out of the mail and paste it below.`
+      ? translate('ax.codeSubSignup', { email: email.trim() || translate('ax.yourEmail') })
       : codePurpose === 'magic'
-        ? `We emailed an 8 digit sign-in code to ${email.trim() || 'your email'}. Paste it below to sign in.`
-        : `We emailed an 8 digit code to ${email.trim() || 'your email'}. Paste it below, then choose a new password.`;
+        ? translate('ax.codeSubMagic', { email: email.trim() || translate('ax.yourEmail') })
+        : translate('ax.codeSubReset', { email: email.trim() || translate('ax.yourEmail') });
 
   const headerTitle =
     mode === 'code'
       ? codeTitle
       : mode === 'register'
         ? regStep === 1
-          ? 'Create your account'
-          : 'Choose a password'
+          ? translate('auth.createAccount')
+          : translate('ax.pwTitle')
         : mode === 'forgot'
-          ? 'Reset password'
-          : 'Welcome to Spoonful';
+          ? translate('auth.resetPassword')
+          : translate('auth.welcomeNew');
 
   const headerSubtitle =
     mode === 'code'
       ? codeSubtitle
       : mode === 'register'
         ? regStep === 1
-          ? 'We email you an 8 digit code to confirm the address.'
-          : 'One last step. Use your real email so your code can reach you.'
+          ? translate('ax.regSub')
+          : translate('ax.pwSub')
         : mode === 'forgot'
-          ? 'We will email you an 8 digit code to set a new password.'
-          : 'Your recipes, tracker and shopping list in one calm kitchen.';
+          ? translate('ax.resetSub')
+          : translate('ax.welcomeSub');
 
   return (
     <WashBackground>
@@ -429,12 +429,12 @@ export function AuthScreen() {
               <View>
                 <CodeField value={code} onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 8))} onComplete={() => void verifyCode()} />
                 <Text style={{ fontSize: 12.5, color: colors.textSecondary, lineHeight: 18, marginTop: 2 }}>
-                  Tap the code, keep your finger on it and press Paste. The email has the same code.
+                  {translate('ax.pasteHint')}
                 </Text>
                 {codeNote ? <Text style={{ fontSize: 12.5, color: colors.success, marginTop: 8 }}>{codeNote}</Text> : null}
                 <Pressable onPress={() => void resendCode()} disabled={resendBusy} hitSlop={6} style={{ marginTop: 12 }}>
                   <Text style={{ color: colors.accent, fontSize: 13.5, fontWeight: '700' }}>
-                    {resendBusy ? 'Sending a new code...' : 'Send a new code'}
+                    {resendBusy ? translate('ax.resendBusy') : translate('ax.resendNew')}
                   </Text>
                 </Pressable>
               </View>
@@ -460,7 +460,7 @@ export function AuthScreen() {
         {needsResend ? (
           <Pressable onPress={() => void resendConfirmation()} disabled={resendBusy} style={{ marginTop: 8 }}>
             <Text style={{ color: colors.accent, fontSize: 13, fontWeight: '700' }}>
-              {resendBusy ? 'Sending…' : resendNote ?? 'Resend confirmation email'}
+              {resendBusy ? translate('common.loading') : resendNote ?? translate('ax.resendConfirm')}
             </Text>
           </Pressable>
         ) : resendNote ? (
@@ -476,18 +476,18 @@ export function AuthScreen() {
             <AppButton
               label={
                 busy
-                  ? 'Please wait...'
+                  ? translate('common.loading')
                   : mode === 'code'
-                    ? 'Verify code'
+                    ? translate('auth.verify')
                     : mode === 'register'
                       ? regStep === 2
-                        ? 'Create account'
-                        : 'Continue'
+                        ? translate('auth.createAccount')
+                        : translate('common.next')
                       : mode === 'forgot'
-                        ? 'Email me a code'
+                        ? translate('auth.sendCode')
                         : method === 'magic'
-                          ? 'Email me a sign-in code'
-                          : 'Sign in'
+                          ? translate('auth.signInWithCode')
+                          : translate('landing.signIn')
               }
               variant="dark"
               style={{ marginTop: 14 }}
@@ -683,18 +683,18 @@ function CodeField(props: { value: string; onChangeText: (v: string) => void; on
 
 function friendly(raw: string): string {
   const lower = raw.toLowerCase();
-  if (lower.includes('invalid login credentials')) return 'Wrong email or password.';
-  if (lower.includes('token has expired') || lower.includes('expired or is invalid')) return 'That code has expired - tap "Send a new code" and try again.';
-  if (lower.includes('invalid token') || lower.includes('token is invalid') || lower.includes('invalid otp')) return 'That code does not look right. Please check the digits and try again.';
-  if (lower.includes('already registered') || lower.includes('already been registered') || lower.includes('user already')) return 'An account with this email already exists - sign in instead.';
-  if (lower.includes('email not confirmed')) return 'Please confirm your email first (check your inbox).';
-  if (lower.includes('rate limit') || lower.includes('too many')) return 'Too many attempts - please wait a moment and try again.';
-  if (lower.includes('password should be at least')) return 'Your password must be at least 8 characters.';
+  if (lower.includes('invalid login credentials')) return translate('ax.wrongCredentials');
+  if (lower.includes('token has expired') || lower.includes('expired or is invalid')) return translate('ax.codeExpired');
+  if (lower.includes('invalid token') || lower.includes('token is invalid') || lower.includes('invalid otp')) return translate('ax.codeWrong');
+  if (lower.includes('already registered') || lower.includes('already been registered') || lower.includes('user already')) return translate('ax.accountExists');
+  if (lower.includes('email not confirmed')) return translate('ax.emailNotConfirmed');
+  if (lower.includes('rate limit') || lower.includes('too many')) return translate('ax.tooMany');
+  if (lower.includes('password should be at least')) return translate('ax.pwTooShort');
   if (lower.includes('sending confirmation email') || lower.includes('error sending')) {
-    return 'We could not send the confirmation email right now. Your account is created - you can sign in and use Spoonful, and confirm the address later from Settings.';
+    return translate('ax.mailFailedLong');
   }
   if (lower.includes('for security purposes') || lower.includes('only request this after')) {
-    return 'Just a moment - please wait a few seconds before trying again.';
+    return translate('ax.waitSeconds');
   }
   return raw;
 }
