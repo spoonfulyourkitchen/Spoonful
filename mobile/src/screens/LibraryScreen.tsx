@@ -1006,8 +1006,7 @@ export function LibraryScreen() {
                 placeholder={t('library.searchIngredients')}
                 placeholderTextColor={colors.textSecondary}
                 autoCorrect={false}
-                style={{ flex: 1, paddingVertical: 11, fontSize: 14, color: colors.textPrimary }}
-              />
+                style={[{ flex: 1, paddingVertical: 11, fontSize: 14, color: colors.textPrimary }, { backgroundColor: 'transparent' }]}/>
             </View>
 
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 8, paddingBottom: 24 }}>

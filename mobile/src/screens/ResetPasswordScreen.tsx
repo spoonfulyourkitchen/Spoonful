@@ -109,8 +109,7 @@ function Field(props: {
         autoCorrect={false}
         value={props.value}
         onChangeText={props.onChangeText}
-        style={{ flex: 1, paddingVertical: 12, fontSize: 15, color: colors.textPrimary }}
-      />
+        style={[{ flex: 1, paddingVertical: 12, fontSize: 15, color: colors.textPrimary }, { backgroundColor: 'transparent' }]}/>
     </View>
   );
 }

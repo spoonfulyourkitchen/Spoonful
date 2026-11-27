@@ -92,8 +92,7 @@ export function CommunityExtras() {
                 onChangeText={setRegion}
                 placeholder={t('x.region')}
                 placeholderTextColor={colors.textSecondary}
-                style={{ flex: 1, paddingVertical: 9, color: colors.textPrimary }}
-              />
+                style={[{ flex: 1, paddingVertical: 9, color: colors.textPrimary }, { backgroundColor: 'transparent' }]}/>
             </View>
             <Pressable
               onPress={() => void saveRegion()}
@@ -132,8 +131,7 @@ export function CommunityExtras() {
               onChangeText={setTitle}
               placeholder={t('x.challengeTitle')}
               placeholderTextColor={colors.textSecondary}
-              style={{ paddingVertical: 9, color: colors.textPrimary }}
-            />
+              style={[{ paddingVertical: 9, color: colors.textPrimary }, { backgroundColor: 'transparent' }]}/>
           </View>
           <Pressable
             onPress={() => {

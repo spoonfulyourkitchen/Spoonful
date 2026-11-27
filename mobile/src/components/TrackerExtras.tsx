@@ -321,8 +321,7 @@ export function TrackerExtras({ onLocalLog, mode }: { onLocalLog?: (payload: any
               onChangeText={setQuery}
               placeholder={t('x.searchHint')}
               placeholderTextColor={colors.textSecondary}
-              style={{ flex: 1, paddingVertical: 9, color: colors.textPrimary }}
-            />
+              style={[{ flex: 1, paddingVertical: 9, color: colors.textPrimary }, { backgroundColor: 'transparent' }]}/>
           </View>
           <Pressable
             onPress={() => void runSearch()}
@@ -341,8 +340,7 @@ export function TrackerExtras({ onLocalLog, mode }: { onLocalLog?: (payload: any
               keyboardType="number-pad"
               placeholder={t('x.barcode')}
               placeholderTextColor={colors.textSecondary}
-              style={{ flex: 1, paddingVertical: 9, color: colors.textPrimary }}
-            />
+              style={[{ flex: 1, paddingVertical: 9, color: colors.textPrimary }, { backgroundColor: 'transparent' }]}/>
           </View>
           <Pressable
             onPress={() => {
@@ -452,8 +450,7 @@ export function TrackerExtras({ onLocalLog, mode }: { onLocalLog?: (payload: any
               keyboardType="decimal-pad"
               placeholder={pick(lang, TRACKER_L10N.weightPlaceholder)}
               placeholderTextColor={colors.textSecondary}
-              style={{ flex: 1, paddingVertical: 11, color: colors.textPrimary }}
-            />
+              style={[{ flex: 1, paddingVertical: 11, color: colors.textPrimary }, { backgroundColor: 'transparent' }]}/>
             <Text style={{ fontSize: 12.5, color: colors.textSecondary }}>kg</Text>
           </View>
           <Pressable

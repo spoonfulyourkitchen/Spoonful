@@ -77,7 +77,7 @@ export const SCREENS_L10N: Partial<Record<Language, ScreenDict>> = {
     commOfflineT: 'Community', commOfflineB: 'Community braucht Internet. Deine eigenen Rezepte bleiben offline verfügbar.',
     commLikeFail: 'Like konnte nicht gespeichert werden', commCookIt: 'Nachkochen', commSwipe: 'Nach links wischen zum Zurückgehen',
     commSearch: 'Rezepte, Küchen, Köche suchen…', commSortNew: 'Neu', commSortTop: 'Top bewertet', commTable: 'Der gemeinsame Tisch',
-    commOpen: 'Öffnen', commLikes: '{n} Likes', commComments: '{n} Kommentare',
+    commOpen: 'Ansehen', commLikes: '{n} Likes', commComments: '{n} Kommentare',
     mineEyebrow: 'Deine Küche', mineNew: 'Neu', mineStartBody: 'Schreibe eigene Rezepte oder mach aus einer KI-Idee ein Rezept, das bleibt.',
     mineCreateFirst: 'Erstes Rezept erstellen', mineDelete: 'Löschen',
     formTitlePh: 'Cremige Knoblauchpasta', formUrl: 'Foto-URL (optional)', formUrlPh: 'https://…', formGallery: 'Galerie', cookCamera: 'Kamera',

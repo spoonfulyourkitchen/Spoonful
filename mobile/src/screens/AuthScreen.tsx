@@ -632,8 +632,7 @@ function Field(props: {
         autoCorrect={false}
         value={props.value}
         onChangeText={props.onChangeText}
-        style={{ flex: 1, paddingVertical: 12, fontSize: 15, color: colors.textPrimary }}
-      />
+        style={[{ flex: 1, paddingVertical: 12, fontSize: 15, color: colors.textPrimary }, { backgroundColor: 'transparent' }]}/>
       {props.secureTextEntry && props.reveal ? (
         <Pressable
           onPress={() => setHidden((v) => !v)}
@@ -677,8 +676,7 @@ function CodeField(props: { value: string; onChangeText: (v: string) => void; on
         textContentType="oneTimeCode"
         maxLength={12}
         onSubmitEditing={props.onComplete}
-        style={{ fontSize: 26, letterSpacing: 6, textAlign: 'center', fontWeight: '800', color: colors.textPrimary, paddingVertical: 4 }}
-      />
+        style={[{ fontSize: 26, letterSpacing: 6, textAlign: 'center', fontWeight: '800', color: colors.textPrimary, paddingVertical: 4 }, { backgroundColor: 'transparent' }]}/>
     </View>
   );
 }

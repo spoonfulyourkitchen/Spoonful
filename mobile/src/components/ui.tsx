@@ -258,9 +258,8 @@ export function TextField(
         {icon ? <View style={{ marginRight: 8 }}>{icon}</View> : null}
         <TextInput
           placeholderTextColor={colors.textMuted}
-          style={[styles.input, { color: colors.textPrimary }, inputStyle]}
-          {...rest}
-        />
+          style={[styles.input, { color: colors.textPrimary }, inputStyle, { backgroundColor: 'transparent' }]}
+          {...rest}/>
       </View>
     </View>
   );
@@ -306,8 +305,7 @@ export function SearchField({
         placeholder={placeholder ?? 'Search'}
         placeholderTextColor={colors.textMuted}
         autoFocus={autoFocus}
-        style={{ flex: 1, paddingVertical: 12, fontSize: 16, color: colors.textPrimary }}
-      />
+        style={[{ flex: 1, paddingVertical: 12, fontSize: 16, color: colors.textPrimary }, { backgroundColor: 'transparent' }]}/>
       {iconRight ? (
         <Pressable onPress={onIconRightPress} hitSlop={8}>
           {iconRight}

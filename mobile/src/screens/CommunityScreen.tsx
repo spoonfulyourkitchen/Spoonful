@@ -299,8 +299,7 @@ export function CommunityScreen() {
               onChangeText={setQ}
               placeholder={t('s.commSearch')}
               placeholderTextColor={colors.textSecondary}
-              style={{ flex: 1, paddingVertical: 9, fontSize: 14, color: colors.textPrimary }}
-            />
+              style={[{ flex: 1, paddingVertical: 9, fontSize: 14, color: colors.textPrimary }, { backgroundColor: 'transparent' }]}/>
             {q ? <Pressable onPress={() => setQ('')} hitSlop={8}><X size={15} color={colors.textSecondary} /></Pressable> : null}
           </View>
           <Pressable onPress={() => setFiltersOpen(true)} accessibilityLabel={t('s.commFilters')} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: colors.darkButton, opacity: pressed ? 0.85 : 1 }]}>

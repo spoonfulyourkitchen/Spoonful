@@ -450,7 +450,7 @@ if (document.readyState === 'complete') start(); else window.addEventListener('l
                 <View style={{ marginTop: 14 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.card, paddingHorizontal: 12 }}>
                     <Search size={16} color={colors.textSecondary} />
-                    <TextInput value={searchQ} onChangeText={setSearchQ} onSubmitEditing={() => void runSearch()} placeholder={t('s.scanSearchPh')} placeholderTextColor={colors.textSecondary} style={{ flex: 1, paddingVertical: 11, fontSize: 15, color: colors.textPrimary }} />
+                    <TextInput value={searchQ} onChangeText={setSearchQ} onSubmitEditing={() => void runSearch()} placeholder={t('s.scanSearchPh')} placeholderTextColor={colors.textSecondary} style={[{ flex: 1, paddingVertical: 11, fontSize: 15, color: colors.textPrimary }, { backgroundColor: 'transparent' }]}/>
                     <Pressable onPress={() => void runSearch()} hitSlop={8}>
                       <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.accent }}>{t('s.scanSearchGo')}</Text>
                     </Pressable>
@@ -478,8 +478,7 @@ if (document.readyState === 'complete') start(); else window.addEventListener('l
                       placeholder={pick(lang, BARCODE_L10N.manual)}
                       placeholderTextColor={colors.textSecondary}
                       onSubmitEditing={useManual}
-                      style={{ flex: 1, paddingVertical: 11, fontSize: 15, color: colors.textPrimary }}
-                    />
+                      style={[{ flex: 1, paddingVertical: 11, fontSize: 15, color: colors.textPrimary }, { backgroundColor: 'transparent' }]}/>
                     <Pressable onPress={useManual} hitSlop={8} disabled={manual.replace(/\D/g, '').length < 6}>
                       <Text style={{ fontSize: 12.5, fontWeight: '800', color: manual.replace(/\D/g, '').length < 6 ? colors.textSecondary : colors.accent }}>
                         {pick(lang, BARCODE_L10N.use)}

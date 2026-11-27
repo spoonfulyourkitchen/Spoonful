@@ -435,11 +435,11 @@ export function HouseholdScreen() {
   );
 
   const tabs: { key: HouseholdTab; label: string }[] = [
-    { key: 'today', label: t('s.hhOpen') },
+    { key: 'today', label: t('nav.overview') },
     { key: 'tasks', label: t('s.hhTasksSection') },
     { key: 'shop', label: t('s.hhShopping') },
     { key: 'plan', label: t('s.hhPlanSection') },
-    { key: 'more', label: t('s.hhMembers') },
+    { key: 'more', label: t('nav.more') },
   ];
 
   const setupView = (
@@ -472,8 +472,7 @@ export function HouseholdScreen() {
               placeholder={t('s.hhNamePh')}
               placeholderTextColor={colors.textSecondary}
               editable={!busy}
-              style={inputStyle}
-            />
+              style={[inputStyle]}/>
             <AppButton label={t('hh.create')} variant="dark" busy={busy} onPress={() => void doCreate()} />
           </>
         ) : (
@@ -487,8 +486,7 @@ export function HouseholdScreen() {
               autoCorrect={false}
               maxLength={8}
               editable={!busy}
-              style={[inputStyle, { letterSpacing: 3, fontWeight: '800', fontSize: 17 }]}
-            />
+              style={[inputStyle, { letterSpacing: 3, fontWeight: '800', fontSize: 17 }]}/>
             <AppButton label={t('hh.join')} variant="dark" disabled={!joinCode.trim() || busy} onPress={() => void doJoin()} />
             <Pressable
               onPress={() => setScanOpen(true)}
@@ -515,8 +513,7 @@ export function HouseholdScreen() {
           editable={!busy}
           returnKeyType="done"
           onSubmitEditing={() => (taskDraft.trim() ? void doAddTask() : undefined)}
-          style={[inputStyle, { flex: 1, marginBottom: 0 }]}
-        />
+          style={[inputStyle, { flex: 1, marginBottom: 0 }]}/>
         <IconButton icon={<Plus size={17} color={colors.accent} />} disabled={!taskDraft.trim() || busy} onPress={() => void doAddTask()} />
       </View>
 
@@ -564,8 +561,7 @@ export function HouseholdScreen() {
             editable={!busy}
             returnKeyType="done"
             onSubmitEditing={addToShop}
-            style={[inputStyle, { flex: 1, marginBottom: 0 }]}
-          />
+            style={[inputStyle, { flex: 1, marginBottom: 0 }]}/>
           <IconButton icon={<Plus size={17} color={colors.accent} />} disabled={!shopDraft.trim() || busy} onPress={addToShop} />
         </View>
 
@@ -768,108 +764,7 @@ export function HouseholdScreen() {
 
   const moreView = (
     <>
-      <SectionLabel>{t('s.hhPantry')}</SectionLabel>
-      <GlassCard variant="solid" pad={14}>
-        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-          <TextInput
-            value={pantryName}
-            onChangeText={setPantryName}
-            placeholder={t('s.hhPantryPh')}
-            placeholderTextColor={colors.textSecondary}
-            editable={!busy}
-            style={[inputStyle, { flex: 1, marginBottom: 0 }]}
-          />
-          <TextInput
-            value={pantryQty}
-            onChangeText={setPantryQty}
-            placeholder={t('s.hhQtyPh')}
-            placeholderTextColor={colors.textSecondary}
-            editable={!busy}
-            style={[inputStyle, { width: 74, marginBottom: 0 }]}
-          />
-          <IconButton icon={<Plus size={17} color={colors.accent} />} disabled={!pantryName.trim() || busy} onPress={() => void doAddPantry()} />
-        </View>
-        {!pantry.length ? <EmptyLine text={t('s.hhFeedEmpty')} /> : null}
-        {pantry.slice(0, 10).map((p) => (
-          <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 10 }}>
-            <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, color: colors.textPrimary }}>{p.name}</Text>
-            {p.qty ? <Text style={{ fontSize: 12, color: colors.textSecondary }}>{p.qty}</Text> : null}
-            <Pressable onPress={() => void run(() => removePantryItem(p.id))} hitSlop={6}>
-              <Trash2 size={13} color={colors.rose} />
-            </Pressable>
-          </View>
-        ))}
-      </GlassCard>
-
-      <SectionLabel style={{ marginTop: 18 }}>{t('s.hhNotes')}</SectionLabel>
-      <GlassCard variant="solid" pad={14}>
-        <TextInput
-          value={noteDraft}
-          onChangeText={setNoteDraft}
-          placeholder={t('s.hhNotePh')}
-          placeholderTextColor={colors.textSecondary}
-          multiline
-          editable={!busy}
-          style={[inputStyle, { minHeight: 58, textAlignVertical: 'top' }]}
-        />
-        <ActionPill label={t('s.hhAdd')} icon={<Plus size={13} color={colors.accent} />} disabled={!noteDraft.trim() || busy} onPress={() => void doAddNote()} />
-        {!notes.length ? <EmptyLine text={t('s.hhFeedEmpty')} /> : null}
-        {notes.slice(0, 6).map((n) => (
-          <View key={n.id} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingTop: 10 }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 13, color: colors.textPrimary, lineHeight: 19 }}>{n.body}</Text>
-              <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>{n.authorName}</Text>
-            </View>
-            <Pressable onPress={() => void run(() => removeNote(n.id))} hitSlop={6}>
-              <Trash2 size={13} color={colors.rose} />
-            </Pressable>
-          </View>
-        ))}
-      </GlassCard>
-
-      <SectionLabel style={{ marginTop: 18 }}>{t('s.hhExpenses')}</SectionLabel>
-      <GlassCard variant="solid" pad={14}>
-        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-          <TextInput
-            value={expenseTitle}
-            onChangeText={setExpenseTitle}
-            placeholder={t('s.hhExpensePh')}
-            placeholderTextColor={colors.textSecondary}
-            editable={!busy}
-            style={[inputStyle, { flex: 1, marginBottom: 0 }]}
-          />
-          <TextInput
-            value={expenseAmount}
-            onChangeText={setExpenseAmount}
-            placeholder="0,00"
-            placeholderTextColor={colors.textSecondary}
-            keyboardType="decimal-pad"
-            editable={!busy}
-            style={[inputStyle, { width: 76, marginBottom: 0 }]}
-          />
-          <IconButton icon={<Plus size={17} color={colors.accent} />} disabled={!expenseTitle.trim() || !expenseAmount.trim() || busy} onPress={() => void doAddExpense()} />
-        </View>
-        {!expenses.length ? <EmptyLine text={t('s.hhFeedEmpty')} /> : null}
-        {expenses.slice(0, 6).map((e) => (
-          <View key={e.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 10 }}>
-            <Wallet size={13} color={colors.textSecondary} />
-            <Text numberOfLines={1} style={{ flex: 1, fontSize: 12.5, color: colors.textPrimary }}>{e.title}</Text>
-            <Text style={{ fontSize: 11.5, color: colors.textSecondary }}>{e.payerName}</Text>
-            <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.textPrimary }}>{e.amount.toFixed(2)}</Text>
-            <Pressable onPress={() => void run(() => removeExpense(e.id))} hitSlop={6}>
-              <Trash2 size={13} color={colors.rose} />
-            </Pressable>
-          </View>
-        ))}
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 12, borderTopWidth: 1, borderTopColor: colors.cardBorder, paddingTop: 10 }}>
-          <Text style={{ flex: 1, fontSize: 12, color: colors.textSecondary }}>{t('s.hhSum')}: {balance.sum.toFixed(2)}</Text>
-          <Text style={{ fontSize: 12, fontWeight: '800', color: balance.diff >= 0 ? colors.success : colors.rose }}>
-            {t('s.hhSaldo')}: {balance.diff >= 0 ? '+' : ''}{balance.diff.toFixed(2)}
-          </Text>
-        </View>
-      </GlassCard>
-
-      <SectionLabel style={{ marginTop: 18 }}>{t('s.hhMembers')}</SectionLabel>
+      <SectionLabel>{t('s.hhMembers')}</SectionLabel>
       <GlassCard variant="solid" pad={14}>
         {members.map((m) => (
           <View key={m.userId} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7 }}>
@@ -894,6 +789,102 @@ export function HouseholdScreen() {
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
           <ActionPill label={t('s.hhShareHh')} icon={<Share2 size={13} color={colors.accent} />} onPress={() => void shareCode()} />
           <ActionPill label={t('s.hhRemind')} icon={<Bell size={13} color={colors.textSecondary} />} onPress={doRemind} />
+        </View>
+      </GlassCard>
+
+      <SectionLabel>{t('s.hhPantry')}</SectionLabel>
+      <GlassCard variant="solid" pad={14}>
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <TextInput
+            value={pantryName}
+            onChangeText={setPantryName}
+            placeholder={t('s.hhPantryPh')}
+            placeholderTextColor={colors.textSecondary}
+            editable={!busy}
+            style={[inputStyle, { flex: 1, marginBottom: 0 }]}/>
+          <TextInput
+            value={pantryQty}
+            onChangeText={setPantryQty}
+            placeholder={t('s.hhQtyPh')}
+            placeholderTextColor={colors.textSecondary}
+            editable={!busy}
+            style={[inputStyle, { width: 74, marginBottom: 0 }]}/>
+          <IconButton icon={<Plus size={17} color={colors.accent} />} disabled={!pantryName.trim() || busy} onPress={() => void doAddPantry()} />
+        </View>
+        {!pantry.length ? <EmptyLine text={t('s.hhFeedEmpty')} /> : null}
+        {pantry.slice(0, 10).map((p) => (
+          <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 10 }}>
+            <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, color: colors.textPrimary }}>{p.name}</Text>
+            {p.qty ? <Text style={{ fontSize: 12, color: colors.textSecondary }}>{p.qty}</Text> : null}
+            <Pressable onPress={() => void run(() => removePantryItem(p.id))} hitSlop={6}>
+              <Trash2 size={13} color={colors.rose} />
+            </Pressable>
+          </View>
+        ))}
+      </GlassCard>
+
+      <SectionLabel style={{ marginTop: 18 }}>{t('s.hhNotes')}</SectionLabel>
+      <GlassCard variant="solid" pad={14}>
+        <TextInput
+          value={noteDraft}
+          onChangeText={setNoteDraft}
+          placeholder={t('s.hhNotePh')}
+          placeholderTextColor={colors.textSecondary}
+          multiline
+          editable={!busy}
+          style={[inputStyle, { minHeight: 58, textAlignVertical: 'top' }]}/>
+        <ActionPill label={t('s.hhAdd')} icon={<Plus size={13} color={colors.accent} />} disabled={!noteDraft.trim() || busy} onPress={() => void doAddNote()} />
+        {!notes.length ? <EmptyLine text={t('s.hhFeedEmpty')} /> : null}
+        {notes.slice(0, 6).map((n) => (
+          <View key={n.id} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingTop: 10 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, color: colors.textPrimary, lineHeight: 19 }}>{n.body}</Text>
+              <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>{n.authorName}</Text>
+            </View>
+            <Pressable onPress={() => void run(() => removeNote(n.id))} hitSlop={6}>
+              <Trash2 size={13} color={colors.rose} />
+            </Pressable>
+          </View>
+        ))}
+      </GlassCard>
+
+      <SectionLabel style={{ marginTop: 18 }}>{t('s.hhExpenses')}</SectionLabel>
+      <GlassCard variant="solid" pad={14}>
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <TextInput
+            value={expenseTitle}
+            onChangeText={setExpenseTitle}
+            placeholder={t('s.hhExpensePh')}
+            placeholderTextColor={colors.textSecondary}
+            editable={!busy}
+            style={[inputStyle, { flex: 1, marginBottom: 0 }]}/>
+          <TextInput
+            value={expenseAmount}
+            onChangeText={setExpenseAmount}
+            placeholder="0,00"
+            placeholderTextColor={colors.textSecondary}
+            keyboardType="decimal-pad"
+            editable={!busy}
+            style={[inputStyle, { width: 76, marginBottom: 0 }]}/>
+          <IconButton icon={<Plus size={17} color={colors.accent} />} disabled={!expenseTitle.trim() || !expenseAmount.trim() || busy} onPress={() => void doAddExpense()} />
+        </View>
+        {!expenses.length ? <EmptyLine text={t('s.hhFeedEmpty')} /> : null}
+        {expenses.slice(0, 6).map((e) => (
+          <View key={e.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 10 }}>
+            <Wallet size={13} color={colors.textSecondary} />
+            <Text numberOfLines={1} style={{ flex: 1, fontSize: 12.5, color: colors.textPrimary }}>{e.title}</Text>
+            <Text style={{ fontSize: 11.5, color: colors.textSecondary }}>{e.payerName}</Text>
+            <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.textPrimary }}>{e.amount.toFixed(2)}</Text>
+            <Pressable onPress={() => void run(() => removeExpense(e.id))} hitSlop={6}>
+              <Trash2 size={13} color={colors.rose} />
+            </Pressable>
+          </View>
+        ))}
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 12, borderTopWidth: 1, borderTopColor: colors.cardBorder, paddingTop: 10 }}>
+          <Text style={{ flex: 1, fontSize: 12, color: colors.textSecondary }}>{t('s.hhSum')}: {balance.sum.toFixed(2)}</Text>
+          <Text style={{ fontSize: 12, fontWeight: '800', color: balance.diff >= 0 ? colors.success : colors.rose }}>
+            {t('s.hhSaldo')}: {balance.diff >= 0 ? '+' : ''}{balance.diff.toFixed(2)}
+          </Text>
         </View>
       </GlassCard>
 
@@ -1043,8 +1034,7 @@ export function HouseholdScreen() {
                 onChangeText={setRenameDraft}
                 placeholder={t('s.hhNamePh')}
                 placeholderTextColor={colors.textSecondary}
-                style={[inputStyle, { marginTop: 12 }]}
-              />
+                style={[inputStyle, { marginTop: 12 }]}/>
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
                 <View style={{ flex: 1 }}>
                   <AppButton label={t('s.cropCancel')} variant="ghost" onPress={() => setRenameOpen(false)} />
@@ -1093,8 +1083,7 @@ export function HouseholdScreen() {
                     onChangeText={setPickQuery}
                     placeholder={t('s.hhPickRecipe')}
                     placeholderTextColor={colors.textSecondary}
-                    style={{ flex: 1, paddingVertical: 10, fontSize: 14, color: colors.textPrimary }}
-                  />
+                    style={[{ flex: 1, paddingVertical: 10, fontSize: 14, color: colors.textPrimary }]}/>
                 </View>
               ) : null}
 

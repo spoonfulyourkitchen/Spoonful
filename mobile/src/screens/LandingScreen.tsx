@@ -720,7 +720,7 @@ function Counter({
           keyboardType="number-pad"
           maxLength={5}
           selectTextOnFocus
-          style={{
+          style={[{
             fontSize: 46,
             fontWeight: '800',
             letterSpacing: -1,
@@ -729,8 +729,7 @@ function Counter({
             fontVariant: ['tabular-nums'],
             padding: 0,
             minWidth: 110,
-          }}
-        />
+          }, { backgroundColor: 'transparent' }]}/>
         <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 2 }}>{unit}</Text>
       </View>
       <Pressable
