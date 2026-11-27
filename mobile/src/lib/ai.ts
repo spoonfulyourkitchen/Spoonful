@@ -1,6 +1,7 @@
 
 
 import { supabase } from './supabase';
+import { getStoredLanguage } from './i18n';
 import { withTimeout } from './safe';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -280,6 +281,27 @@ export function detectInputLanguage(text?: string): { code: string; name: string
   return best && best.score > 0 ? { code: best.code, name: best.name } : null;
 }
 
+/** Every app language, so the model writes recipes the cook can read. */
+const APP_LANGUAGE_NAMES: Record<string, string> = {
+  en: 'English', de: 'German', ar: 'Arabic', fr: 'French', es: 'Spanish', it: 'Italian',
+  tr: 'Turkish', pt: 'Portuguese', nl: 'Dutch', ru: 'Russian', uk: 'Ukrainian',
+  zh: 'Simplified Chinese', ja: 'Japanese', ko: 'Korean', hi: 'Hindi', pl: 'Polish',
+};
+
+/**
+ * The chosen app language decides the language of the whole recipe: someone
+ * with the app in German wants a German recipe even with English ingredients.
+ */
+function appLanguageRule(): string {
+  const code = getStoredLanguage();
+  const name = APP_LANGUAGE_NAMES[code] ?? 'English';
+  return (
+    `IMPORTANT: Write EVERY text field (title, description, ingredient names, steps, tips) in ${name}, ` +
+    `because ${name} is the language the cook chose in this app. Translate everything else into ${name}; ` +
+    'keep numbers, units and amounts exactly as written and never answer in another language.'
+  );
+}
+
 function languageRule(samples: Array<string | undefined>): string {
   const detected = samples.map((s) => detectInputLanguage(s)).find(Boolean);
   const base =
@@ -488,7 +510,7 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
     (noteRule ? ' ' + noteRule : '') +
     
     ' ' +
-    languageRule([args.prompt, args.availableIngredients, args.dietaryPreferences]);
+    appLanguageRule();
   const user = [
     args.prompt
       ? `Create ONE recipe that matches this request: "${args.prompt.trim()}".`
@@ -569,7 +591,7 @@ export async function aiImproveRecipe(args: {
     'If the title is bland, make it specific and appetising without promising anything the recipe does not do. ' +
     (allergyTags.length ? `Never use: ${allergyTags.join(', ')}. ` : '') +
     (args.experience ? `Write the steps for a ${args.experience} cook. ` : '') +
-    languageRule([args.title, args.ingredients.join(' ')]);
+    appLanguageRule();
   const user = [
     `Recipe: ${args.title}`,
     `Ingredients: ${args.ingredients.join('; ')}`,
@@ -614,7 +636,7 @@ export async function aiSubstituteIngredient(args: {
     'You are a precise culinary assistant. Answer with valid JSON only: ' +
     '{"options":[{"name":string,"amount":string,"why":string}]} with exactly 3 options, ' +
     'each "why" max 12 words, practical supermarket alternatives, metric amounts. ' +
-    languageRule([args.ingredient, args.dish]);
+    appLanguageRule();
   const user = [
     `Replace "${args.ingredient}"${args.dish ? ` in a dish: ${args.dish}` : ''}.`,
     args.diet ? `The cook eats: ${args.diet}.` : '',
@@ -665,8 +687,9 @@ export async function aiRecipeFromText(args: {
     'Never add a step that only explains a rule, a temperature, a consistency or a timing range, ' +
     'never cut a step with "...", and only add a step when the description clearly says that action. ' +
     'Never invent ingredients, amounts or actions that are not in the description. ' +
-    'Keep the original language of the description and keep every amount exactly as written. ' +
-    'If the description contains no recipe at all, answer {"title":"","ingredients":[],"steps":[]}.';
+    'Keep every amount exactly as written and translate the recipe into the app language. ' +
+    'If the description contains no recipe at all, answer {"title":"","ingredients":[],"steps":[]}. ' +
+    appLanguageRule();
   const user = [
     args.title ? `Video title (only a hint, the title must come from the description): ${args.title}` : '',
     'Description (1:1, verbatim):',

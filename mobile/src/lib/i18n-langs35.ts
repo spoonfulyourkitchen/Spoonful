@@ -77,6 +77,7 @@ const zh: LangDict = {
     challenges: '烹饪挑战', newChallenge: '新挑战', join: '参加', entries: '参加者',
   },
   s: {
+    videoBadge: '来自视频', chefExtras: '额外', videoNeedLink: '请先插入视频链接。',
     imageUnavailable: '没有免版税照片',
     collectionChoose: '保存到合集？', collectionNew: '创建合集', collectionNamePlaceholder: '合集名称',
     collectionCreate: '创建合集', collectionNameError: '请输入至少 2 个字符的名称。',
@@ -217,6 +218,7 @@ const ja: LangDict = {
     challenges: '料理チャレンジ', newChallenge: '新しいチャレンジ', join: '参加', entries: '参加',
   },
   s: {
+    videoBadge: '動画から', chefExtras: '追加', videoNeedLink: 'まず動画リンクを入力してください。',
     imageUnavailable: '権利フリーの写真がありません',
     collectionChoose: 'コレクションに保存しますか？', collectionNew: 'コレクションを作成', collectionNamePlaceholder: 'コレクション名',
     collectionCreate: 'コレクションを作成', collectionNameError: '2文字以上の名前を入力してください。',
@@ -357,6 +359,7 @@ const ko: LangDict = {
     challenges: '요리 챌린지', newChallenge: '새 챌린지', join: '참여', entries: '참가',
   },
   s: {
+    videoBadge: '동영상에서', chefExtras: '추가', videoNeedLink: '먼저 동영상 링크를 추가하세요.',
     imageUnavailable: '무료 라이선스 사진이 없습니다',
     collectionChoose: '컬렉션에 저장할까요?', collectionNew: '컬렉션 만들기', collectionNamePlaceholder: '컬렉션 이름',
     collectionCreate: '컬렉션 만들기', collectionNameError: '이름을 2자 이상 입력하세요.',
@@ -497,6 +500,7 @@ const hi: LangDict = {
     per100g: 'प्रति 100 ग्राम', challenges: 'कुकिंग चुनौतियां', newChallenge: 'नई चुनौती', join: 'शामिल हों', entries: 'प्रविष्टियां',
   },
   s: {
+    videoBadge: 'वीडियो से', chefExtras: 'अतिरिक्त', videoNeedLink: 'पहले वीडियो लिंक जोड़ें।',
     imageUnavailable: 'मुफ़्त लाइसेंस वाली फ़ोटो नहीं है',
     collectionChoose: 'संग्रह में सहेजें?', collectionNew: 'संग्रह बनाएं', collectionNamePlaceholder: 'संग्रह का नाम',
     collectionCreate: 'संग्रह बनाएं', collectionNameError: 'कम से कम 2 अक्षरों का नाम दर्ज करें।',
@@ -638,6 +642,7 @@ const pl: LangDict = {
     per100g: 'na 100 g', challenges: 'Wyzwania kulinarne', newChallenge: 'Nowe wyzwanie', join: 'Dołącz', entries: 'zgłoszenia',
   },
   s: {
+    videoBadge: 'Z wideo', chefExtras: 'Dodatki', videoNeedLink: 'Najpierw dodaj link do wideo.',
     imageUnavailable: 'Brak zdjęcia bez licencji',
     collectionChoose: 'Zapisać w kolekcji?', collectionNew: 'Utwórz kolekcję', collectionNamePlaceholder: 'Nazwa kolekcji',
     collectionCreate: 'Utwórz kolekcję', collectionNameError: 'Wpisz nazwę mającą co najmniej 2 znaki.',
