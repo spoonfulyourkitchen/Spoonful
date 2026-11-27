@@ -158,6 +158,12 @@ function cleanStep(raw: string): string {
     .replace(/\s+/g, ' ')
     .trim();
   text = text.replace(/(?:\.{2,}|…)+\s*$/g, '').trim();
+  // "mit dem 1 TL Öl" / "der 1 Prise Salz" is wrong German; drop the article.
+  text = text.replace(
+    /\b(der|die|das|dem|den|des)\s+(1|einer|einem)\s+(TL|EL|Prise|Prise\s|Bund|Zehe|Zehen|Stange|Stück|Dose|Packung|Scheibe|Scheiben|Handvoll|Tasse|ml|g|kg)\b/gi,
+    '$2 $3',
+  );
+  text = text.replace(/\s+/g, ' ').trim();
   if (text && !/[.!?]$/.test(text)) text += '.';
   return text;
 }
@@ -360,10 +366,14 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
     : '';
   const servings = Math.max(1, Math.min(12, Number(args.servings ?? 4))) || 4;
   const goalTargets = args.targets;
+  const meal = (value: number) => Math.max(0, Math.round(Number(value) / 3));
   const targetRule = goalTargets
-    ? `Per serving, hit these targets: about ${Math.round(goalTargets.calories)} kcal, ` +
+    ? `The cook's targets are DAILY totals: about ${Math.round(goalTargets.calories)} kcal, ` +
       `${Math.round(goalTargets.protein)} g protein, ${Math.round(goalTargets.carbs)} g carbs, ` +
-      `${Math.round(goalTargets.fat)} g fat. Size the ingredient amounts so one serving lands within 10 percent of them.`
+      `${Math.round(goalTargets.fat)} g fat per day. This dish is one main meal, so ONE SERVING should cover ` +
+      `roughly a third of them: about ${meal(goalTargets.calories)} kcal, ${meal(goalTargets.protein)} g protein, ` +
+      `${meal(goalTargets.carbs)} g carbs and ${meal(goalTargets.fat)} g fat (within 15 percent). ` +
+      `Size the ingredient amounts for that single meal and never aim one serving at the full daily amount.`
     : '';
   const targetWeightRule =
     Number(args.targetWeight) > 0
@@ -392,7 +402,9 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
     ? 'It must be kid friendly: no alcohol, no chili, low salt, no whole nuts, no bones.'
     : '';
   const equipmentRule = args.equipment
-    ? `Only these tools may be used: ${args.equipment}. Never assume anything else is available.`
+    ? `The cook owns exactly this equipment: ${args.equipment}. Every step must work with it alone. ` +
+      `Do not grill, bake, air-fry, pressure-cook or microwave anything unless that appliance is named in that list, ` +
+      `and never suggest buying or borrowing another tool.`
     : 'Use only basic kitchen tools (knife, pan, pot, oven or stove).';
   const recent = (args.avoidRecipes ?? [])
     .filter((item) => item && String(item.title ?? '').trim())
@@ -432,6 +444,9 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
     'Every step must be a real physical action the cook performs, written as one or two complete sentences ' +
     'with amounts and times inside the step. When an ingredient is used for the first time, repeat its exact ' +
     'amount from the ingredient list in that step (for example "die 200 g Spaghetti"). ' +
+    'Keep that amount natural in German: write "die 2 Zitronen", "die Zitrone", "die 200 g Sahne" or ' +
+    '"die Knoblauchzehe", never "die 1 Zitrone", "der 1 Knoblauchzehe" or "die 2 Stück Zitronen". ' +
+    'Never write an action that cannot be performed as written: grating the peel and pressing the juice are two actions. ' +
     'Follow the real cooking order: reserve pasta or rice water BEFORE draining, melt or warm dairy before ' +
     'combining it with hot liquid, and never add an ingredient before it has been prepared. ' +
     'Never cut a step short, never end a step with "..." or "…", ' +
@@ -446,6 +461,7 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
     'The look hint is a sensory check, max 16 words: colour, texture, sound or smell. ' +
     'A guide must match its own step, not the recipe as a whole. ' +
     'Write every instruction in the imperative. In German always use the informal du-form (Rühre, Füge, Brate), never Sie. Never mix address forms inside one recipe. ' +
+    'Start each German step with the action itself (Schäle, Schneide, Erhitze, Gib, Rühre, Würze) and never with filler such as "Finde", "Nimm dir", "Als Nächstes" or "Jetzt geht es darum". ' +
     'Never use em dashes or en dashes in any field. ' +
     detailRule +
     ' ' +
@@ -475,7 +491,11 @@ export async function aiGenerateRecipe(args: AiRecipeArgs): Promise<any> {
     allergyTags.length ? `Allergies (must be excluded): ${allergyTags.join(', ')}.` : '',
     args.cuisine ? `Cuisine: ${args.cuisine}.` : '',
     `Write it for exactly ${servings} servings and make the nutrition values realistic for that portion.`,
-    goalTargets ? `Daily goal of the cook: ${goalTargets.calories} kcal, ${goalTargets.protein} g protein, ${goalTargets.carbs} g carbs.` : '',
+    args.equipment ? `Equipment the cook owns: ${args.equipment}. Every step must be doable with that alone.` : '',
+    args.maxMinutes ? `The whole dish must be ready in ${Number(args.maxMinutes)} minutes.` : '',
+    goalTargets
+      ? `Daily targets of the cook: ${goalTargets.calories} kcal, ${goalTargets.protein} g protein, ${goalTargets.carbs} g carbs, ${goalTargets.fat} g fat. One serving should cover about a third of that.`
+      : '',
     'Keep the description appetising but factual.',
   ]
     .filter(Boolean)
