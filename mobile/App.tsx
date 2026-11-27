@@ -284,7 +284,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle={colors.dark ? 'light-content' : 'dark-content'} backgroundColor={colors.header} />
+      <StatusBar barStyle={colors.dark ? 'light-content' : 'dark-content'} />
       <I18nProvider>
         <ConvexAuthProvider>
           <KeyboardAvoidingView

@@ -121,48 +121,6 @@ export function MyRecipesScreen() {
     })();
   };
 
-  const copyToKitchen = (doc: any) => {
-    const payload = {
-      title: doc.title || 'Recipe',
-      description: doc.description ?? '',
-      ingredients: doc.ingredients ?? [],
-      steps: doc.steps ?? [],
-      guides: doc.guides ?? [],
-      tips: doc.tips ?? [],
-      note: doc.note ?? undefined,
-      prepTime: doc.prepTime ?? 0,
-      cookTime: doc.cookTime ?? 0,
-      cuisine: doc.cuisine ?? '',
-      dietaryRestrictions: doc.dietaryRestrictions ?? [],
-      imageUrl: doc.imageUrl ?? undefined,
-      difficulty: doc.difficulty ?? 'easy',
-      calories: doc.calories ?? undefined,
-      protein: doc.protein ?? undefined,
-      carbs: doc.carbs ?? undefined,
-      fat: doc.fat ?? undefined,
-    };
-    void (async () => {
-      try {
-        let created: any = null;
-        if (getConnNow() === 'offline') {
-          await addPendingOp('recipe.create', payload);
-        } else {
-          created = await createRecipe(payload as any);
-        }
-        if (created) applyMine((prev: any[]) => [created, ...prev]);
-        Alert.alert(
-          tr2('In deiner Küche', 'In your kitchen', lang),
-          tr2('', 'The recipe is now in your own recipes and saved to your account.', lang),
-        );
-      } catch (e) {
-        Alert.alert(
-          tr2('Hat nicht geklappt', 'Could not add recipe', lang),
-          e instanceof Error ? e.message : String(e),
-        );
-      }
-    })();
-  };
-
   const openEditor = () => {
     setAddOpen(false);
     navigate('RecipeForm', {});
@@ -243,7 +201,6 @@ export function MyRecipesScreen() {
               editItem={editItem}
               confirmDelete={confirmDelete}
               removeSavedRecipe={removeSavedRecipe}
-              copyToKitchen={copyToKitchen}
             />
           ))}
         </ScrollView>
@@ -296,7 +253,6 @@ function KitchenCard({
   editItem,
   confirmDelete,
   removeSavedRecipe,
-  copyToKitchen,
 }: {
   item: KitchenItem;
   title?: string;
@@ -304,7 +260,6 @@ function KitchenCard({
   editItem: (i: KitchenItem) => void;
   confirmDelete: (d: any) => void;
   removeSavedRecipe: (d: any) => void;
-  copyToKitchen: (d: any) => void;
 }) {
   const { t, lang } = useTranslation();
   const doc = item.doc;
