@@ -318,6 +318,15 @@ export function applyTheme(themeId: string) {
   const theme = themeById(themeId);
   currentTheme = theme;
   Object.assign(colors, computePalette(theme));
+  // Web: native form controls (inputs, textareas, autofill, scrollbars) follow
+  // the page's color-scheme. Without this the browser paints them light/white
+  // even when the app itself is dark.
+  // The web shim reports Platform.OS as 'android', so detect the DOM directly:
+  // native builds simply have no document and skip this.
+  const doc = (globalThis as any).document;
+  if (doc?.documentElement?.style) {
+    doc.documentElement.style.colorScheme = theme.dark ? 'dark' : 'light';
+  }
   try {
     AsyncStorage.setItem(THEME_STORAGE_KEY, theme.id);
   } catch {  }
@@ -357,3 +366,4 @@ export function glassShadow(level: 'sm' | 'md' | 'lg' | 'xl' = 'md') {
   } as const;
   return { shadowColor: colors.shadowStrong, ...map[level] };
 }
+

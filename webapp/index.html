@@ -41,9 +41,39 @@
       *:focus:not(:focus-visible) {
         outline: none;
       }
+      html {
+        color-scheme: light;
+      }
+      input,
+      textarea,
+      select {
+        -webkit-appearance: none;
+        appearance: none;
+        color-scheme: inherit;
+      }
       input,
       textarea {
         font: inherit;
+        /* Browsers give inputs a white UA background and textareas a visible
+           inset border. The app paints its own themed wrapper, so the field
+           itself must stay transparent in every theme. */
+        background-color: transparent;
+        border: 0;
+      }
+      textarea {
+        resize: none;
+      }
+      /* Chrome paints autofilled fields white no matter the theme; delaying the
+         transition keeps our own colour and keeps the text readable. */
+      input:-webkit-autofill,
+      input:-webkit-autofill:hover,
+      input:-webkit-autofill:focus,
+      textarea:-webkit-autofill,
+      textarea:-webkit-autofill:focus,
+      select:-webkit-autofill {
+        -webkit-text-fill-color: currentColor;
+        caret-color: currentColor;
+        transition: background-color 999999s ease-in-out 0s;
       }
       ::-webkit-scrollbar {
         width: 8px;

@@ -299,7 +299,10 @@ function appLanguageRule(): string {
   return (
     `IMPORTANT: Write EVERY text field (title, description, ingredient names, steps, tips) in ${name}, ` +
     `because ${name} is the language the cook chose in this app. Translate everything else into ${name}; ` +
-    'keep numbers, units and amounts exactly as written and never answer in another language.'
+    'keep numbers, units and amounts exactly as written and never answer in another language. ' +
+    `Write like a native cook in ${name}, not word for word: use the term a home cook really uses ` +
+    'for that action or ingredient, and drop English filler words that have no natural equivalent. ' +
+    'A translated word that does not fit the sentence is worse than a natural paraphrase.'
   );
 }
 

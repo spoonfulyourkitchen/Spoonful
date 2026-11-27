@@ -24,6 +24,7 @@ import { APP_353 } from './i18n-353';
 import { ONBOARDING_L10N } from './i18n-onboarding';
 import { I18N_TEXTS } from './i18n-texts';
 import { I18N_TEXTS_EXTRA } from './i18n-texts-extra';
+import { I18N_GAPS } from './i18n-gaps';
 
 export type Language = "en" | "de" | "ar" | "fr" | "es" | "it" | "tr" | "pt" | "nl" | "ru" | "uk" | "zh" | "ja" | "ko" | "hi" | "pl";
 
@@ -489,9 +490,8 @@ const translations: Record<Language, Dict> = (Object.keys(baseDicts) as Language
     FEATURES, APP_212, APP_310, APP_312, APP_320, APP_320B, APP_320C,
     APP_321, APP_322, I18N_TEXTS, I18N_TEXTS_EXTRA, APP_330, APP_332,
     APP_342, APP_350, APP_353, ONBOARDING_L10N,
-    
 
-    LANGS_35,
+    LANGS_35, I18N_GAPS,
   ].reduce<Dict>((dict, source) => mergeDict(dict, languageModule(source, lang)), baseDicts[lang]);
   acc[lang] = {
     ...merged,

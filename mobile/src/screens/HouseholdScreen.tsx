@@ -502,8 +502,73 @@ export function HouseholdScreen() {
     </>
   );
 
+  const notesSection = (
+    <>
+<SectionLabel style={{ marginTop: 18 }}>{t('s.hhNotes')}</SectionLabel>
+      <GlassCard variant="solid" pad={14}>
+        <TextInput
+          value={noteDraft}
+          onChangeText={setNoteDraft}
+          placeholder={t('s.hhNotePh')}
+          placeholderTextColor={colors.textSecondary}
+          multiline
+          editable={!busy}
+          style={[inputStyle, { minHeight: 58, textAlignVertical: 'top' }]}/>
+        <ActionPill label={t('s.hhAdd')} icon={<Plus size={13} color={colors.accent} />} disabled={!noteDraft.trim() || busy} onPress={() => void doAddNote()} />
+        {!notes.length ? <EmptyLine text={t('s.hhFeedEmpty')} /> : null}
+        {notes.slice(0, 6).map((n) => (
+          <View key={n.id} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingTop: 10 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, color: colors.textPrimary, lineHeight: 19 }}>{n.body}</Text>
+              <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>{n.authorName}</Text>
+            </View>
+            <Pressable onPress={() => void run(() => removeNote(n.id))} hitSlop={6}>
+              <Trash2 size={13} color={colors.rose} />
+            </Pressable>
+          </View>
+        ))}
+      </GlassCard>
+    </>
+  );
+
+  const pantrySection = (
+    <>
+<SectionLabel>{t('s.hhPantry')}</SectionLabel>
+      <GlassCard variant="solid" pad={14}>
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <TextInput
+            value={pantryName}
+            onChangeText={setPantryName}
+            placeholder={t('s.hhPantryPh')}
+            placeholderTextColor={colors.textSecondary}
+            editable={!busy}
+            style={[inputStyle, { flex: 1, marginBottom: 0 }]}/>
+          <TextInput
+            value={pantryQty}
+            onChangeText={setPantryQty}
+            placeholder={t('s.hhQtyPh')}
+            placeholderTextColor={colors.textSecondary}
+            editable={!busy}
+            style={[inputStyle, { width: 74, marginBottom: 0 }]}/>
+          <IconButton icon={<Plus size={17} color={colors.accent} />} disabled={!pantryName.trim() || busy} onPress={() => void doAddPantry()} />
+        </View>
+        {!pantry.length ? <EmptyLine text={t('s.hhFeedEmpty')} /> : null}
+        {pantry.slice(0, 10).map((p) => (
+          <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 10 }}>
+            <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, color: colors.textPrimary }}>{p.name}</Text>
+            {p.qty ? <Text style={{ fontSize: 12, color: colors.textSecondary }}>{p.qty}</Text> : null}
+            <Pressable onPress={() => void run(() => removePantryItem(p.id))} hitSlop={6}>
+              <Trash2 size={13} color={colors.rose} />
+            </Pressable>
+          </View>
+        ))}
+      </GlassCard>
+    </>
+  );
+
   const tasksView = (
-    <GlassCard variant="solid" pad={14}>
+    <>
+      <GlassCard variant="solid" pad={14}>
       <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
         <TextInput
           value={taskDraft}
@@ -546,7 +611,10 @@ export function HouseholdScreen() {
           </Pressable>
         </View>
       ))}
-    </GlassCard>
+      </GlassCard>
+
+      {notesSection}
+    </>
   );
 
   const shopView = (
@@ -626,6 +694,8 @@ export function HouseholdScreen() {
           </GlassCard>
         </>
       ) : null}
+
+      {pantrySection}
     </>
   );
 
@@ -790,62 +860,6 @@ export function HouseholdScreen() {
           <ActionPill label={t('s.hhShareHh')} icon={<Share2 size={13} color={colors.accent} />} onPress={() => void shareCode()} />
           <ActionPill label={t('s.hhRemind')} icon={<Bell size={13} color={colors.textSecondary} />} onPress={doRemind} />
         </View>
-      </GlassCard>
-
-      <SectionLabel>{t('s.hhPantry')}</SectionLabel>
-      <GlassCard variant="solid" pad={14}>
-        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-          <TextInput
-            value={pantryName}
-            onChangeText={setPantryName}
-            placeholder={t('s.hhPantryPh')}
-            placeholderTextColor={colors.textSecondary}
-            editable={!busy}
-            style={[inputStyle, { flex: 1, marginBottom: 0 }]}/>
-          <TextInput
-            value={pantryQty}
-            onChangeText={setPantryQty}
-            placeholder={t('s.hhQtyPh')}
-            placeholderTextColor={colors.textSecondary}
-            editable={!busy}
-            style={[inputStyle, { width: 74, marginBottom: 0 }]}/>
-          <IconButton icon={<Plus size={17} color={colors.accent} />} disabled={!pantryName.trim() || busy} onPress={() => void doAddPantry()} />
-        </View>
-        {!pantry.length ? <EmptyLine text={t('s.hhFeedEmpty')} /> : null}
-        {pantry.slice(0, 10).map((p) => (
-          <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 10 }}>
-            <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, color: colors.textPrimary }}>{p.name}</Text>
-            {p.qty ? <Text style={{ fontSize: 12, color: colors.textSecondary }}>{p.qty}</Text> : null}
-            <Pressable onPress={() => void run(() => removePantryItem(p.id))} hitSlop={6}>
-              <Trash2 size={13} color={colors.rose} />
-            </Pressable>
-          </View>
-        ))}
-      </GlassCard>
-
-      <SectionLabel style={{ marginTop: 18 }}>{t('s.hhNotes')}</SectionLabel>
-      <GlassCard variant="solid" pad={14}>
-        <TextInput
-          value={noteDraft}
-          onChangeText={setNoteDraft}
-          placeholder={t('s.hhNotePh')}
-          placeholderTextColor={colors.textSecondary}
-          multiline
-          editable={!busy}
-          style={[inputStyle, { minHeight: 58, textAlignVertical: 'top' }]}/>
-        <ActionPill label={t('s.hhAdd')} icon={<Plus size={13} color={colors.accent} />} disabled={!noteDraft.trim() || busy} onPress={() => void doAddNote()} />
-        {!notes.length ? <EmptyLine text={t('s.hhFeedEmpty')} /> : null}
-        {notes.slice(0, 6).map((n) => (
-          <View key={n.id} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingTop: 10 }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 13, color: colors.textPrimary, lineHeight: 19 }}>{n.body}</Text>
-              <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>{n.authorName}</Text>
-            </View>
-            <Pressable onPress={() => void run(() => removeNote(n.id))} hitSlop={6}>
-              <Trash2 size={13} color={colors.rose} />
-            </Pressable>
-          </View>
-        ))}
       </GlassCard>
 
       <SectionLabel style={{ marginTop: 18 }}>{t('s.hhExpenses')}</SectionLabel>
