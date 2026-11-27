@@ -40,6 +40,10 @@ function collectSecrets() {
     }
     for (const line of text.split(/\r?\n/)) {
       const match = /^(OPENROUTER_API_KEY(_\d+)?)=(sk-or-v1-[^\s#]+)/.exec(line.trim());
+      const gem = /^(GEMINI_API_KEY)=([A-Za-z0-9._-]{20,})/.exec(line.trim());
+      if (gem) out.set(gem[1], gem[2]);
+      const nv = /^(NVIDIA_API_KEY)=(nvapi-[^\s#]+)/.exec(line.trim());
+      if (nv) out.set(nv[1], nv[2]);
       if (match) out.set(match[1], match[3]);
     }
   }

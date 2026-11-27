@@ -96,12 +96,39 @@ function freeModels(): string[] {
 
 type Attempt = { ok: boolean; status: number; content?: string; detail?: string };
 
-type Provider = { name: 'openrouter'; endpoint: string };
+type Provider = { name: string; endpoint: string; extra?: Record<string, unknown> };
 
-const OPENROUTER: Provider = { name: 'openrouter', endpoint: ENDPOINT };
+const OPENROUTER: Provider = {
+  name: 'openrouter',
+  endpoint: ENDPOINT,
+  // The free models are reasoning models. With a low reasoning budget they answer
+  // in seconds; without it they spend every token on thinking and return no content.
+  extra: { reasoning: { effort: 'low' } },
+};
 
-function reasoningExtra(): Record<string, unknown> {
-  return { reasoning: { effort: 'low' } };
+// Direct free tiers, used before OpenRouter. Both are OpenAI-compatible and were
+// verified from our networks: Gemini (flash-lite ~1 s) and NVIDIA NIM
+// (nemotron-3.5-lightning ~2 s). A provider without a key is skipped silently.
+const FREE_TIERS: Provider[] = [
+  { name: 'gemini', endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions' },
+  { name: 'nvidia', endpoint: 'https://integrate.api.nvidia.com/v1/chat/completions', extra: { reasoning_effort: 'low' } },
+];
+
+const FREE_TIER_MODELS: Record<string, string[]> = {
+  gemini: ['gemini-flash-lite-latest', 'gemini-3.8-flash'],
+  nvidia: ['nvidia/nemotron-3.5-lightning-30b-a3b', 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning'],
+};
+
+const FREE_TIER_KEYS: Record<string, string> = {
+  gemini: 'GEMINI_API_KEY',
+  nvidia: 'NVIDIA_API_KEY',
+};
+
+// A provider that reports a rejected key or missing credits is paused, so it costs
+// one fast request instead of one per model on every following recipe.
+const providerDown = new Map<string, number>();
+function providerReady(name: string): boolean {
+  return (providerDown.get(name) ?? 0) < Date.now();
 }
 
 async function attempt(
@@ -111,9 +138,7 @@ async function attempt(
   body: Record<string, unknown>,
   withJson: boolean,
 ): Promise<Attempt> {
-  // The free models are reasoning models. With a low reasoning budget they answer
-  // in seconds; without it they spend every token on thinking and return no content.
-  const variants: Record<string, unknown>[] = [reasoningExtra(), {}];
+  const variants: Record<string, unknown>[] = [provider.extra ?? {}, {}];
   let last: Attempt = { ok: false, status: 0, detail: 'not attempted' };
   for (const extra of variants) {
     try {
@@ -136,6 +161,9 @@ async function attempt(
       if (!res.ok) {
         const detail = (await res.text().catch(() => '')).slice(0, 300);
         if (res.status === 429 || res.status === 402) blockedUntil.set(key, Date.now() + 10 * 60 * 1000);
+        if (res.status === 401 || res.status === 402 || res.status === 403) {
+          providerDown.set(provider.name, Date.now() + 30 * 60 * 1000);
+        }
         last = { ok: false, status: res.status, detail };
         if (res.status === 400 && /reasoning/i.test(detail) && Object.keys(extra).length) continue;
         return last;
@@ -261,8 +289,13 @@ Deno.serve(async (req: Request) => {
     if (!paid) freeErrors.push(message);
   };
 
-  const tryModel = async (model: string, paid: boolean, provider: Provider = OPENROUTER): Promise<Response | null> => {
-    const pool = openRouterPool;
+  const tryModel = async (
+    model: string,
+    paid: boolean,
+    provider: Provider = OPENROUTER,
+    keyOverride?: string,
+  ): Promise<Response | null> => {
+    const pool = keyOverride ? [keyOverride] : openRouterPool;
     let tried = 0;
     for (const key of pool) {
       if (tried >= KEYS_PER_MODEL) break;
@@ -328,7 +361,18 @@ Deno.serve(async (req: Request) => {
     return null;
   };
 
-  // OpenRouter free models.
+  // 1) Direct free tiers (Gemini, NVIDIA), each with its own key and quota.
+  for (const tier of FREE_TIERS) {
+    const key = (Deno.env.get(FREE_TIER_KEYS[tier.name]) ?? '').trim();
+    if (!key || !providerReady(tier.name)) continue;
+    deadline = Date.now() + 25_000;
+    for (const model of FREE_TIER_MODELS[tier.name] ?? []) {
+      const done = await tryModel(model, false, tier, key);
+      if (done) return done;
+    }
+  }
+
+  // 2) OpenRouter free models.
   deadline = Date.now() + 60_000;
   for (const model of models) {
     const done = await tryModel(model, false);
